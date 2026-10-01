@@ -1,0 +1,27 @@
+[package]
+name = "bp-app"
+description = "Blueprint desktop app"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+
+[[bin]]
+name = "blueprint"
+path = "src/main.rs"
+
+[dependencies]
+bp-commands.workspace = true
+bp-export.workspace = true
+bp-geom.workspace = true
+bp-io.workspace = true
+bp-model.workspace = true
+bp-render-egui.workspace = true
+bp-scene.workspace = true
+eframe.workspace = true
+egui.workspace = true
+kurbo.workspace = true
+rfd.workspace = true
+
+[lints]
+workspace = true

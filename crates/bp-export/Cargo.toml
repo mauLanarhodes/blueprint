@@ -1,0 +1,15 @@
+[package]
+name = "bp-export"
+description = "Blueprint exporters (SVG in Phase 0; PNG, JPEG, WebP and PDF build on it)"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+
+[dependencies]
+bp-model.workspace = true
+bp-scene.workspace = true
+kurbo.workspace = true
+
+[lints]
+workspace = true

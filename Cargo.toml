@@ -1,0 +1,48 @@
+[workspace]
+resolver = "3"
+members = ["crates/*"]
+
+[workspace.package]
+version = "0.1.0"
+edition = "2024"
+rust-version = "1.95"
+license = "MIT OR Apache-2.0"
+authors = ["Blueprint contributors"]
+
+[workspace.dependencies]
+# Internal crates
+bp-model = { path = "crates/bp-model" }
+bp-geom = { path = "crates/bp-geom" }
+bp-commands = { path = "crates/bp-commands" }
+bp-io = { path = "crates/bp-io" }
+bp-scene = { path = "crates/bp-scene" }
+bp-export = { path = "crates/bp-export" }
+bp-render-egui = { path = "crates/bp-render-egui" }
+
+# External crates
+eframe = { version = "0.36", features = ["glow"] }
+egui = "0.36"
+kurbo = { version = "0.13", features = ["serde"] }
+rfd = "0.17"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+thiserror = "2"
+uuid = { version = "1.26", features = ["v7", "serde"] }
+zip = { version = "8.6", default-features = false, features = ["deflate-flate2-zlib-rs"] }
+
+[workspace.lints.rust]
+unsafe_code = "forbid"
+
+[workspace.lints.clippy]
+all = { level = "warn", priority = -1 }
+
+[profile.release]
+lto = "thin"
+codegen-units = 1
+strip = true
+# Keep unwinding so a crash handler can write a recovery file (see plan).
+panic = "unwind"
+
+# Image-heavy dependencies are slow in debug builds; optimise them even in dev.
+[profile.dev.package."*"]
+opt-level = 2

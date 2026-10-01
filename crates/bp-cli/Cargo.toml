@@ -1,0 +1,23 @@
+[package]
+name = "bp-cli"
+description = "Blueprint command-line tool: headless export and file checks"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+
+[[bin]]
+name = "blueprint-cli"
+path = "src/main.rs"
+
+[dependencies]
+bp-export.workspace = true
+bp-io.workspace = true
+bp-model.workspace = true
+
+[dev-dependencies]
+bp-commands.workspace = true
+kurbo.workspace = true
+
+[lints]
+workspace = true

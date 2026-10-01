@@ -1,0 +1,219 @@
+//! Reading and writing `.blueprint` project files.
+//!
+//! A `.blueprint` file is a zip archive holding `document.json`; later phases
+//! add `assets/` and a thumbnail. A file whose name ends in `.json` is saved
+//! as plain, pretty-printed JSON for readable Git diffs. When opening, the
+//! format is detected from the content, not the extension.
+
+use bp_model::{Document, ModelError, SCHEMA_VERSION};
+use serde_json::Value;
+use std::fs::{self, File};
+use std::io::{Cursor, Read, Write};
+use std::path::{Path, PathBuf};
+use zip::write::SimpleFileOptions;
+use zip::{CompressionMethod, ZipArchive, ZipWriter};
+
+pub const FILE_EXTENSION: &str = "blueprint";
+const DOCUMENT_ENTRY: &str = "document.json";
+const ZIP_MAGIC: &[u8] = b"PK\x03\x04";
+
+#[derive(Debug, thiserror::Error)]
+pub enum IoError {
+    #[error("could not read or write the file: {0}")]
+    Io(#[from] std::io::Error),
+    #[error("the file is not a valid Blueprint project: {0}")]
+    Json(#[from] serde_json::Error),
+    #[error("the project archive is damaged: {0}")]
+    Zip(#[from] zip::result::ZipError),
+    #[error("the project is inconsistent: {0}")]
+    Model(#[from] ModelError),
+    #[error(
+        "the file was made by a newer Blueprint (format {found}, this build reads up to {SCHEMA_VERSION})"
+    )]
+    TooNew { found: u64 },
+    #[error("the file has no schema_version field")]
+    NoVersion,
+}
+
+/// Saves `doc` to `path` atomically: the old file stays intact until the new
+/// one is completely written.
+pub fn save(doc: &Document, path: &Path) -> Result<(), IoError> {
+    let bytes = if is_json_path(path) {
+        to_json_bytes(doc)?
+    } else {
+        to_zip_bytes(doc)?
+    };
+    atomic_write(path, &bytes)
+}
+
+pub fn load(path: &Path) -> Result<Document, IoError> {
+    from_bytes(&fs::read(path)?)
+}
+
+/// Parses either format.
+pub fn from_bytes(bytes: &[u8]) -> Result<Document, IoError> {
+    if bytes.starts_with(ZIP_MAGIC) {
+        let mut archive = ZipArchive::new(Cursor::new(bytes))?;
+        let mut json = Vec::new();
+        archive.by_name(DOCUMENT_ENTRY)?.read_to_end(&mut json)?;
+        from_json_bytes(&json)
+    } else {
+        from_json_bytes(bytes)
+    }
+}
+
+pub fn to_zip_bytes(doc: &Document) -> Result<Vec<u8>, IoError> {
+    let mut zip = ZipWriter::new(Cursor::new(Vec::new()));
+    let options = SimpleFileOptions::default().compression_method(CompressionMethod::Deflated);
+    zip.start_file(DOCUMENT_ENTRY, options)?;
+    zip.write_all(&to_json_bytes(doc)?)?;
+    Ok(zip.finish()?.into_inner())
+}
+
+pub fn to_json_bytes(doc: &Document) -> Result<Vec<u8>, IoError> {
+    let mut bytes = serde_json::to_vec_pretty(doc)?;
+    bytes.push(b'\n');
+    Ok(bytes)
+}
+
+fn from_json_bytes(bytes: &[u8]) -> Result<Document, IoError> {
+    let value: Value = serde_json::from_slice(bytes)?;
+    let doc: Document = serde_json::from_value(migrate(value)?)?;
+    doc.validate()?;
+    Ok(doc)
+}
+
+/// Upgrades older files to the current schema, one version at a time.
+fn migrate(value: Value) -> Result<Value, IoError> {
+    let version = value
+        .get("schema_version")
+        .and_then(Value::as_u64)
+        .ok_or(IoError::NoVersion)?;
+    if version > u64::from(SCHEMA_VERSION) {
+        return Err(IoError::TooNew { found: version });
+    }
+    // Future migrations go here, e.g.
+    // if version < 2 { value = v1_to_v2(value); }
+    Ok(value)
+}
+
+fn is_json_path(path: &Path) -> bool {
+    path.extension()
+        .is_some_and(|e| e.eq_ignore_ascii_case("json"))
+}
+
+/// Writes to a hidden temp file next to `path`, flushes it to disk, then
+/// renames it over `path` (rename replaces the target on Windows too).
+fn atomic_write(path: &Path, bytes: &[u8]) -> Result<(), IoError> {
+    let tmp = temp_path(path);
+    let result = (|| {
+        let mut file = File::create(&tmp)?;
+        file.write_all(bytes)?;
+        file.sync_all()?;
+        drop(file);
+        fs::rename(&tmp, path)
+    })();
+    if result.is_err() {
+        let _ = fs::remove_file(&tmp);
+    }
+    Ok(result?)
+}
+
+fn temp_path(path: &Path) -> PathBuf {
+    let name = path
+        .file_name()
+        .map_or_else(|| "document".into(), |n| n.to_string_lossy().into_owned());
+    path.with_file_name(format!(".{name}.tmp"))
+}
+
+/// Adds `.blueprint` unless the path already ends in `.blueprint` or `.json`.
+pub fn with_default_extension(path: PathBuf) -> PathBuf {
+    match path.extension().and_then(|e| e.to_str()) {
+        Some(e) if e.eq_ignore_ascii_case(FILE_EXTENSION) || e.eq_ignore_ascii_case("json") => path,
+        _ => {
+            let mut s = path.into_os_string();
+            s.push(".");
+            s.push(FILE_EXTENSION);
+            PathBuf::from(s)
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use bp_model::{Element, ShapeKind};
+    use kurbo::Rect;
+
+    fn sample() -> Document {
+        let mut doc = Document::new();
+        let page = doc.first_page().unwrap();
+        let layer = doc.layers_of(page)[0].id;
+        let mut el = Element::new(
+            ShapeKind::Ellipse,
+            layer,
+            doc.next_order_key(layer),
+            Rect::new(10.0, 20.0, 110.0, 80.0),
+        );
+        el.text = "Hello".into();
+        doc.elements.insert(el.id, el);
+        doc
+    }
+
+    fn scratch_dir(name: &str) -> PathBuf {
+        let dir = std::env::temp_dir().join(format!("bp-io-test-{name}-{}", std::process::id()));
+        fs::create_dir_all(&dir).unwrap();
+        dir
+    }
+
+    #[test]
+    fn zip_round_trip_on_disk() {
+        let dir = scratch_dir("zip");
+        let path = dir.join("plan.blueprint");
+        let doc = sample();
+        save(&doc, &path).unwrap();
+        assert!(fs::read(&path).unwrap().starts_with(ZIP_MAGIC));
+        assert_eq!(load(&path).unwrap(), doc);
+        assert!(!temp_path(&path).exists());
+        fs::remove_dir_all(dir).unwrap();
+    }
+
+    #[test]
+    fn json_round_trip_on_disk() {
+        let dir = scratch_dir("json");
+        let path = dir.join("plan.blueprint.json");
+        let doc = sample();
+        save(&doc, &path).unwrap();
+        assert!(
+            fs::read_to_string(&path)
+                .unwrap()
+                .contains("\"schema_version\": 1")
+        );
+        assert_eq!(load(&path).unwrap(), doc);
+        fs::remove_dir_all(dir).unwrap();
+    }
+
+    #[test]
+    fn rejects_newer_schema() {
+        let mut value = serde_json::to_value(sample()).unwrap();
+        value["schema_version"] = 999.into();
+        let err = from_bytes(&serde_json::to_vec(&value).unwrap()).unwrap_err();
+        assert!(matches!(err, IoError::TooNew { found: 999 }));
+    }
+
+    #[test]
+    fn rejects_inconsistent_documents() {
+        let mut doc = sample();
+        doc.layers.clear();
+        let err = from_bytes(&to_json_bytes(&doc).unwrap()).unwrap_err();
+        assert!(matches!(err, IoError::Model(_)));
+    }
+
+    #[test]
+    fn default_extension() {
+        let p = |s: &str| with_default_extension(PathBuf::from(s));
+        assert_eq!(p("a"), PathBuf::from("a.blueprint"));
+        assert_eq!(p("a.blueprint"), PathBuf::from("a.blueprint"));
+        assert_eq!(p("a.JSON"), PathBuf::from("a.JSON"));
+    }
+}

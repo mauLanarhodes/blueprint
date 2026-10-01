@@ -1,0 +1,19 @@
+[package]
+name = "bp-io"
+description = "Blueprint project files: save, open, atomic writes and schema migration"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+
+[dependencies]
+bp-model.workspace = true
+serde_json.workspace = true
+thiserror.workspace = true
+zip.workspace = true
+
+[dev-dependencies]
+kurbo.workspace = true
+
+[lints]
+workspace = true

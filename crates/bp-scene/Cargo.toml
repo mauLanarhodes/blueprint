@@ -1,0 +1,15 @@
+[package]
+name = "bp-scene"
+description = "Blueprint scene builder: document to render-agnostic display list"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+
+[dependencies]
+bp-geom.workspace = true
+bp-model.workspace = true
+kurbo.workspace = true
+
+[lints]
+workspace = true

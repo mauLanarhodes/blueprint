@@ -1,0 +1,16 @@
+[package]
+name = "bp-render-egui"
+description = "Draws a Blueprint display list with egui's painter"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+
+[dependencies]
+bp-model.workspace = true
+bp-scene.workspace = true
+egui.workspace = true
+kurbo.workspace = true
+
+[lints]
+workspace = true
