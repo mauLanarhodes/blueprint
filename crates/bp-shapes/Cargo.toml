@@ -1,0 +1,16 @@
+[package]
+name = "bp-shapes"
+description = "Blueprint shape libraries: declarative shape definitions (basic, flowchart)"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+
+[dependencies]
+bp-geom.workspace = true
+bp-model.workspace = true
+serde.workspace = true
+toml.workspace = true
+
+[lints]
+workspace = true

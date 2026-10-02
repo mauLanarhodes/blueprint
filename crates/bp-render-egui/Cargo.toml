@@ -9,8 +9,10 @@ license.workspace = true
 [dependencies]
 bp-model.workspace = true
 bp-scene.workspace = true
+bp-text.workspace = true
 egui.workspace = true
 kurbo.workspace = true
+lyon_tessellation.workspace = true
 
 [lints]
 workspace = true

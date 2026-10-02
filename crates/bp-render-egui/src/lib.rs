@@ -1,13 +1,25 @@
 //! Draws a [`DisplayList`] with egui's painter, plus the view transform
 //! (pan and zoom) between page units and screen points.
 //!
-//! Phase 0 shapes are all convex, so egui's convex-polygon fill is enough.
-//! Concave paths (Phase 1 connectors and stencils) will need tessellation.
+//! Convex fills use egui's anti-aliased polygons; concave ones (stars,
+//! clouds, documents) are tessellated with lyon. Dashes are cut in page
+//! units, as the SVG export does, so both show the same pattern.
 
-use bp_model::Color;
-use bp_scene::{DisplayList, Primitive, line_centers};
-use egui::{Align2, Color32, FontId, Painter, Pos2, Rect, Shape, Stroke, Vec2};
-use kurbo::{PathEl, Point};
+use bp_model::{Color, ElementId, TextAlign};
+use bp_scene::{DisplayList, Primitive, Stroke as SceneStroke, TextRun};
+use bp_text::Face;
+use egui::epaint::{Mesh, Vertex, WHITE_UV};
+use egui::{
+    Align2, Color32, FontData, FontDefinitions, FontFamily, FontId, Painter, Pos2, Rect, Shape,
+    Stroke, Vec2,
+};
+use kurbo::{BezPath, PathEl, Point};
+use lyon_tessellation::math::point as lyon_point;
+use lyon_tessellation::path::Path as LyonPath;
+use lyon_tessellation::{
+    BuffersBuilder, FillOptions, FillRule, FillTessellator, FillVertex, VertexBuffers,
+};
+use std::sync::Arc;
 
 pub const MIN_ZOOM: f32 = 0.05;
 pub const MAX_ZOOM: f32 = 32.0;
@@ -50,6 +62,11 @@ impl Viewport {
         kurbo::Rect::from_points(self.to_page(origin, r.min), self.to_page(origin, r.max))
     }
 
+    /// Page units per screen point.
+    pub fn page_per_point(&self) -> f64 {
+        1.0 / f64::from(self.zoom)
+    }
+
     /// Zooms by `factor`, keeping the page point under `anchor` still.
     pub fn zoom_around(&mut self, origin: Pos2, anchor: Pos2, factor: f32) {
         let fixed = self.to_page(origin, anchor);
@@ -74,6 +91,49 @@ pub fn color32(c: Color) -> Color32 {
     Color32::from_rgba_unmultiplied(c.r, c.g, c.b, c.a)
 }
 
+/// The egui font family that draws `face`.
+pub fn font_family(face: Face) -> FontFamily {
+    FontFamily::Name(face.name().into())
+}
+
+/// Whether the bundled faces are loaded in `ctx` yet. Fonts set with
+/// [`egui::Context::set_fonts`] arrive on the next frame, and asking egui
+/// for a family it doesn't know panics.
+pub fn bundled_fonts_ready(ctx: &egui::Context) -> bool {
+    ctx.fonts(|f| f.families().contains(&font_family(Face::Regular)))
+}
+
+/// A font for `face` at `size` points, or egui's default font until the
+/// bundled faces are loaded.
+pub fn text_font(ctx: &egui::Context, face: Face, size: f32) -> FontId {
+    if bundled_fonts_ready(ctx) {
+        FontId::new(size, font_family(face))
+    } else {
+        FontId::proportional(size)
+    }
+}
+
+/// Font definitions with the bundled Inter faces: one named family per
+/// face for the canvas, and Inter as the UI's proportional font (egui's
+/// own fonts stay as fallbacks for symbols and emoji). Add more fonts if
+/// needed, then pass the result to [`egui::Context::set_fonts`].
+pub fn font_definitions() -> FontDefinitions {
+    let mut fonts = FontDefinitions::default();
+    for face in Face::ALL {
+        let name = face.name().to_owned();
+        fonts
+            .font_data
+            .insert(name.clone(), Arc::new(FontData::from_static(face.data())));
+        let mut chain = vec![name];
+        chain.extend(fonts.families[&FontFamily::Proportional].iter().cloned());
+        fonts.families.insert(font_family(face), chain);
+    }
+    if let Some(ui) = fonts.families.get_mut(&FontFamily::Proportional) {
+        ui.insert(0, Face::Regular.name().to_owned());
+    }
+    fonts
+}
+
 /// Paints `list`, skipping items outside the painter's clip rect.
 /// `hide_text_of` hides the text of the element being edited in place.
 pub fn paint(
@@ -81,61 +141,62 @@ pub fn paint(
     origin: Pos2,
     view: &Viewport,
     list: &DisplayList,
-    hide_text_of: Option<bp_model::ElementId>,
+    hide_text_of: Option<ElementId>,
 ) {
     let clip = painter.clip_rect();
     let tolerance = 0.25 / f64::from(view.zoom);
-    for item in &list.items {
+    let bundled = bundled_fonts_ready(painter.ctx());
+    for item in list.items() {
         if !clip.intersects(view.rect_to_screen(origin, item.bbox)) {
             continue;
         }
         match &item.primitive {
             Primitive::Path { path, fill, stroke } => {
-                let stroke = stroke.map_or(Stroke::NONE, |s| {
-                    Stroke::new((s.width as f32 * view.zoom).max(0.5), color32(s.color))
-                });
-                let fill = fill.map_or(Color32::TRANSPARENT, color32);
-                for (points, closed) in flatten(path, tolerance, view, origin) {
-                    if closed {
-                        painter.add(Shape::convex_polygon(points, fill, stroke));
-                    } else {
-                        painter.add(Shape::line(points, stroke));
-                    }
+                if let Some(fill) = fill {
+                    paint_fill(painter, origin, view, path, color32(*fill), tolerance);
+                }
+                if let Some(stroke) = stroke {
+                    paint_stroke(painter, origin, view, path, stroke, tolerance);
                 }
             }
-            Primitive::Text {
-                center,
-                lines,
-                font_size,
-                color,
-            } => {
-                if hide_text_of == Some(item.element) {
-                    continue;
-                }
-                let size = *font_size as f32 * view.zoom;
-                if size < 2.0 {
-                    continue; // unreadable at this zoom; skip the work
-                }
-                for (line, at) in lines
-                    .iter()
-                    .zip(line_centers(*center, lines.len(), *font_size))
-                {
-                    painter.text(
-                        view.to_screen(origin, at),
-                        Align2::CENTER_CENTER,
-                        line,
-                        FontId::proportional(size),
-                        color32(*color),
-                    );
+            Primitive::Text(run) => {
+                if hide_text_of != Some(item.element) {
+                    paint_text(painter, origin, view, run, bundled);
                 }
             }
         }
     }
 }
 
-/// Flattens a Bézier path into screen-space polylines: `(points, closed)`.
+fn paint_text(painter: &Painter, origin: Pos2, view: &Viewport, run: &TextRun, bundled: bool) {
+    let size = run.size as f32 * view.zoom;
+    if size < 2.0 {
+        return; // unreadable at this zoom; skip the work
+    }
+    let ascent = bp_text::metrics(run.face, run.size).ascent;
+    let align = match run.align {
+        TextAlign::Left => Align2::LEFT_TOP,
+        TextAlign::Center => Align2::CENTER_TOP,
+        TextAlign::Right => Align2::RIGHT_TOP,
+    };
+    let family = if bundled {
+        font_family(run.face)
+    } else {
+        FontFamily::Proportional
+    };
+    let font = FontId::new(size, family);
+    for line in &run.lines {
+        if line.text.is_empty() {
+            continue;
+        }
+        let top = view.to_screen(origin, Point::new(line.x, line.baseline - ascent));
+        painter.text(top, align, &line.text, font.clone(), color32(run.color));
+    }
+}
+
+/// Flattens a path into screen-space polylines: `(points, closed)`.
 fn flatten(
-    path: &kurbo::BezPath,
+    path: &BezPath,
     tolerance: f64,
     view: &Viewport,
     origin: Pos2,
@@ -167,6 +228,127 @@ fn flatten(
         out.push((current, false));
     }
     out
+}
+
+/// Whether a closed polygon turns the same way at every corner.
+fn is_convex(points: &[Pos2]) -> bool {
+    let n = points.len();
+    if n < 3 {
+        return false;
+    }
+    let mut sign = 0.0f32;
+    for i in 0..n {
+        let (a, b, c) = (points[i], points[(i + 1) % n], points[(i + 2) % n]);
+        let cross = (b - a).x * (c - b).y - (b - a).y * (c - b).x;
+        if cross.abs() < 1e-3 {
+            continue;
+        }
+        if sign == 0.0 {
+            sign = cross.signum();
+        } else if cross.signum() != sign {
+            return false;
+        }
+    }
+    sign != 0.0
+}
+
+fn paint_fill(
+    painter: &Painter,
+    origin: Pos2,
+    view: &Viewport,
+    path: &BezPath,
+    fill: Color32,
+    tolerance: f64,
+) {
+    let polygons: Vec<Vec<Pos2>> = flatten(path, tolerance, view, origin)
+        .into_iter()
+        .filter(|(_, closed)| *closed)
+        .map(|(points, _)| points)
+        .collect();
+    match polygons.as_slice() {
+        [] => {}
+        [single] if is_convex(single) => {
+            painter.add(Shape::convex_polygon(single.clone(), fill, Stroke::NONE));
+        }
+        _ => {
+            if let Some(mesh) = tessellate(&polygons, fill) {
+                painter.add(Shape::mesh(mesh));
+            }
+            // A hairline in the fill colour anti-aliases the mesh's edges.
+            for polygon in &polygons {
+                painter.add(Shape::closed_line(polygon.clone(), Stroke::new(0.75, fill)));
+            }
+        }
+    }
+}
+
+/// Fills any polygons (concave, self-intersecting, with holes) with the
+/// non-zero rule, as SVG does by default.
+fn tessellate(polygons: &[Vec<Pos2>], fill: Color32) -> Option<Mesh> {
+    let mut builder = LyonPath::builder();
+    for polygon in polygons {
+        let (first, rest) = polygon.split_first()?;
+        builder.begin(lyon_point(first.x, first.y));
+        for p in rest {
+            builder.line_to(lyon_point(p.x, p.y));
+        }
+        builder.end(true);
+    }
+    let path = builder.build();
+    let mut buffers: VertexBuffers<Pos2, u32> = VertexBuffers::new();
+    let options = FillOptions::default().with_fill_rule(FillRule::NonZero);
+    FillTessellator::new()
+        .tessellate_path(
+            &path,
+            &options,
+            &mut BuffersBuilder::new(&mut buffers, |v: FillVertex| {
+                let p = v.position();
+                Pos2::new(p.x, p.y)
+            }),
+        )
+        .ok()?;
+    Some(Mesh {
+        indices: buffers.indices,
+        vertices: buffers
+            .vertices
+            .into_iter()
+            .map(|pos| Vertex {
+                pos,
+                uv: WHITE_UV,
+                color: fill,
+            })
+            .collect(),
+        ..Mesh::default()
+    })
+}
+
+fn paint_stroke(
+    painter: &Painter,
+    origin: Pos2,
+    view: &Viewport,
+    path: &BezPath,
+    stroke: &SceneStroke,
+    tolerance: f64,
+) {
+    let egui_stroke = Stroke::new(
+        (stroke.width as f32 * view.zoom).max(0.5),
+        color32(stroke.color),
+    );
+    let dashed;
+    let path = match stroke.dash {
+        Some([on, off]) => {
+            dashed = BezPath::from_iter(kurbo::dash(path.iter(), 0.0, &[on, off]));
+            &dashed
+        }
+        None => path,
+    };
+    for (points, closed) in flatten(path, tolerance, view, origin) {
+        if closed {
+            painter.add(Shape::closed_line(points, egui_stroke));
+        } else {
+            painter.add(Shape::line(points, egui_stroke));
+        }
+    }
 }
 
 /// Draws grid lines every `spacing` page units, doubling the spacing until
@@ -232,5 +414,41 @@ mod tests {
             view.to_screen(Pos2::ZERO, Point::new(100.0, 50.0)),
             Pos2::new(400.0, 300.0)
         );
+    }
+
+    #[test]
+    fn convexity() {
+        let square = [
+            Pos2::new(0.0, 0.0),
+            Pos2::new(1.0, 0.0),
+            Pos2::new(1.0, 1.0),
+            Pos2::new(0.0, 1.0),
+        ];
+        assert!(is_convex(&square));
+        let arrow = [
+            Pos2::new(0.0, 0.0),
+            Pos2::new(2.0, 1.0),
+            Pos2::new(0.0, 2.0),
+            Pos2::new(0.5, 1.0),
+        ];
+        assert!(!is_convex(&arrow));
+    }
+
+    #[test]
+    fn concave_shapes_tessellate() {
+        let star: Vec<Pos2> = (0..10)
+            .map(|i| {
+                let a = std::f32::consts::TAU * i as f32 / 10.0;
+                let r = if i % 2 == 0 { 10.0 } else { 4.0 };
+                Pos2::new(r * a.cos(), r * a.sin())
+            })
+            .collect();
+        let mesh = tessellate(&[star], Color32::RED).unwrap();
+        assert!(
+            mesh.indices.len() >= 8 * 3,
+            "{} indices",
+            mesh.indices.len()
+        );
+        assert!(mesh.vertices.iter().all(|v| v.color == Color32::RED));
     }
 }

@@ -1,0 +1,123 @@
+{
+  "schema_version": 1,
+  "pages": {
+    "01a0f925-528b-7716-b39f-1960c9b56f18": {
+      "id": "01a0f925-528b-7716-b39f-1960c9b56f18",
+      "name": "Page 1",
+      "order": "V",
+      "background": "#ffffff"
+    }
+  },
+  "layers": {
+    "01a0f925-528b-7716-b39f-196192e46dc5": {
+      "id": "01a0f925-528b-7716-b39f-196192e46dc5",
+      "page": "01a0f925-528b-7716-b39f-1960c9b56f18",
+      "name": "Layer 1",
+      "order": "V",
+      "visible": true,
+      "locked": false
+    }
+  },
+  "elements": {
+    "01a0f925-528b-7716-b39f-196225d947f4": {
+      "id": "01a0f925-528b-7716-b39f-196225d947f4",
+      "layer": "01a0f925-528b-7716-b39f-196192e46dc5",
+      "order": "V",
+      "kind": "rounded_rectangle",
+      "bounds": {
+        "x0": 0.0,
+        "y0": 0.0,
+        "x1": 160.0,
+        "y1": 70.0
+      },
+      "text": "Web app",
+      "style": {
+        "fill": "#ffffff",
+        "stroke": "#1f2937",
+        "stroke_width": 1.5,
+        "text_color": "#111827",
+        "font_size": 14.0
+      }
+    },
+    "01a0f925-528b-7716-b39f-196375b7ad26": {
+      "id": "01a0f925-528b-7716-b39f-196375b7ad26",
+      "layer": "01a0f925-528b-7716-b39f-196192e46dc5",
+      "order": "l",
+      "kind": "diamond",
+      "bounds": {
+        "x0": 220.0,
+        "y0": -10.0,
+        "x1": 340.0,
+        "y1": 80.0
+      },
+      "text": "Signed in?",
+      "style": {
+        "fill": "#ffffff",
+        "stroke": "#1f2937",
+        "stroke_width": 1.5,
+        "text_color": "#111827",
+        "font_size": 14.0
+      }
+    },
+    "01a0f925-528b-7716-b39f-1964a593187f": {
+      "id": "01a0f925-528b-7716-b39f-1964a593187f",
+      "layer": "01a0f925-528b-7716-b39f-196192e46dc5",
+      "order": "t",
+      "kind": "rectangle",
+      "bounds": {
+        "x0": 400.0,
+        "y0": 0.0,
+        "x1": 560.0,
+        "y1": 70.0
+      },
+      "text": "Orders API",
+      "style": {
+        "fill": "#ffffff",
+        "stroke": "#1f2937",
+        "stroke_width": 1.5,
+        "text_color": "#111827",
+        "font_size": 14.0
+      }
+    },
+    "01a0f925-528b-7716-b39f-196560b16d6f": {
+      "id": "01a0f925-528b-7716-b39f-196560b16d6f",
+      "layer": "01a0f925-528b-7716-b39f-196192e46dc5",
+      "order": "x",
+      "kind": "ellipse",
+      "bounds": {
+        "x0": 400.0,
+        "y0": 140.0,
+        "x1": 560.0,
+        "y1": 220.0
+      },
+      "text": "Postgres",
+      "style": {
+        "fill": "#dbeafe",
+        "stroke": "#1f2937",
+        "stroke_width": 1.5,
+        "text_color": "#111827",
+        "font_size": 14.0
+      }
+    },
+    "01a0f925-528b-7716-b39f-1966ea91010a": {
+      "id": "01a0f925-528b-7716-b39f-1966ea91010a",
+      "layer": "01a0f925-528b-7716-b39f-196192e46dc5",
+      "order": "z",
+      "kind": "text",
+      "bounds": {
+        "x0": 0.0,
+        "y0": 140.0,
+        "x1": 200.0,
+        "y1": 170.0
+      },
+      "text": "Phase 0 gate",
+      "style": {
+        "fill": null,
+        "stroke": null,
+        "stroke_width": 1.5,
+        "text_color": "#111827",
+        "font_size": 14.0
+      }
+    }
+  }
+}

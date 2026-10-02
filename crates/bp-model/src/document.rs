@@ -1,53 +1,9 @@
-use crate::{Color, ElementId, LayerId, OrderKey, PageId, Style};
-use kurbo::Rect;
+use crate::{Color, Element, ElementId, ElementKind, LayerId, OrderKey, PageId, Parent};
 use serde::{Deserialize, Serialize};
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, HashMap, HashSet};
 
 /// Bumped whenever the file format changes; `bp-io` migrates older files.
-pub const SCHEMA_VERSION: u32 = 1;
-
-/// The shapes available in Phase 0. ERD, cloud and flowchart shapes come
-/// from shape libraries in later phases.
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
-#[serde(rename_all = "snake_case")]
-pub enum ShapeKind {
-    Rectangle,
-    RoundedRectangle,
-    Ellipse,
-    Diamond,
-    Text,
-}
-
-impl ShapeKind {
-    pub const ALL: [ShapeKind; 5] = [
-        ShapeKind::Rectangle,
-        ShapeKind::RoundedRectangle,
-        ShapeKind::Ellipse,
-        ShapeKind::Diamond,
-        ShapeKind::Text,
-    ];
-
-    pub fn label(self) -> &'static str {
-        match self {
-            ShapeKind::Rectangle => "Rectangle",
-            ShapeKind::RoundedRectangle => "Rounded rectangle",
-            ShapeKind::Ellipse => "Ellipse",
-            ShapeKind::Diamond => "Diamond",
-            ShapeKind::Text => "Text",
-        }
-    }
-
-    pub fn default_style(self) -> Style {
-        match self {
-            ShapeKind::Text => Style {
-                fill: None,
-                stroke: None,
-                ..Style::default()
-            },
-            _ => Style::default(),
-        }
-    }
-}
+pub const SCHEMA_VERSION: u32 = 2;
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct Page {
@@ -56,6 +12,17 @@ pub struct Page {
     pub order: OrderKey,
     #[serde(default = "default_background")]
     pub background: Color,
+}
+
+impl Page {
+    pub fn new(name: impl Into<String>, order: OrderKey) -> Self {
+        Self {
+            id: PageId::new(),
+            name: name.into(),
+            order,
+            background: Color::WHITE,
+        }
+    }
 }
 
 fn default_background() -> Color {
@@ -74,37 +41,21 @@ pub struct Layer {
     pub locked: bool,
 }
 
-fn yes() -> bool {
-    true
-}
-
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
-pub struct Element {
-    pub id: ElementId,
-    pub layer: LayerId,
-    pub order: OrderKey,
-    pub kind: ShapeKind,
-    /// Axis-aligned bounds in page units (1 unit = 1 CSS pixel at 100% zoom).
-    pub bounds: Rect,
-    #[serde(default, skip_serializing_if = "String::is_empty")]
-    pub text: String,
-    #[serde(default)]
-    pub style: Style,
-}
-
-impl Element {
-    /// A new element with the kind's default style. `bounds` is normalised.
-    pub fn new(kind: ShapeKind, layer: LayerId, order: OrderKey, bounds: Rect) -> Self {
+impl Layer {
+    pub fn new(page: PageId, name: impl Into<String>, order: OrderKey) -> Self {
         Self {
-            id: ElementId::new(),
-            layer,
+            id: LayerId::new(),
+            page,
+            name: name.into(),
             order,
-            kind,
-            bounds: bounds.abs(),
-            text: String::new(),
-            style: kind.default_style(),
+            visible: true,
+            locked: false,
         }
     }
+}
+
+fn yes() -> bool {
+    true
 }
 
 /// A whole Blueprint document: flat maps of pages, layers and elements that
@@ -123,8 +74,19 @@ pub enum ModelError {
     NoPages,
     #[error("layer {layer} points at missing page {page}")]
     MissingPage { layer: LayerId, page: PageId },
-    #[error("element {element} points at missing layer {layer}")]
-    MissingLayer { element: ElementId, layer: LayerId },
+    #[error("element {element} points at missing parent {parent:?}")]
+    MissingParent { element: ElementId, parent: Parent },
+    #[error("element {element} cannot contain other elements")]
+    InvalidParent { element: ElementId },
+    #[error("element {0} is its own ancestor")]
+    Cycle(ElementId),
+    #[error("connector {connector} is attached to {target}, which is not a shape")]
+    BadEndpoint {
+        connector: ElementId,
+        target: ElementId,
+    },
+    #[error("element {0} has coordinates that are not finite numbers")]
+    NotFinite(ElementId),
     #[error("map key does not match the stored id {0}")]
     IdMismatch(String),
     #[error("invalid order key {0:?}")]
@@ -137,23 +99,32 @@ impl Default for Document {
     }
 }
 
+/// Children of every parent, bottom to top. Building it is O(n log n), so
+/// build it once and run many queries against it.
+pub struct Tree<'a> {
+    children: HashMap<Parent, Vec<&'a Element>>,
+}
+
+impl<'a> Tree<'a> {
+    pub fn children(&self, parent: Parent) -> &[&'a Element] {
+        self.children.get(&parent).map_or(&[], Vec::as_slice)
+    }
+
+    /// `parent`'s descendants in paint order (each parent before its
+    /// children).
+    pub fn subtree(&self, parent: Parent, out: &mut Vec<&'a Element>) {
+        for &child in self.children(parent) {
+            out.push(child);
+            self.subtree(Parent::Element(child.id), out);
+        }
+    }
+}
+
 impl Document {
     /// A new document with one page ("Page 1") holding one layer ("Layer 1").
     pub fn new() -> Self {
-        let page = Page {
-            id: PageId::new(),
-            name: "Page 1".into(),
-            order: OrderKey::first(),
-            background: Color::WHITE,
-        };
-        let layer = Layer {
-            id: LayerId::new(),
-            page: page.id,
-            name: "Layer 1".into(),
-            order: OrderKey::first(),
-            visible: true,
-            locked: false,
-        };
+        let page = Page::new("Page 1", OrderKey::first());
+        let layer = Layer::new(page.id, "Layer 1", OrderKey::first());
         Self {
             schema_version: SCHEMA_VERSION,
             pages: BTreeMap::from([(page.id, page)]),
@@ -180,35 +151,130 @@ impl Document {
         layers
     }
 
-    /// Elements on visible layers of `page`, bottom to top.
-    pub fn elements_on_page(&self, page: PageId) -> Vec<&Element> {
-        let layers = self.layers_of(page);
-        let rank = |id: LayerId| layers.iter().position(|l| l.id == id);
-        let mut elements: Vec<_> = self
-            .elements
-            .values()
-            .filter(|e| {
-                rank(e.layer).is_some() && self.layers.get(&e.layer).is_some_and(|l| l.visible)
-            })
-            .collect();
-        elements
-            .sort_by(|a, b| (rank(a.layer), &a.order, a.id).cmp(&(rank(b.layer), &b.order, b.id)));
-        elements
+    pub fn tree(&self) -> Tree<'_> {
+        let mut children: HashMap<Parent, Vec<&Element>> = HashMap::new();
+        for element in self.elements.values() {
+            children.entry(element.parent).or_default().push(element);
+        }
+        for list in children.values_mut() {
+            list.sort_by(|a, b| (&a.order, a.id).cmp(&(&b.order, b.id)));
+        }
+        Tree { children }
     }
 
-    /// An order key that puts a new element on top of everything in `layer`.
-    pub fn next_order_key(&self, layer: LayerId) -> OrderKey {
+    /// Children of `parent`, bottom to top.
+    pub fn children(&self, parent: Parent) -> Vec<&Element> {
+        let mut list: Vec<_> = self
+            .elements
+            .values()
+            .filter(|e| e.parent == parent)
+            .collect();
+        list.sort_by(|a, b| (&a.order, a.id).cmp(&(&b.order, b.id)));
+        list
+    }
+
+    /// Every element on visible layers of `page`, in paint order: layers
+    /// bottom to top, and each group or container before its children.
+    pub fn paint_order(&self, page: PageId) -> Vec<&Element> {
+        let tree = self.tree();
+        let mut out = Vec::new();
+        for layer in self.layers_of(page) {
+            if layer.visible {
+                tree.subtree(Parent::Layer(layer.id), &mut out);
+            }
+        }
+        out
+    }
+
+    /// Every element on `page`, including hidden layers, in paint order.
+    pub fn page_elements(&self, page: PageId) -> Vec<&Element> {
+        let tree = self.tree();
+        let mut out = Vec::new();
+        for layer in self.layers_of(page) {
+            tree.subtree(Parent::Layer(layer.id), &mut out);
+        }
+        out
+    }
+
+    /// Ids of `id`'s ancestors, nearest first. Stops early on a broken chain.
+    pub fn ancestors(&self, id: ElementId) -> Vec<ElementId> {
+        let mut out = Vec::new();
+        let mut current = self.elements.get(&id).map(|e| e.parent);
+        while let Some(Parent::Element(parent)) = current {
+            if out.contains(&parent) || parent == id {
+                break; // a cycle; validation reports it
+            }
+            out.push(parent);
+            current = self.elements.get(&parent).map(|e| e.parent);
+        }
+        out
+    }
+
+    /// Every descendant of `id`, parents before children.
+    pub fn descendants(&self, id: ElementId) -> Vec<ElementId> {
+        let tree = self.tree();
+        let mut out = Vec::new();
+        tree.subtree(Parent::Element(id), &mut out);
+        out.into_iter().map(|e| e.id).collect()
+    }
+
+    /// The layer `id` belongs to, through its ancestors.
+    pub fn layer_of(&self, id: ElementId) -> Option<LayerId> {
+        let top = self.ancestors(id).last().copied().unwrap_or(id);
+        match self.elements.get(&top)?.parent {
+            Parent::Layer(layer) => Some(layer),
+            Parent::Element(_) => None,
+        }
+    }
+
+    pub fn page_of(&self, id: ElementId) -> Option<PageId> {
+        Some(self.layers.get(&self.layer_of(id)?)?.page)
+    }
+
+    /// Connectors with an end glued to `id`.
+    pub fn connectors_attached_to(&self, id: ElementId) -> Vec<ElementId> {
         self.elements
             .values()
-            .filter(|e| e.layer == layer)
+            .filter(|e| {
+                e.as_connector()
+                    .is_some_and(|c| c.endpoints().iter().any(|end| end.element() == Some(id)))
+            })
+            .map(|e| e.id)
+            .collect()
+    }
+
+    /// An order key that puts a new child on top of `parent`'s children.
+    pub fn next_order_key(&self, parent: Parent) -> OrderKey {
+        self.elements
+            .values()
+            .filter(|e| e.parent == parent)
             .map(|e| &e.order)
             .max()
             .map_or_else(OrderKey::first, OrderKey::after)
     }
 
-    pub fn page_of(&self, element: ElementId) -> Option<PageId> {
-        let layer = self.elements.get(&element)?.layer;
-        Some(self.layers.get(&layer)?.page)
+    /// An order key that puts a new child below all of `parent`'s children.
+    pub fn first_order_key(&self, parent: Parent) -> OrderKey {
+        self.elements
+            .values()
+            .filter(|e| e.parent == parent)
+            .map(|e| &e.order)
+            .min()
+            .map_or_else(OrderKey::first, OrderKey::before)
+    }
+
+    /// Whether `id` can be edited: neither it, an ancestor nor its layer is
+    /// locked.
+    pub fn is_locked(&self, id: ElementId) -> bool {
+        let chain = std::iter::once(id).chain(self.ancestors(id));
+        let element_locked = chain
+            .into_iter()
+            .any(|e| self.elements.get(&e).is_some_and(|e| e.locked));
+        let layer_locked = self
+            .layer_of(id)
+            .and_then(|l| self.layers.get(&l))
+            .is_some_and(|l| l.locked);
+        element_locked || layer_locked
     }
 
     /// Checks references and keys after loading a file.
@@ -243,15 +309,90 @@ impl Document {
             if *id != element.id {
                 return Err(ModelError::IdMismatch(element.id.to_string()));
             }
-            if !self.layers.contains_key(&element.layer) {
-                return Err(ModelError::MissingLayer {
-                    element: element.id,
-                    layer: element.layer,
-                });
-            }
             if !element.order.is_valid() {
                 return Err(bad_key(&element.order));
             }
+            self.check_parent(element.id, element.parent)?;
+            self.check_kind(element)?;
+        }
+        self.check_cycles()
+    }
+
+    /// Whether `parent` exists and can hold children.
+    pub fn check_parent(&self, element: ElementId, parent: Parent) -> Result<(), ModelError> {
+        let missing = || ModelError::MissingParent { element, parent };
+        match parent {
+            Parent::Layer(layer) if self.layers.contains_key(&layer) => Ok(()),
+            Parent::Layer(_) => Err(missing()),
+            Parent::Element(p) => {
+                let p = self.elements.get(&p).ok_or_else(missing)?;
+                if p.can_have_children() {
+                    Ok(())
+                } else {
+                    Err(ModelError::InvalidParent { element: p.id })
+                }
+            }
+        }
+    }
+
+    /// Whether `element`'s own data is usable: finite coordinates, and
+    /// connector ends attached only to shapes that exist.
+    pub fn check_kind(&self, element: &Element) -> Result<(), ModelError> {
+        let finite = |p: kurbo::Point| p.x.is_finite() && p.y.is_finite();
+        match &element.kind {
+            ElementKind::Shape(s) => {
+                let b = s.bounds;
+                if ![b.x0, b.y0, b.x1, b.y1].iter().all(|v| v.is_finite()) {
+                    return Err(ModelError::NotFinite(element.id));
+                }
+            }
+            ElementKind::Connector(c) => {
+                for end in c.endpoints() {
+                    match end {
+                        crate::Endpoint::Free(p) if !finite(*p) => {
+                            return Err(ModelError::NotFinite(element.id));
+                        }
+                        crate::Endpoint::Free(_) => {}
+                        crate::Endpoint::Glued {
+                            element: target, ..
+                        } => {
+                            if !self.elements.get(target).is_some_and(Element::is_shape) {
+                                return Err(ModelError::BadEndpoint {
+                                    connector: element.id,
+                                    target: *target,
+                                });
+                            }
+                        }
+                    }
+                }
+                if !c.waypoints.iter().copied().all(finite) {
+                    return Err(ModelError::NotFinite(element.id));
+                }
+            }
+            ElementKind::Group => {}
+        }
+        Ok(())
+    }
+
+    fn check_cycles(&self) -> Result<(), ModelError> {
+        let mut known_good: HashSet<ElementId> = HashSet::new();
+        for &start in self.elements.keys() {
+            let mut chain = Vec::new();
+            let mut current = start;
+            loop {
+                if known_good.contains(&current) {
+                    break;
+                }
+                if chain.contains(&current) {
+                    return Err(ModelError::Cycle(current));
+                }
+                chain.push(current);
+                match self.elements.get(&current).map(|e| e.parent) {
+                    Some(Parent::Element(parent)) => current = parent,
+                    _ => break,
+                }
+            }
+            known_good.extend(chain);
         }
         Ok(())
     }
@@ -260,19 +401,28 @@ impl Document {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::{Endpoint, ShapeRef};
+    use kurbo::{Point, Rect};
+
+    fn rect_ref() -> ShapeRef {
+        ShapeRef::new("basic", "rectangle")
+    }
+
+    fn add_shape(doc: &mut Document, parent: Parent, x: f64) -> ElementId {
+        let order = doc.next_order_key(parent);
+        let el = Element::shape(rect_ref(), parent, order, Rect::new(x, 0.0, x + 5.0, 5.0));
+        let id = el.id;
+        doc.elements.insert(id, el);
+        id
+    }
 
     fn doc_with_three() -> (Document, LayerId, Vec<ElementId>) {
         let mut doc = Document::new();
         let page = doc.first_page().unwrap();
         let layer = doc.layers_of(page)[0].id;
-        let mut ids = vec![];
-        for i in 0..3 {
-            let order = doc.next_order_key(layer);
-            let r = Rect::new(i as f64 * 10.0, 0.0, i as f64 * 10.0 + 5.0, 5.0);
-            let el = Element::new(ShapeKind::Rectangle, layer, order, r);
-            ids.push(el.id);
-            doc.elements.insert(el.id, el);
-        }
+        let ids = (0..3)
+            .map(|i| add_shape(&mut doc, Parent::Layer(layer), f64::from(i) * 10.0))
+            .collect();
         (doc, layer, ids)
     }
 
@@ -288,32 +438,143 @@ mod tests {
     fn new_elements_stack_on_top() {
         let (doc, _, ids) = doc_with_three();
         let page = doc.first_page().unwrap();
-        let order: Vec<_> = doc.elements_on_page(page).iter().map(|e| e.id).collect();
+        let order: Vec<_> = doc.paint_order(page).iter().map(|e| e.id).collect();
         assert_eq!(order, ids);
     }
 
     #[test]
-    fn hidden_layers_are_skipped() {
+    fn hidden_layers_are_skipped_when_painting() {
         let (mut doc, layer, _) = doc_with_three();
         doc.layers.get_mut(&layer).unwrap().visible = false;
-        assert!(doc.elements_on_page(doc.first_page().unwrap()).is_empty());
+        let page = doc.first_page().unwrap();
+        assert!(doc.paint_order(page).is_empty());
+        assert_eq!(doc.page_elements(page).len(), 3);
+    }
+
+    #[test]
+    fn groups_paint_their_children_in_place() {
+        let (mut doc, layer, ids) = doc_with_three();
+        // A group between the first and second shape, holding two shapes.
+        let order = OrderKey::between(
+            Some(&doc.elements[&ids[0]].order),
+            Some(&doc.elements[&ids[1]].order),
+        );
+        let group = Element::group(Parent::Layer(layer), order);
+        let g = group.id;
+        doc.elements.insert(g, group);
+        let a = add_shape(&mut doc, Parent::Element(g), 100.0);
+        let b = add_shape(&mut doc, Parent::Element(g), 110.0);
+
+        let page = doc.first_page().unwrap();
+        let order: Vec<_> = doc.paint_order(page).iter().map(|e| e.id).collect();
+        assert_eq!(order, vec![ids[0], g, a, b, ids[1], ids[2]]);
+        assert_eq!(doc.ancestors(b), vec![g]);
+        assert_eq!(doc.descendants(g), vec![a, b]);
+        assert_eq!(doc.layer_of(b), Some(layer));
+        assert_eq!(doc.page_of(b), Some(page));
+        assert_eq!(doc.validate(), Ok(()));
+    }
+
+    #[test]
+    fn locks_are_inherited() {
+        let (mut doc, layer, ids) = doc_with_three();
+        let group = Element::group(
+            Parent::Layer(layer),
+            doc.next_order_key(Parent::Layer(layer)),
+        );
+        let g = group.id;
+        doc.elements.insert(g, group);
+        let child = add_shape(&mut doc, Parent::Element(g), 50.0);
+        assert!(!doc.is_locked(child));
+        doc.elements.get_mut(&g).unwrap().locked = true;
+        assert!(doc.is_locked(child));
+        assert!(!doc.is_locked(ids[0]));
+        doc.layers.get_mut(&layer).unwrap().locked = true;
+        assert!(doc.is_locked(ids[0]));
     }
 
     #[test]
     fn json_round_trip() {
-        let (doc, _, _) = doc_with_three();
+        let (mut doc, layer, ids) = doc_with_three();
+        let c = Element::connector(
+            Endpoint::glued(ids[0], Some("e")),
+            Endpoint::Free(Point::new(1.0, 2.0)),
+            Parent::Layer(layer),
+            doc.next_order_key(Parent::Layer(layer)),
+        );
+        doc.elements.insert(c.id, c);
         let json = serde_json::to_string(&doc).unwrap();
         let back: Document = serde_json::from_str(&json).unwrap();
         assert_eq!(doc, back);
+        assert_eq!(back.validate(), Ok(()));
     }
 
     #[test]
-    fn validate_catches_dangling_layer() {
+    fn validate_catches_dangling_parent() {
         let (mut doc, _, ids) = doc_with_three();
-        doc.elements.get_mut(&ids[0]).unwrap().layer = LayerId::new();
+        doc.elements.get_mut(&ids[0]).unwrap().parent = Parent::Layer(LayerId::new());
         assert!(matches!(
             doc.validate(),
-            Err(ModelError::MissingLayer { .. })
+            Err(ModelError::MissingParent { .. })
         ));
+    }
+
+    #[test]
+    fn validate_catches_cycles() {
+        let (mut doc, layer, _) = doc_with_three();
+        let a = Element::group(Parent::Layer(layer), OrderKey::first());
+        let b = Element::group(Parent::Element(a.id), OrderKey::first());
+        let (a_id, b_id) = (a.id, b.id);
+        doc.elements.insert(a_id, a);
+        doc.elements.insert(b_id, b);
+        assert_eq!(doc.validate(), Ok(()));
+        doc.elements.get_mut(&a_id).unwrap().parent = Parent::Element(b_id);
+        assert!(matches!(doc.validate(), Err(ModelError::Cycle(_))));
+        assert!(doc.ancestors(a_id).len() <= 2, "ancestors stops on a cycle");
+    }
+
+    #[test]
+    fn validate_catches_bad_connectors() {
+        let (mut doc, layer, ids) = doc_with_three();
+        let missing = ElementId::new();
+        let c = Element::connector(
+            Endpoint::glued(ids[0], None),
+            Endpoint::glued(missing, None),
+            Parent::Layer(layer),
+            OrderKey::first(),
+        );
+        doc.elements.insert(c.id, c);
+        assert!(matches!(
+            doc.validate(),
+            Err(ModelError::BadEndpoint { target, .. }) if target == missing
+        ));
+    }
+
+    #[test]
+    fn connectors_cannot_hold_children() {
+        let (mut doc, layer, ids) = doc_with_three();
+        let c = Element::connector(
+            Endpoint::glued(ids[0], None),
+            Endpoint::glued(ids[1], None),
+            Parent::Layer(layer),
+            OrderKey::first(),
+        );
+        let c_id = c.id;
+        doc.elements.insert(c_id, c);
+        assert_eq!(doc.connectors_attached_to(ids[1]), vec![c_id]);
+        doc.elements.get_mut(&ids[2]).unwrap().parent = Parent::Element(c_id);
+        assert!(matches!(
+            doc.validate(),
+            Err(ModelError::InvalidParent { .. })
+        ));
+    }
+
+    #[test]
+    fn validate_catches_nan() {
+        let (mut doc, _, ids) = doc_with_three();
+        if let ElementKind::Shape(s) = &mut doc.elements.get_mut(&ids[0]).unwrap().kind {
+            s.bounds.x1 = f64::NAN;
+        }
+        assert!(matches!(doc.validate(), Err(ModelError::NotFinite(_))));
     }
 }

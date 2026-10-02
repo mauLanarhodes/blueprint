@@ -3,7 +3,10 @@
 //! A `.blueprint` file is a zip archive holding `document.json`; later phases
 //! add `assets/` and a thumbnail. A file whose name ends in `.json` is saved
 //! as plain, pretty-printed JSON for readable Git diffs. When opening, the
-//! format is detected from the content, not the extension.
+//! format is detected from the content, not the extension, and files from
+//! older versions are migrated to the current schema.
+
+mod migrate;
 
 use bp_model::{Document, ModelError, SCHEMA_VERSION};
 use serde_json::Value;
@@ -33,6 +36,8 @@ pub enum IoError {
     TooNew { found: u64 },
     #[error("the file has no schema_version field")]
     NoVersion,
+    #[error("the file could not be upgraded: {0}")]
+    Migration(String),
 }
 
 /// Saves `doc` to `path` atomically: the old file stays intact until the new
@@ -78,23 +83,9 @@ pub fn to_json_bytes(doc: &Document) -> Result<Vec<u8>, IoError> {
 
 fn from_json_bytes(bytes: &[u8]) -> Result<Document, IoError> {
     let value: Value = serde_json::from_slice(bytes)?;
-    let doc: Document = serde_json::from_value(migrate(value)?)?;
+    let doc: Document = serde_json::from_value(migrate::migrate(value)?)?;
     doc.validate()?;
     Ok(doc)
-}
-
-/// Upgrades older files to the current schema, one version at a time.
-fn migrate(value: Value) -> Result<Value, IoError> {
-    let version = value
-        .get("schema_version")
-        .and_then(Value::as_u64)
-        .ok_or(IoError::NoVersion)?;
-    if version > u64::from(SCHEMA_VERSION) {
-        return Err(IoError::TooNew { found: version });
-    }
-    // Future migrations go here, e.g.
-    // if version < 2 { value = v1_to_v2(value); }
-    Ok(value)
 }
 
 fn is_json_path(path: &Path) -> bool {
@@ -142,20 +133,22 @@ pub fn with_default_extension(path: PathBuf) -> PathBuf {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use bp_model::{Element, ShapeKind};
+    use bp_model::{Element, ElementKind, Parent, ShapeRef};
     use kurbo::Rect;
 
     fn sample() -> Document {
         let mut doc = Document::new();
         let page = doc.first_page().unwrap();
-        let layer = doc.layers_of(page)[0].id;
-        let mut el = Element::new(
-            ShapeKind::Ellipse,
+        let layer = Parent::Layer(doc.layers_of(page)[0].id);
+        let mut el = Element::shape(
+            ShapeRef::new("basic", "ellipse"),
             layer,
             doc.next_order_key(layer),
             Rect::new(10.0, 20.0, 110.0, 80.0),
         );
-        el.text = "Hello".into();
+        if let ElementKind::Shape(s) = &mut el.kind {
+            s.text = "Hello".into();
+        }
         doc.elements.insert(el.id, el);
         doc
     }
@@ -187,7 +180,7 @@ mod tests {
         assert!(
             fs::read_to_string(&path)
                 .unwrap()
-                .contains("\"schema_version\": 1")
+                .contains("\"schema_version\": 2")
         );
         assert_eq!(load(&path).unwrap(), doc);
         fs::remove_dir_all(dir).unwrap();

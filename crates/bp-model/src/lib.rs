@@ -3,16 +3,22 @@
 //! The model is deliberately flat and CRDT-friendly (see the project plan):
 //! - every page, layer and element has a permanent UUIDv7 id;
 //! - nothing refers to anything by array position;
-//! - stacking order uses fractional [`OrderKey`]s instead of indices;
-//! - only values the user set are stored; everything derived is recomputed.
+//! - the element tree is stored as parent pointers, and stacking order uses
+//!   fractional [`OrderKey`]s instead of indices;
+//! - only values the user set are stored (styles are sparse overrides);
+//!   connector routes, text layout and group bounds are recomputed.
 
 mod document;
+mod element;
 mod ids;
 mod order;
 mod style;
 
-pub use document::{Document, Element, Layer, ModelError, Page, SCHEMA_VERSION, ShapeKind};
-pub use ids::{ElementId, LayerId, PageId};
+pub use document::{Document, Layer, ModelError, Page, SCHEMA_VERSION, Tree};
+pub use element::{
+    Connector, Element, ElementKind, Endpoint, Marker, Parent, PortId, Routing, Shape, ShapeRef,
+};
+pub use ids::{ElementId, IdHasher, IdMap, LayerId, PageId};
 pub use kurbo;
 pub use order::OrderKey;
-pub use style::{Color, Style};
+pub use style::{Color, Dash, Paint, Style, StyleValues, TextAlign, VerticalAlign};
