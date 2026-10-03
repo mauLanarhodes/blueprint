@@ -2,7 +2,10 @@
 
 use bp_app::{BlueprintApp, ErdConnection, Tool};
 use bp_model::kurbo::{Point, Rect};
-use bp_model::{ColumnId, DiagramKind, ElementId, Endpoint, Marker, PortId, ShapeRef};
+use bp_model::{
+    CloudIcon, CloudProvider, ColumnId, DiagramKind, ElementId, Endpoint, IconKind, Marker, PortId,
+    ShapeRef,
+};
 use egui::{Event, Key, Modifiers, PointerButton, Pos2};
 use egui_kittest::Harness;
 use egui_kittest::kittest::NodeT;
@@ -35,6 +38,291 @@ fn harness_for(kind: DiagramKind) -> Ui {
 
 fn harness() -> Ui {
     harness_for(DiagramKind::Flowchart)
+}
+
+// Original test artwork, never a substitute for the vendor packs in the product.
+fn cloud_pack(provider: CloudProvider) -> bp_icons::IconPack {
+    let name = match provider {
+        CloudProvider::Aws => "Amazon EC2",
+        CloudProvider::Azure => "Virtual Machines",
+    };
+    let slug = match provider {
+        CloudProvider::Aws => "amazon-ec2",
+        CloudProvider::Azure => "virtual-machines",
+    };
+    bp_icons::IconPack {
+        provider,
+        version: "test-v1".into(),
+        warnings: Vec::new(),
+        icons: vec![CloudIcon {
+            reference: ShapeRef::new(provider.id(), &format!("compute-service-{slug}@test-v1")),
+            name: name.into(),
+            provider,
+            category: "Compute".into(),
+            kind: IconKind::Service,
+            pack_version: "test-v1".into(),
+            source_path: format!("Compute/{name}.svg"),
+            svg: std::sync::Arc::from(
+                r##"<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 64 64"><rect x="4" y="4" width="56" height="56" rx="8" fill="#1677cf"/><path d="M20 20h24v24H20z" fill="#ffffff"/></svg>"##,
+            ),
+        }],
+    }
+}
+
+fn cloud_harness() -> Ui {
+    let mut h = harness_for(DiagramKind::Cloud);
+    app(&mut h).cloud.packs = vec![
+        cloud_pack(CloudProvider::Aws),
+        cloud_pack(CloudProvider::Azure),
+    ];
+    app(&mut h).cloud.selected_version = None;
+    h.run();
+    h
+}
+
+#[test]
+fn cloud_chooser_palette_providers_search_and_basic_shapes_are_separate() {
+    let mut h = raw_harness();
+    h.get_by_label("Cloud architecture").click();
+    h.run();
+    assert_eq!(app(&mut h).page_kind(), Some(DiagramKind::Cloud));
+    assert!(h.query_by_label("Manage icon packs…").is_some());
+    assert!(h.query_by_label("Rectangle").is_some());
+    assert!(h.query_by_label("Table").is_none());
+    assert!(h.query_by_label("Decision").is_none());
+    assert!(h.query_by_label("R O D N").is_none());
+    assert!(h.query_by_label("R O N").is_some());
+    h.key_press(Key::D);
+    h.run();
+    assert_eq!(app(&mut h).tool, Tool::Select);
+    app(&mut h).cloud.packs = vec![
+        cloud_pack(CloudProvider::Aws),
+        cloud_pack(CloudProvider::Azure),
+    ];
+    h.run();
+    assert!(h.query_by_label("Amazon EC2").is_some());
+    assert!(h.query_by_label("Virtual Machines").is_none());
+    h.get_by_label("Azure").click();
+    h.run();
+    assert!(h.query_by_label("Virtual Machines").is_some());
+    assert!(h.query_by_label("Amazon EC2").is_none());
+    app(&mut h).palette.query = "vm".into();
+    h.run();
+    assert!(
+        h.query_by_label("Virtual Machines").is_some(),
+        "VM alias matches"
+    );
+    app(&mut h).palette.query = "table".into();
+    h.run();
+    assert!(h.query_by_label("Table").is_none());
+    app(&mut h).palette.query.clear();
+    app(&mut h).set_page_kind(DiagramKind::Erd);
+    h.run();
+    assert!(h.query_by_label("Virtual Machines").is_none());
+    assert!(h.query_by_label("Table").is_some());
+}
+
+#[test]
+fn cloud_palette_inserts_asset_and_service_label_in_one_undo_step() {
+    let mut h = cloud_harness();
+    let before = app(&mut h).doc.clone();
+    h.get_by_label("Amazon EC2").click();
+    h.run();
+    let id = shapes(&mut h)[0];
+    let reference = cloud_pack(CloudProvider::Aws).icons[0].reference.clone();
+    assert_eq!(app(&mut h).doc.elements[&id].text(), Some("Amazon EC2"));
+    assert!(app(&mut h).doc.icons.contains_key(&reference));
+    assert_eq!(app(&mut h).doc.validate(), Ok(()));
+    assert_eq!(
+        bounds(&mut h, id).size(),
+        bp_model::kurbo::Size::new(64.0, 64.0)
+    );
+    app(&mut h).undo();
+    h.run();
+    assert_eq!(app(&mut h).doc, before, "asset and element undo together");
+    app(&mut h).redo();
+    h.run();
+    assert!(app(&mut h).doc.icons.contains_key(&reference));
+    assert!(
+        app(&mut h)
+            .scene
+            .list
+            .items()
+            .any(|item| matches!(item.primitive, bp_scene::Primitive::Icon { .. }))
+    );
+}
+
+#[test]
+fn cloud_palette_drag_and_alias_quick_insert_include_the_original_assets() {
+    let mut h = cloud_harness();
+    let from = h.get_by_label("Amazon EC2").rect().center();
+    let to = screen(&mut h, Point::new(160.0, 150.0));
+    drag(&mut h, from, to);
+    let ids = shapes(&mut h);
+    assert_eq!(ids.len(), 1);
+    assert!(bounds(&mut h, ids[0]).contains(Point::new(160.0, 150.0)));
+    let at = screen(&mut h, Point::new(360.0, 150.0));
+    h.hover_at(at);
+    h.run();
+    h.event(Event::Text("/".into()));
+    h.run();
+    h.event(Event::Text("azure vm".into()));
+    h.run();
+    h.key_press(Key::Enter);
+    h.run();
+    assert_eq!(shapes(&mut h).len(), 2);
+    assert_eq!(app(&mut h).doc.icons.len(), 2);
+    assert!(
+        app(&mut h)
+            .doc
+            .elements
+            .values()
+            .filter_map(|el| el.as_shape())
+            .any(|shape| shape.text == "Virtual Machines"
+                && shape.bounds.contains(Point::new(360.0, 150.0)))
+    );
+}
+
+#[test]
+fn cloud_icons_copy_reopen_connect_and_resize_without_installed_packs() {
+    let mut h = cloud_harness();
+    let reference = cloud_pack(CloudProvider::Aws).icons[0].reference.clone();
+    let id = app(&mut h)
+        .insert_shape_at(reference.clone(), Point::new(160.0, 160.0))
+        .unwrap();
+    let ctx = h.ctx.clone();
+    app(&mut h).copy(&ctx);
+    let clip = app(&mut h).clip.clone().unwrap();
+    let directory = std::env::temp_dir().join(format!("bp-cloud-ui-{}", ElementId::new()));
+    std::fs::create_dir_all(&directory).unwrap();
+    let path = directory.join("cloud.blueprint");
+    bp_io::save(&app(&mut h).doc, &path).unwrap();
+    let mut fresh = harness_for(DiagramKind::Cloud);
+    app(&mut fresh).cloud.packs.clear();
+    let mut unsupported: serde_json::Value = serde_json::from_str(&clip).unwrap();
+    unsupported["icons"][reference.as_str()]["svg"] = "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"64\" height=\"64\"><path d=\"M0 0h64v64Z\"/><text x=\"2\" y=\"20\">font text</text></svg>".into();
+    let before = app(&mut fresh).doc.clone();
+    app(&mut fresh).paste_text(&unsupported.to_string());
+    assert_eq!(
+        app(&mut fresh).doc,
+        before,
+        "unsupported artwork is rejected before pasting"
+    );
+    app(&mut fresh).paste_text(&clip);
+    assert_eq!(
+        app(&mut fresh).doc.icons[&reference].svg,
+        cloud_pack(CloudProvider::Aws).icons[0].svg
+    );
+    app(&mut fresh).open_path(&path);
+    fresh.run();
+    assert_eq!(app(&mut fresh).page_kind(), Some(DiagramKind::Cloud));
+    assert!(
+        fresh.query_by_label("Amazon EC2").is_some(),
+        "document icons remain available"
+    );
+    app(&mut fresh).settings.snap_to_grid = false;
+    app(&mut fresh).settings.snap_to_shapes = false;
+    let target = app(&mut fresh)
+        .insert_shape_at(reference, Point::new(360.0, 160.0))
+        .unwrap();
+    let connector = app(&mut fresh)
+        .insert_connector(
+            Endpoint::Glued {
+                element: id,
+                port: Some(PortId::new("e")),
+            },
+            Endpoint::Glued {
+                element: target,
+                port: Some(PortId::new("w")),
+            },
+        )
+        .unwrap();
+    app(&mut fresh).selection = vec![id];
+    fresh.run();
+    let start = bounds(&mut fresh, id);
+    let from = screen(&mut fresh, Point::new(start.x1, start.center().y));
+    drag(&mut fresh, from, from + egui::vec2(32.0, 0.0));
+    let resized = bounds(&mut fresh, id);
+    assert!(resized.width() > start.width());
+    assert!(
+        (resized.width() - resized.height()).abs() < 0.001,
+        "side resize remains uniform"
+    );
+    assert_eq!(
+        app(&mut fresh).scene.connector(connector).unwrap().points[0],
+        Point::new(resized.x1, resized.center().y)
+    );
+    let label = app(&mut fresh).scene.shape(id).unwrap().text_box.center();
+    assert_eq!(
+        app(&mut fresh)
+            .scene
+            .hit(label, 1.0, |candidate| candidate == id),
+        Some(id)
+    );
+    app(&mut fresh).undo();
+    assert_eq!(bounds(&mut fresh, id), start);
+    std::fs::remove_dir_all(directory).unwrap();
+}
+
+#[test]
+fn cloud_import_requires_terms_and_version_and_blocks_canvas_shortcuts() {
+    let mut h = cloud_harness();
+    h.get_by_label("Manage icon packs…").click();
+    h.run();
+    assert!(h.get_by_label("Import ZIP…").accesskit_node().is_disabled());
+    h.get_by_label("I have read and accept this provider’s icon usage terms")
+        .click();
+    app(&mut h).cloud.version = "test-v2".into();
+    h.run();
+    assert!(!h.get_by_label("Import ZIP…").accesskit_node().is_disabled());
+    let before = app(&mut h).doc.clone();
+    h.key_press(Key::R);
+    h.run();
+    assert_eq!(app(&mut h).tool, Tool::Select);
+    assert_eq!(app(&mut h).doc, before);
+    h.get_all_by_label("Azure")
+        .into_iter()
+        .find(|node| node.rect().left() > 300.0)
+        .unwrap()
+        .click();
+    h.run();
+    assert!(
+        !app(&mut h).cloud.terms_accepted,
+        "new provider requires its own terms"
+    );
+    assert!(h.get_by_label("Import ZIP…").accesskit_node().is_disabled());
+    h.get_by_label("Done").click();
+    h.run();
+    assert!(!app(&mut h).cloud.manager_open);
+}
+
+#[test]
+fn resizing_a_group_of_cloud_icons_keeps_each_icon_uniform() {
+    let mut h = cloud_harness();
+    app(&mut h).settings.snap_to_grid = false;
+    app(&mut h).settings.snap_to_shapes = false;
+    let reference = cloud_pack(CloudProvider::Aws).icons[0].reference.clone();
+    let a = app(&mut h)
+        .insert_shape_at(reference.clone(), Point::new(160.0, 160.0))
+        .unwrap();
+    let b = app(&mut h)
+        .insert_shape_at(reference, Point::new(320.0, 160.0))
+        .unwrap();
+    app(&mut h).selection = vec![a, b];
+    app(&mut h).group_selection();
+    h.run();
+    let group = app(&mut h).selection[0];
+    let before = app(&mut h).doc.clone();
+    let rect = app(&mut h).scene.bounds_of(group).unwrap();
+    let from = screen(&mut h, Point::new(rect.x1, rect.center().y));
+    drag(&mut h, from, from + egui::vec2(64.0, 0.0));
+    for id in [a, b] {
+        let rect = bounds(&mut h, id);
+        assert!(rect.width() > 64.0);
+        assert!((rect.width() - rect.height()).abs() < 0.001);
+    }
+    app(&mut h).undo();
+    assert_eq!(app(&mut h).doc, before);
 }
 
 fn app(h: &mut Ui) -> &mut BlueprintApp {

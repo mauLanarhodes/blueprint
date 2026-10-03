@@ -154,6 +154,7 @@ pub(crate) fn geometry(shape: &Shape, table: &ErdTable, style: StyleValues) -> S
         ]);
     }
     ShapeGeometry {
+        label: None,
         bounds,
         outline: bounds.to_path(0.05),
         back: Vec::new(),

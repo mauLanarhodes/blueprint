@@ -140,6 +140,7 @@ pub struct BlueprintApp {
     pub fit_requested: bool,
     pub settings: Settings,
     pub palette: PaletteState,
+    pub cloud: crate::cloud::CloudState,
     pub quick_insert: Option<QuickInsert>,
     /// The last copied clip, for duplicate and when the system clipboard
     /// is unavailable.
@@ -185,6 +186,7 @@ impl BlueprintApp {
             fit_requested: false,
             settings: Settings::default(),
             palette: PaletteState::default(),
+            cloud: crate::cloud::CloudState::load(),
             quick_insert: None,
             clip: None,
             renaming: None,
@@ -356,6 +358,12 @@ impl BlueprintApp {
                 continue;
             }
             populated = true;
+            if element
+                .as_shape()
+                .is_some_and(|shape| shape.shape.is_cloud())
+            {
+                return Some(DiagramKind::Cloud);
+            }
             if element
                 .as_shape()
                 .is_some_and(|shape| shape.erd.is_some() || shape.shape.library() == "erd")
@@ -661,6 +669,7 @@ impl BlueprintApp {
             return;
         }
         self.handle_window_events(&ctx);
+        self.poll_cloud_import();
         if matches!(self.page_choice, Some(PageChoice::Existing(_))) {
             if self.page_kind().is_some() {
                 self.page_choice = None;
@@ -677,7 +686,11 @@ impl BlueprintApp {
         if self.page_choice.is_none() && self.page_kind().is_none() {
             self.page_choice = Some(PageChoice::Existing(self.page));
         }
-        if self.pending.is_none() && self.error.is_none() && self.page_choice.is_none() {
+        if self.pending.is_none()
+            && self.error.is_none()
+            && self.page_choice.is_none()
+            && !self.cloud.manager_open
+        {
             self.handle_shortcuts(&ctx);
         }
         self.refresh_scene();
@@ -703,6 +716,7 @@ impl BlueprintApp {
         self.quick_insert_popup(&ctx);
         self.palette_drag_preview(&ctx);
         self.dialogs(&ctx);
+        self.cloud_pack_dialog(&ctx);
     }
 }
 

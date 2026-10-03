@@ -11,9 +11,9 @@ pub mod edit;
 
 use bp_model::kurbo::{Point, Rect};
 use bp_model::{
-    Color, ColumnId, Dash, DiagramKind, Document, Element, ElementId, ElementKind, Endpoint,
-    ErdColumn, ErdTable, Layer, LayerId, Marker, ModelError, OrderKey, Page, PageId, Paint, Parent,
-    Routing, ShapeRef, SqlDialect, Style, TableDisplay, TextAlign, VerticalAlign,
+    CloudIcon, Color, ColumnId, Dash, DiagramKind, Document, Element, ElementId, ElementKind,
+    Endpoint, ErdColumn, ErdTable, Layer, LayerId, Marker, ModelError, OrderKey, Page, PageId,
+    Paint, Parent, Routing, ShapeRef, SqlDialect, Style, TableDisplay, TextAlign, VerticalAlign,
 };
 use std::mem::{Discriminant, discriminant, replace};
 use std::time::{Duration, Instant};
@@ -53,10 +53,13 @@ pub enum Prop {
 }
 
 impl Prop {
-    /// Properties that point at other elements. Sets of these are never
+    /// Properties that point at elements or icon assets. Sets of these are never
     /// coalesced, because reordering them could break a reference.
     fn is_reference(&self) -> bool {
-        matches!(self, Prop::Parent(_) | Prop::Source(_) | Prop::Target(_))
+        matches!(
+            self,
+            Prop::Parent(_) | Prop::Source(_) | Prop::Target(_) | Prop::Shape(_)
+        )
     }
 
     pub fn name(&self) -> &'static str {
@@ -124,6 +127,10 @@ pub enum ColumnProp {
 
 #[derive(Clone, Debug, PartialEq)]
 pub enum Command {
+    InsertIcon(Box<CloudIcon>),
+    RemoveIcon {
+        reference: ShapeRef,
+    },
     Insert(Box<Element>),
     Remove(ElementId),
     Set {
@@ -166,6 +173,12 @@ pub enum Command {
 
 #[derive(Debug, thiserror::Error, PartialEq)]
 pub enum CommandError {
+    #[error("icon {0} does not exist")]
+    MissingIcon(ShapeRef),
+    #[error("icon {0} already exists with different data")]
+    ConflictingIcon(ShapeRef),
+    #[error("icon {0} is still used by a shape")]
+    IconInUse(ShapeRef),
     #[error("element {0} does not exist")]
     MissingElement(ElementId),
     #[error("element {0} already exists")]
@@ -231,6 +244,34 @@ impl Command {
     /// Applies the command and returns the command that undoes it.
     pub fn apply(self, doc: &mut Document) -> Result<Command, CommandError> {
         match self {
+            Command::InsertIcon(icon) => {
+                icon.validate()?;
+                let reference = icon.reference.clone();
+                if let Some(existing) = doc.icons.get(&reference) {
+                    if existing != icon.as_ref() {
+                        return Err(CommandError::ConflictingIcon(reference));
+                    }
+                    // Idempotent insertion keeps an existing shared asset
+                    // intact when this transaction is undone.
+                    return Ok(Command::InsertIcon(icon));
+                }
+                doc.icons.insert(reference.clone(), *icon);
+                Ok(Command::RemoveIcon { reference })
+            }
+            Command::RemoveIcon { reference } => {
+                if doc.elements.values().any(|element| {
+                    element
+                        .as_shape()
+                        .is_some_and(|shape| shape.shape == reference)
+                }) {
+                    return Err(CommandError::IconInUse(reference));
+                }
+                let icon = doc
+                    .icons
+                    .remove(&reference)
+                    .ok_or(CommandError::MissingIcon(reference))?;
+                Ok(Command::InsertIcon(Box::new(icon)))
+            }
             Command::Insert(element) => {
                 if doc.elements.contains_key(&element.id) {
                     return Err(CommandError::DuplicateElement(element.id));
@@ -486,6 +527,13 @@ fn check_prop(doc: &Document, id: ElementId, prop: &Prop) -> Result<(), CommandE
     let finite = |p: &Point| p.x.is_finite() && p.y.is_finite();
     match prop {
         Prop::Shape(shape) => {
+            if shape.is_cloud() && !doc.icons.contains_key(shape) {
+                return Err(ModelError::MissingIcon {
+                    element: id,
+                    reference: shape.clone(),
+                }
+                .into());
+            }
             if let Some(element) = doc.elements.get(&id)
                 && let Some(data) = element.as_shape()
             {

@@ -363,7 +363,7 @@ fn erd_save_reopen_and_cli_svg_preserve_columns_and_cardinalities() {
         );
     }
     let saved_json = std::fs::read_to_string(&json).unwrap();
-    assert!(saved_json.contains("\"schema_version\": 3"));
+    assert!(saved_json.contains(&format!("\"schema_version\": {}", bp_model::SCHEMA_VERSION)));
     assert!(saved_json.contains(&diagram.order_customer_id.to_string()));
     assert!(!saved_json.contains("\"points\"") && !saved_json.contains("\"lines\""));
 

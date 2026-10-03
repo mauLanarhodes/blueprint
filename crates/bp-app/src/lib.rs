@@ -4,6 +4,7 @@
 mod actions;
 mod app;
 mod canvas;
+mod cloud;
 mod connections;
 mod dialogs;
 mod erd;
@@ -15,4 +16,5 @@ mod selection;
 mod theme;
 
 pub use app::{BlueprintApp, PageChoice, Tool};
+pub use cloud::CloudState;
 pub use connections::ErdConnection;

@@ -83,6 +83,22 @@ pub fn to_svg(list: &DisplayList, options: &SvgOptions) -> String {
                 );
             }
             Primitive::Text(run) => write_text(&mut svg, run),
+            Primitive::Icon {
+                svg: source,
+                bounds,
+                opacity,
+            } => {
+                let _ = writeln!(
+                    svg,
+                    r#"  <image x="{}" y="{}" width="{}" height="{}" opacity="{}" preserveAspectRatio="xMidYMid meet" href="data:image/svg+xml;base64,{}"/>"#,
+                    num(bounds.x0),
+                    num(bounds.y0),
+                    num(bounds.width()),
+                    num(bounds.height()),
+                    num(opacity.clamp(0.0, 1.0)),
+                    base64(source.as_bytes()),
+                );
+            }
         }
     }
     svg.push_str("</svg>\n");
@@ -359,5 +375,36 @@ mod tests {
         assert_eq!(base64(b"Ma"), "TWE=");
         assert_eq!(base64(b"M"), "TQ==");
         assert_eq!(base64(b""), "");
+    }
+
+    #[test]
+    fn icons_embed_exact_original_svg_bytes_with_contain_fit() {
+        // Authored artwork; it intentionally includes whitespace and two colours.
+        let artwork = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 20 10\">\n <path fill=\"#ff8000\" d=\"M0 0h10v10H0z\"/>\n <path fill=\"#0080ff\" d=\"M10 0h10v10H10z\"/>\n</svg>";
+        let list = DisplayList {
+            groups: vec![
+                vec![bp_scene::DisplayItem {
+                    element: bp_model::ElementId::new(),
+                    bbox: Rect::new(10.0, 20.0, 106.0, 116.0),
+                    primitive: Primitive::Icon {
+                        svg: artwork.into(),
+                        bounds: Rect::new(10.0, 20.0, 106.0, 116.0),
+                        opacity: 0.5,
+                    },
+                }]
+                .into(),
+            ],
+            background: None,
+        };
+        let svg = to_svg(&list, &SvgOptions::default());
+        assert!(svg.contains(r#"<image x="10" y="20" width="96" height="96" opacity="0.5" preserveAspectRatio="xMidYMid meet""#), "{svg}");
+        assert!(svg.contains(&format!(
+            "href=\"data:image/svg+xml;base64,{}\"",
+            base64(artwork.as_bytes())
+        )));
+        assert!(
+            !svg.contains("<path"),
+            "provider paths remain isolated within the original SVG"
+        );
     }
 }

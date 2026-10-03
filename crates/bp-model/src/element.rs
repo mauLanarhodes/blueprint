@@ -46,6 +46,10 @@ impl ShapeRef {
     pub fn as_str(&self) -> &str {
         &self.0
     }
+
+    pub fn is_cloud(&self) -> bool {
+        matches!(self.library(), "aws" | "azure")
+    }
 }
 
 impl fmt::Display for ShapeRef {

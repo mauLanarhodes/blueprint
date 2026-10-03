@@ -9,6 +9,28 @@ fn fixture(name: &str) -> std::path::PathBuf {
         .join(name)
 }
 
+#[test]
+fn schema3_pages_and_diagrams_migrate_without_changing_content() {
+    let mut doc = bp_model::Document::new();
+    let page = doc.first_page().unwrap();
+    doc.pages.get_mut(&page).unwrap().diagram_kind = Some(DiagramKind::Flowchart);
+    let parent = Parent::Layer(doc.layers_of(page)[0].id);
+    let shape = bp_model::Element::shape(
+        bp_model::ShapeRef::new("basic", "rectangle"),
+        parent,
+        OrderKey::first(),
+        bp_model::kurbo::Rect::new(10.0, 20.0, 130.0, 80.0),
+    );
+    doc.elements.insert(shape.id, shape);
+    let mut old = serde_json::to_value(&doc).unwrap();
+    old["schema_version"] = 3.into();
+    old.as_object_mut().unwrap().remove("icons");
+    let migrated = bp_io::from_bytes(&serde_json::to_vec(&old).unwrap()).unwrap();
+    assert_eq!(migrated, doc);
+    assert_eq!(migrated.schema_version, 4);
+    assert!(migrated.icons.is_empty());
+}
+
 /// The Phase 0 gate drawing, saved by the Phase 0 app (schema 1).
 fn check_phase0(doc: &bp_model::Document) {
     assert_eq!(doc.schema_version, SCHEMA_VERSION);

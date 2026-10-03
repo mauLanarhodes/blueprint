@@ -6,9 +6,10 @@
 use crate::{Command, Prop};
 use bp_model::kurbo::{Affine, Point, Rect, Vec2};
 use bp_model::{
-    ColumnId, Document, Element, ElementId, ElementKind, Endpoint, OrderKey, PageId, Parent,
+    CloudIcon, ColumnId, Document, Element, ElementId, ElementKind, Endpoint, OrderKey, PageId,
+    Parent, ShapeRef,
 };
-use std::collections::{BTreeSet, HashMap, HashSet};
+use std::collections::{BTreeMap, BTreeSet, HashMap, HashSet};
 
 /// `ids` without any element whose ancestor is also in `ids`, in paint
 /// order. Moving or grouping these moves everything selected exactly once.
@@ -460,6 +461,8 @@ pub struct Clip {
     /// Parents always come before their children. An element whose parent
     /// is not in the clip is top-level.
     pub elements: Vec<Element>,
+    #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
+    pub icons: BTreeMap<ShapeRef, CloudIcon>,
 }
 
 impl Clip {
@@ -517,7 +520,13 @@ impl Clip {
             }
             elements.push(element);
         }
-        Clip { elements }
+        let icons = elements
+            .iter()
+            .filter_map(|element| element.as_shape())
+            .filter_map(|shape| doc.icons.get(&shape.shape))
+            .map(|icon| (icon.reference.clone(), icon.clone()))
+            .collect();
+        Clip { elements, icons }
     }
 
     pub fn is_empty(&self) -> bool {
@@ -542,7 +551,12 @@ impl Clip {
         let shift = Affine::translate(offset);
         let mut order = doc.next_order_key(parent);
         let mut roots = Vec::new();
-        let mut commands = Vec::new();
+        let mut commands: Vec<_> = self
+            .icons
+            .values()
+            .filter(|icon| doc.icons.get(&icon.reference) != Some(*icon))
+            .map(|icon| Command::InsertIcon(Box::new(icon.clone())))
+            .collect();
         for original in &self.elements {
             let mut element = original.clone();
             element.id = fresh[&original.id];

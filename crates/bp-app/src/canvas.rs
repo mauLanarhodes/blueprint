@@ -952,6 +952,17 @@ impl BlueprintApp {
             return;
         };
         let (keep_aspect, from_center) = ctx.input(|i| (i.modifiers.shift, i.modifiers.alt));
+        let cloud = ids
+            .iter()
+            .copied()
+            .flat_map(|id| std::iter::once(id).chain(snapshot.descendants(id)))
+            .any(|id| {
+                snapshot
+                    .elements
+                    .get(&id)
+                    .and_then(bp_model::Element::as_shape)
+                    .is_some_and(|shape| shape.shape.is_cloud())
+            });
         let (fx, fy) = handle.anchor();
         let sb = *start_bounds;
         let moves_x = fx != 0.5;
@@ -1009,9 +1020,11 @@ impl BlueprintApp {
             }
         }
         let mut new = Rect::new(x0, y0, x1, y1);
-        if keep_aspect && moves_x && moves_y && sb.height() > 0.0 {
+        if (keep_aspect || cloud) && (cloud || (moves_x && moves_y)) && sb.height() > 0.0 {
             let aspect = sb.width() / sb.height();
-            let (w, h) = if new.width() / new.height() > aspect {
+            let (w, h) = if !moves_y {
+                (new.width(), new.width() / aspect)
+            } else if !moves_x || new.width() / new.height() > aspect {
                 (new.height() * aspect, new.height())
             } else {
                 (new.width(), new.width() / aspect)
@@ -1019,8 +1032,20 @@ impl BlueprintApp {
             new = if from_center {
                 Rect::from_center_size(center, (w, h))
             } else {
-                let x0 = if fx == 1.0 { anchor.x } else { anchor.x - w };
-                let y0 = if fy == 1.0 { anchor.y } else { anchor.y - h };
+                let x0 = if !moves_x {
+                    center.x - w / 2.0
+                } else if fx == 1.0 {
+                    anchor.x
+                } else {
+                    anchor.x - w
+                };
+                let y0 = if !moves_y {
+                    center.y - h / 2.0
+                } else if fy == 1.0 {
+                    anchor.y
+                } else {
+                    anchor.y - h
+                };
                 Rect::new(x0, y0, x0 + w, y0 + h)
             };
         }

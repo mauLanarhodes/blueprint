@@ -76,12 +76,28 @@ impl BlueprintApp {
         if !self.can_insert() {
             return None;
         }
-        let name = self.libraries.resolve(&shape).name.clone();
+        let asset = self.cloud_icon(&shape).cloned();
+        if shape.is_cloud() && asset.is_none() {
+            self.status = "Import this cloud icon pack before inserting its icons".into();
+            return None;
+        }
+        let name = asset.as_ref().map_or_else(
+            || self.libraries.resolve(&shape).name.clone(),
+            |asset| asset.name.clone(),
+        );
         let parent = self.insert_parent();
         let order = self.doc.next_order_key(parent);
-        let el = Element::shape(shape.clone(), parent, order, bounds);
+        let mut el = Element::shape(shape.clone(), parent, order, bounds);
+        let mut commands = Vec::new();
+        if let Some(asset) = asset {
+            el.as_shape_mut().unwrap().text = asset.name.clone();
+            if !self.doc.icons.contains_key(&shape) {
+                commands.push(Command::InsertIcon(Box::new(asset)));
+            }
+        }
         let id = el.id;
-        if self.apply(&format!("Add {name}"), [Command::Insert(Box::new(el))]) {
+        commands.push(Command::Insert(Box::new(el)));
+        if self.apply(&format!("Add {name}"), commands) {
             self.select_only(id);
             self.palette.note_used(&shape);
             Some(id)
@@ -93,7 +109,11 @@ impl BlueprintApp {
     /// Inserts `shape` at its default size, centred on `center` (snapped
     /// to the grid when snapping is on).
     pub fn insert_shape_at(&mut self, shape: ShapeRef, center: Point) -> Option<ElementId> {
-        let size = self.libraries.resolve(&shape).default_size;
+        let size = if shape.is_cloud() {
+            (64.0, 64.0)
+        } else {
+            self.libraries.resolve(&shape).default_size
+        };
         let mut bounds = Rect::from_center_size(center, size);
         if self.settings.snap_to_grid {
             let g = self.settings.grid;
@@ -183,8 +203,7 @@ impl BlueprintApp {
                 g.points.last().copied()
             }
         });
-        let value = serde_json::json!({ CLIP_KEY: 1, "elements": clip.elements });
-        Some(value.to_string())
+        Some(clip_to_text(&clip))
     }
 
     pub fn copy(&mut self, ctx: &egui::Context) {
@@ -226,6 +245,12 @@ impl BlueprintApp {
     fn paste_clip(&mut self, clip: &Clip) {
         if clip.is_empty() || !self.can_insert() {
             return;
+        }
+        for icon in clip.icons.values() {
+            if let Err(reason) = bp_icons::validate_svg(&icon.svg) {
+                self.status = format!("Cannot paste {}: {reason}", icon.name);
+                return;
+            }
         }
         let bounds = clip
             .elements
@@ -873,14 +898,20 @@ impl BlueprintApp {
 }
 
 fn clip_to_text(clip: &Clip) -> String {
-    serde_json::json!({ CLIP_KEY: 1, "elements": clip.elements }).to_string()
+    serde_json::json!({ CLIP_KEY: 1, "elements": clip.elements, "icons": clip.icons }).to_string()
 }
 
 fn clip_from_text(text: &str) -> Option<Clip> {
     let value: serde_json::Value = serde_json::from_str(text).ok()?;
     value.get(CLIP_KEY)?;
     let elements = serde_json::from_value(value.get("elements")?.clone()).ok()?;
-    Some(Clip { elements })
+    let icons = value
+        .get("icons")
+        .map(|v| serde_json::from_value(v.clone()))
+        .transpose()
+        .ok()?
+        .unwrap_or_default();
+    Some(Clip { elements, icons })
 }
 
 /// `clip` moved by `offset`, so repeated pastes step across the page.

@@ -585,3 +585,121 @@ fn cache_rebuilds_only_what_changed() {
     let items = |s: &Scene| s.list.items().cloned().collect::<Vec<_>>();
     assert_eq!(items(&moved), items(&fresh));
 }
+
+fn cloud_icon() -> bp_model::CloudIcon {
+    bp_model::CloudIcon {
+        reference: ShapeRef::new("aws", "sample@v1"),
+        name: "Sample service".into(),
+        provider: bp_model::CloudProvider::Aws,
+        category: "Compute".into(),
+        kind: bp_model::IconKind::Service,
+        pack_version: "v1".into(),
+        source_path: "Compute/Sample.svg".into(),
+        svg: Arc::from(
+            r##"<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 10"><path fill="#ff8000" d="M0 0h20v10H0z"/></svg>"##,
+        ),
+    }
+}
+
+#[test]
+fn cloud_icons_keep_artwork_and_have_labels_and_four_ports() {
+    let mut p = Page::new();
+    let asset = cloud_icon();
+    p.doc.icons.insert(asset.reference.clone(), asset.clone());
+    let id = p.shape(
+        "aws/sample@v1",
+        Rect::new(20.0, 30.0, 116.0, 126.0),
+        &asset.name,
+    );
+    let shape = p.doc.elements.get_mut(&id).unwrap().as_shape_mut().unwrap();
+    // Diagram colour controls cannot recolour provider SVGs.
+    shape.style.fill = Some(Paint::Color(Color::BLACK));
+    shape.style.stroke = Some(Paint::Color(Color::BLACK));
+    shape.style.opacity = Some(0.5);
+    let connector = p.connect(
+        Endpoint::glued(id, Some("e")),
+        Endpoint::Free(Point::new(250.0, 78.0)),
+    );
+    let scene = p.build();
+    let geometry = scene.shape(id).unwrap();
+    assert_eq!(geometry.bounds, Rect::new(20.0, 30.0, 116.0, 126.0));
+    assert_eq!(geometry.ports.len(), 4);
+    assert_eq!(
+        geometry
+            .ports
+            .iter()
+            .find(|port| port.id.as_str() == "e")
+            .unwrap()
+            .at,
+        Point::new(116.0, 78.0)
+    );
+    assert_eq!(
+        scene.connector(connector).unwrap().points[0],
+        Point::new(116.0, 78.0)
+    );
+    assert!(geometry.text_box.y0 > geometry.bounds.y1);
+    assert_eq!(
+        scene.hit(geometry.text_box.center(), 1.0, |_| true),
+        Some(id)
+    );
+    assert!(scene.bounds().unwrap().y1 > geometry.bounds.y1);
+    assert!(scene.list.items().any(|item| matches!(&item.primitive,
+        Primitive::Icon { svg, bounds, opacity } if svg == &asset.svg && *bounds == geometry.bounds && *opacity == 0.5)));
+    assert_eq!(texts(&scene), vec![asset.name]);
+    assert!(
+        !scene
+            .list
+            .items()
+            .any(|item| item.element == id && matches!(&item.primitive, Primitive::Path { .. }))
+    );
+}
+
+#[test]
+fn cloud_asset_changes_invalidate_scene_cache_without_shape_changes() {
+    let mut p = Page::new();
+    let id = p.shape(
+        "aws/sample@v1",
+        Rect::new(0.0, 0.0, 96.0, 96.0),
+        "Sample service",
+    );
+    let mut cache = SceneCache::default();
+    let libraries = Libraries::builtin();
+    let missing = cache.build(&p.doc, p.page, libraries);
+    assert!(
+        !missing
+            .list
+            .items()
+            .any(|item| matches!(item.primitive, Primitive::Icon { .. }))
+    );
+    let mut asset = cloud_icon();
+    p.doc.icons.insert(asset.reference.clone(), asset.clone());
+    let installed = cache.build(&p.doc, p.page, libraries);
+    assert_eq!(cache.rebuilt, 1);
+    assert!(
+        installed
+            .list
+            .items()
+            .any(|item| matches!(item.primitive, Primitive::Icon { .. }))
+    );
+    let unchanged = cache.build(&p.doc, p.page, libraries);
+    assert_eq!(cache.rebuilt, 0);
+    assert!(Arc::ptr_eq(
+        &installed.list.groups[0],
+        &unchanged.list.groups[0]
+    ));
+    asset.svg = Arc::from(asset.svg.replace("#ff8000", "#0080ff"));
+    p.doc.icons.insert(asset.reference.clone(), asset.clone());
+    let replaced = cache.build(&p.doc, p.page, libraries);
+    assert_eq!(cache.rebuilt, 1);
+    assert_ne!(installed.list.groups[0], replaced.list.groups[0]);
+    assert!(replaced.list.items().any(|item| item.element == id
+        && matches!(&item.primitive,
+        Primitive::Icon { svg, .. } if svg == &asset.svg)));
+    p.doc.icons.clear();
+    let removed = cache.build(&p.doc, p.page, libraries);
+    assert_eq!(cache.rebuilt, 1);
+    assert_eq!(
+        missing.list.items().collect::<Vec<_>>(),
+        removed.list.items().collect::<Vec<_>>()
+    );
+}

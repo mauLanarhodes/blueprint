@@ -100,6 +100,10 @@ impl BlueprintApp {
                     DiagramKind::Flowchart,
                     "Flowchart symbols and connectors, plus basic shapes.",
                 ),
+                (
+                    DiagramKind::Cloud,
+                    "AWS and Azure service icons and connectors, plus basic shapes.",
+                ),
             ] {
                 if ui
                     .add_sized(

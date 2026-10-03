@@ -5,6 +5,8 @@
 //! clouds, documents) are tessellated with lyon. Dashes are cut in page
 //! units, as the SVG export does, so both show the same pattern.
 
+mod icons;
+
 use bp_model::{Color, ElementId, TextAlign};
 use bp_scene::{DisplayList, Primitive, Stroke as SceneStroke, TextRun};
 use bp_text::Face;
@@ -163,6 +165,13 @@ pub fn paint(
                 if hide_text_of != Some(item.element) {
                     paint_text(painter, origin, view, run, bundled);
                 }
+            }
+            Primitive::Icon {
+                svg,
+                bounds,
+                opacity,
+            } => {
+                icons::paint(painter, view.rect_to_screen(origin, *bounds), svg, *opacity);
             }
         }
     }

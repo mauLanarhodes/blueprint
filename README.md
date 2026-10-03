@@ -3,12 +3,12 @@
 A native desktop diagram editor for ERDs, AWS/Azure architecture diagrams and
 flowcharts, written in Rust. Free and open source (MIT OR Apache-2.0).
 
-**Status: Phase 2 started — smart ERD tables and Crow's Foot relationships.**
-The first ERD milestone adds typed columns, column ports and cardinality
-markers to the existing flowchart editor. Diagrams save, reopen and export
-SVG through the same scene as the canvas. See [docs/phase-2.md](docs/phase-2.md)
-for this milestone and the remaining ERD work; the editor backlog remains
-tracked in [docs/phase-1.md](docs/phase-1.md).
+**Status: Phase 3 started — local AWS/Azure icon packs and cloud pages.**
+Cloud diagrams can import official SVG icon ZIPs, connect service icons,
+and carry their artwork through saving, copy/paste and SVG export.
+See [docs/phase-3.md](docs/phase-3.md) for setup and remaining cloud work.
+The ERD and editor backlogs remain in [docs/phase-2.md](docs/phase-2.md)
+and [docs/phase-1.md](docs/phase-1.md).
 
 ## Run it
 
@@ -33,10 +33,15 @@ Set `BLUEPRINT_RENDERER=glow` or `=wgpu` to force one.
 
 ## Using the editor
 
-- Choose **ERD** or **Flowchart** when starting a document or adding a page.
+- Choose **ERD**, **Flowchart** or **Cloud architecture** when starting a document or adding a page.
   Each page remembers its type: ERD shows ERD shapes and basic shapes;
   Flowchart shows flowchart symbols and basic shapes. Search and recent
   shapes follow the current page. Change its type in the page inspector.
+- Cloud pages: use **Manage icon packs…**, download the official AWS/Azure
+  ZIP, accept that provider's terms, and import it with its release version.
+  Click or drag services from the palette, search by name or alias, and use
+  `C` for connections. Icons scale uniformly with editable names below them.
+  Saved diagrams include their used icons, so no pack is needed to reopen them.
 - Shapes: click or drag them from the palette, press `/` on the canvas to
   insert one by name, or use the tools (`R` rectangle, `O` ellipse,
   `D` decision on flowchart pages, `N` sticky note, `T` text).
@@ -79,6 +84,7 @@ Set `BLUEPRINT_RENDERER=glow` or `=wgpu` to force one.
 | `bp-geom` | Ray and hit tests, the R-tree index, snapping and smart guides, orthogonal connector routing (A*) |
 | `bp-text` | Bundled Inter fonts, measurement (harfrust shaping) and line breaking |
 | `bp-shapes` | Shape definitions in TOML and the built-in libraries (basic, flowchart, ERD) |
+| `bp-icons` | Official cloud SVG ZIP imports, versioned catalogs and search aliases (`icon-import` binary) |
 | `bp-commands` | Undoable property-level commands, undo/redo history, and edits built on them (delete, move, group, align, copy/paste) |
 | `bp-io` | `.blueprint` (zip) and `.blueprint.json` files, atomic saves, schema migration |
 | `bp-scene` | Document → resolved geometry and a render-agnostic display list, with per-element caching |
@@ -92,9 +98,9 @@ and every export draw from the same scene, so exports match the screen.
 
 ## File format
 
-A `.blueprint` file is a zip holding `document.json`. Save as
+A `.blueprint` file is a zip holding `document.json` and used cloud SVGs in `icons/`. Save as
 `name.blueprint.json` to get plain JSON for readable Git diffs. Every file
-carries a `schema_version` (currently 3); `bp-io` migrates older files on
+carries a `schema_version` (currently 4); `bp-io` migrates older files on
 open. Files store only what the user set: styles are sparse overrides of the
 shape's defaults, and connector routes, text layout and group bounds are
 recomputed on load. ERD column ids remain stable when rows are renamed or
@@ -108,3 +114,5 @@ the format is described at the top of `basic.toml`.
 - [Inter](https://rsms.me/inter/) 4.1 (SIL Open Font License 1.1), bundled
   in `crates/bp-text/fonts` with its licence.
 - [Phosphor](https://phosphoricons.com/) icons via `egui-phosphor` (MIT).
+- AWS/Azure architecture artwork is imported locally from official packages
+  under each provider's terms; it is not included in this repository.

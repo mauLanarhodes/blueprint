@@ -14,6 +14,7 @@ authors = ["Blueprint contributors"]
 bp-model = { path = "crates/bp-model" }
 bp-geom = { path = "crates/bp-geom" }
 bp-shapes = { path = "crates/bp-shapes" }
+bp-icons = { path = "crates/bp-icons" }
 bp-text = { path = "crates/bp-text" }
 bp-commands = { path = "crates/bp-commands" }
 bp-io = { path = "crates/bp-io" }
@@ -33,7 +34,10 @@ nucleo-matcher = "0.3"
 proptest = { version = "1.11", default-features = false, features = ["std"] }
 rfd = "0.17"
 rstar = "0.13"
-serde = { version = "1", features = ["derive"] }
+serde = { version = "1", features = ["derive", "rc"] }
+resvg = { version = "0.48.1", default-features = false }
+usvg = { version = "0.48.1", default-features = false }
+roxmltree = "0.21.1"
 serde_json = "1"
 skrifa = "0.44"
 thiserror = "2"
