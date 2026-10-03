@@ -8,7 +8,7 @@ use bp_model::{
     Element, ElementId, ElementKind, Endpoint, Layer, LayerId, OrderKey, Page, PageId, Parent,
     ShapeRef,
 };
-use egui::{Key, KeyboardShortcut, Modifiers, ViewportCommand};
+use egui::{Key, KeyboardShortcut, Modifiers};
 
 /// The key under which copied elements travel on the system clipboard.
 const CLIP_KEY: &str = "blueprint-clip";
@@ -109,13 +109,39 @@ impl BlueprintApp {
         }
         let parent = self.insert_parent();
         let order = self.doc.next_order_key(parent);
-        let el = Element::connector(source, target, parent, order);
+        let relationship = self.table_relationship(&source, &target);
+        let mut el = Element::connector(source, target, parent, order);
         let id = el.id;
-        self.apply("Add connector", [Command::Insert(Box::new(el))])
-            .then(|| {
-                self.select_only(id);
-                id
-            })
+        let mut commands = Vec::new();
+        if let Some((start, end, table, column)) = relationship {
+            if let Some(c) = el.as_connector_mut() {
+                c.start_marker = start;
+                c.end_marker = end;
+                let identifying = self
+                    .doc
+                    .elements
+                    .get(&table)
+                    .and_then(Element::as_shape)
+                    .and_then(|s| s.erd.as_ref())
+                    .and_then(|t| t.column(column))
+                    .is_some_and(|c| c.primary_key);
+                c.style.dash = Some(if identifying {
+                    bp_model::Dash::Solid
+                } else {
+                    bp_model::Dash::Dashed
+                });
+            }
+            commands.push(Command::SetColumn {
+                id: table,
+                column,
+                prop: bp_commands::ColumnProp::ForeignKey(true),
+            });
+        }
+        commands.push(Command::Insert(Box::new(el)));
+        self.apply("Add connector", commands).then(|| {
+            self.select_only(id);
+            id
+        })
     }
 
     pub fn delete_selection(&mut self) {
@@ -327,6 +353,16 @@ impl BlueprintApp {
 
     // ----- Text ------------------------------------------------------------
 
+    /// Commits editors before a save, close or document replacement.
+    pub(crate) fn finish_inline_edits(&mut self) {
+        self.finish_text_edit(true);
+        match self.renaming.take() {
+            Some(crate::app::Renaming::Page(id, name)) => self.rename_page(id, name),
+            Some(crate::app::Renaming::Layer(id, name)) => self.rename_layer(id, name),
+            None => {}
+        }
+    }
+
     pub fn start_text_edit(&mut self, id: ElementId) {
         if self.doc.is_locked(id) {
             self.status = "Locked elements can't be edited".into();
@@ -455,32 +491,54 @@ impl BlueprintApp {
         );
         page.background = original.background;
         let new_page = page.id;
-        let source_scene = bp_scene::build_page(&self.doc, source);
         let mut commands = vec![Command::InsertPage(Box::new(page))];
+        let mut layers = std::collections::HashMap::new();
         for layer in self.doc.layers_of(source) {
             let mut copy = Layer::new(new_page, layer.name.clone(), layer.order.clone());
             copy.visible = layer.visible;
             copy.locked = layer.locked;
             let new_layer = copy.id;
+            layers.insert(layer.id, new_layer);
             commands.push(Command::InsertLayer(Box::new(copy)));
-            let roots: Vec<ElementId> = self
-                .doc
-                .children(Parent::Layer(layer.id))
-                .iter()
-                .map(|e| e.id)
-                .collect();
-            let clip = Clip::copy(&self.doc, &roots, |connector, is_source| {
-                let g = source_scene.connector(connector)?;
-                if is_source {
-                    g.points.first().copied()
-                } else {
-                    g.points.last().copied()
-                }
-            });
-            // The new layer is empty, so stacking starts afresh there.
-            let (_, paste) = clip.paste(&self.doc, Parent::Layer(new_layer), Vec2::ZERO);
-            commands.extend(paste);
         }
+        // Remap the whole page together: a relationship can span layers,
+        // including hidden layers that have no resolved scene geometry.
+        let elements: Vec<&Element> = self
+            .doc
+            .elements
+            .values()
+            .filter(|e| self.doc.page_of(e.id) == Some(source))
+            .collect();
+        let fresh: std::collections::HashMap<ElementId, ElementId> =
+            elements.iter().map(|e| (e.id, ElementId::new())).collect();
+        let mut copies: Vec<(usize, Element)> = elements
+            .into_iter()
+            .map(|original| {
+                let mut copy = original.clone();
+                copy.id = fresh[&original.id];
+                copy.parent = match original.parent {
+                    Parent::Layer(id) => Parent::Layer(layers[&id]),
+                    Parent::Element(id) => Parent::Element(fresh[&id]),
+                };
+                if let ElementKind::Connector(c) = &mut copy.kind {
+                    for end in [&mut c.source, &mut c.target] {
+                        if let Endpoint::Glued { element, .. } = end
+                            && let Some(id) = fresh.get(element)
+                        {
+                            *element = *id;
+                        }
+                    }
+                }
+                (self.doc.ancestors(original.id).len(), copy)
+            })
+            .collect();
+        // Insert ancestors and shapes before dependent children/connectors.
+        copies.sort_by_key(|(depth, e)| (e.is_connector(), *depth));
+        commands.extend(
+            copies
+                .into_iter()
+                .map(|(_, e)| Command::Insert(Box::new(e))),
+        );
         if self.apply("Duplicate page", commands) {
             self.set_page(new_page);
         }
@@ -677,7 +735,7 @@ impl BlueprintApp {
         } else if pressed(EXPORT_SVG) {
             self.export_svg();
         } else if pressed(QUIT) {
-            ctx.send_viewport_cmd(ViewportCommand::Close);
+            self.request(Pending::Quit);
         }
         if typing {
             return;

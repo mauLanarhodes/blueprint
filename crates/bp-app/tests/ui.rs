@@ -2,9 +2,10 @@
 
 use bp_app::{BlueprintApp, Tool};
 use bp_model::kurbo::{Point, Rect};
-use bp_model::{ElementId, Endpoint, ShapeRef};
+use bp_model::{ColumnId, ElementId, Endpoint, Marker, PortId, ShapeRef};
 use egui::{Event, Key, Modifiers, PointerButton, Pos2};
 use egui_kittest::Harness;
+use egui_kittest::kittest::NodeT;
 use egui_kittest::kittest::Queryable;
 
 type Ui = Harness<'static, Option<BlueprintApp>>;
@@ -411,6 +412,37 @@ fn pages_and_layers_change_what_is_shown() {
 }
 
 #[test]
+fn locked_connector_properties_cannot_be_changed_in_the_inspector() {
+    let mut h = harness();
+    let id = app(&mut h)
+        .insert_connector(
+            Endpoint::Free(Point::new(100.0, 100.0)),
+            Endpoint::Free(Point::new(300.0, 200.0)),
+        )
+        .unwrap();
+    app(&mut h).toggle_lock();
+    h.run();
+    assert!(h.get_by_label("Straight").accesskit_node().is_disabled());
+    let before = app(&mut h).doc.clone();
+    h.get_by_label("Straight").click();
+    h.run();
+    assert_eq!(app(&mut h).doc, before);
+
+    h.key_press_modifiers(Modifiers::COMMAND, Key::L);
+    h.run();
+    assert!(!h.get_by_label("Straight").accesskit_node().is_disabled());
+    h.get_by_label("Straight").click();
+    h.run();
+    assert_eq!(
+        app(&mut h).doc.elements[&id]
+            .as_connector()
+            .unwrap()
+            .routing,
+        bp_model::Routing::Straight
+    );
+}
+
+#[test]
 fn text_boxes_fit_their_text_in_one_undo_step() {
     let mut h = harness();
     let id = add_shape(&mut h, "basic/text", Rect::new(100.0, 100.0, 220.0, 132.0));
@@ -432,4 +464,257 @@ fn text_boxes_fit_their_text_in_one_undo_step() {
     h.run();
     assert_eq!(app(&mut h).doc.elements[&id].text(), Some(""));
     assert_eq!(bounds(&mut h, id), before, "text and size undo together");
+}
+
+fn table_column_port(h: &mut Ui, table: ElementId, column: ColumnId, left: bool) -> Point {
+    app(h).refresh_scene();
+    let port = PortId::column(column, left);
+    app(h)
+        .scene
+        .shape(table)
+        .unwrap()
+        .ports
+        .iter()
+        .find(|p| p.id == port)
+        .unwrap()
+        .at
+}
+
+#[test]
+fn erd_palette_and_inspector_add_columns_with_enter_and_undo() {
+    let mut h = harness();
+    app(&mut h).palette.query = "table".into();
+    h.run();
+    h.get_by_label("Table").click();
+    h.run();
+    let id = app(&mut h).selection[0];
+    let table = app(&mut h).doc.elements[&id]
+        .as_shape()
+        .unwrap()
+        .erd
+        .as_ref()
+        .unwrap();
+    assert_eq!(table.columns.len(), 1);
+    assert!(table.columns[0].primary_key);
+
+    h.get_by_label("Add column").click();
+    h.run();
+    assert_eq!(
+        app(&mut h).doc.elements[&id]
+            .as_shape()
+            .unwrap()
+            .erd
+            .as_ref()
+            .unwrap()
+            .columns
+            .len(),
+        2
+    );
+    h.key_press(Key::Enter);
+    h.run();
+    assert_eq!(
+        app(&mut h).doc.elements[&id]
+            .as_shape()
+            .unwrap()
+            .erd
+            .as_ref()
+            .unwrap()
+            .columns
+            .len(),
+        3
+    );
+    let empty = screen(&mut h, Point::new(30.0, 450.0));
+    click(&mut h, empty);
+    h.key_press_modifiers(Modifiers::COMMAND, Key::Z);
+    h.run();
+    assert_eq!(
+        app(&mut h).doc.elements[&id]
+            .as_shape()
+            .unwrap()
+            .erd
+            .as_ref()
+            .unwrap()
+            .columns
+            .len(),
+        2
+    );
+    assert_eq!(app(&mut h).doc.validate(), Ok(()));
+}
+
+#[test]
+fn erd_column_relationships_set_fk_and_cardinalities_in_one_mouse_edit() {
+    let mut h = harness();
+    let orders = add_shape(&mut h, "erd/table", Rect::new(100.0, 100.0, 380.0, 200.0));
+    let customers = add_shape(&mut h, "erd/table", Rect::new(600.0, 100.0, 880.0, 200.0));
+    let pk = app(&mut h).doc.elements[&customers]
+        .as_shape()
+        .unwrap()
+        .erd
+        .as_ref()
+        .unwrap()
+        .columns[0]
+        .id;
+    let fk = app(&mut h).add_table_column(orders).unwrap();
+    app(&mut h).set_table_column(
+        orders,
+        fk,
+        bp_commands::ColumnProp::Name("customer_id".into()),
+    );
+    app(&mut h).set_table_column(orders, fk, bp_commands::ColumnProp::Nullable(false));
+    app(&mut h).selection = vec![orders];
+    h.run();
+    let original = app(&mut h).doc.clone();
+    let source = table_column_port(&mut h, orders, fk, false);
+    let target = table_column_port(&mut h, customers, pk, true);
+    let from = screen(&mut h, source);
+    let to = screen(&mut h, target);
+    h.hover_at(from);
+    h.run();
+    drag(&mut h, from, to);
+
+    let id = app(&mut h).selection[0];
+    let connector = app(&mut h).doc.elements[&id]
+        .as_connector()
+        .expect("mouse created relationship");
+    assert_eq!(
+        connector.source,
+        Endpoint::glued(orders, Some(PortId::column(fk, false).as_str()))
+    );
+    assert_eq!(
+        connector.target,
+        Endpoint::glued(customers, Some(PortId::column(pk, true).as_str()))
+    );
+    assert_eq!(
+        (connector.start_marker, connector.end_marker),
+        (Marker::ZeroOrMany, Marker::ExactlyOne)
+    );
+    assert!(
+        app(&mut h).doc.elements[&orders]
+            .as_shape()
+            .unwrap()
+            .erd
+            .as_ref()
+            .unwrap()
+            .column(fk)
+            .unwrap()
+            .foreign_key
+    );
+    app(&mut h).undo();
+    assert_eq!(
+        app(&mut h).doc,
+        original,
+        "one undo removes the relationship and FK flag"
+    );
+    app(&mut h).redo();
+    assert_eq!(app(&mut h).doc.validate(), Ok(()));
+
+    // The stable endpoint follows its table after an ordinary nudge.
+    app(&mut h).selection = vec![orders];
+    app(&mut h).nudge(20.0, 0.0);
+    h.run();
+    let moved = table_column_port(&mut h, orders, fk, false);
+    assert_eq!(app(&mut h).scene.connector(id).unwrap().points[0], moved);
+    assert_eq!(moved.x, source.x + 20.0);
+}
+
+#[test]
+fn locked_erd_tables_refuse_row_edits() {
+    let mut h = harness();
+    let table = add_shape(&mut h, "erd/table", Rect::new(100.0, 100.0, 380.0, 260.0));
+    app(&mut h).selection = vec![table];
+    app(&mut h).toggle_lock();
+    h.run();
+    let before = app(&mut h).doc.clone();
+    let column = app(&mut h).doc.elements[&table]
+        .as_shape()
+        .unwrap()
+        .erd
+        .as_ref()
+        .unwrap()
+        .columns[0]
+        .id;
+    assert!(h.get_by_label("Add column").accesskit_node().is_disabled());
+    h.get_by_label("Add column").click();
+    h.run();
+    assert!(app(&mut h).add_table_column(table).is_none());
+    app(&mut h).set_table_column(
+        table,
+        column,
+        bp_commands::ColumnProp::Name("changed".into()),
+    );
+    app(&mut h).delete_table_column(table, column);
+    assert_eq!(app(&mut h).doc, before);
+}
+
+#[test]
+fn erd_mouse_connections_support_self_referencing_columns() {
+    let mut h = harness();
+    let table = add_shape(&mut h, "erd/table", Rect::new(100.0, 100.0, 380.0, 200.0));
+    let pk = app(&mut h).doc.elements[&table]
+        .as_shape()
+        .unwrap()
+        .erd
+        .as_ref()
+        .unwrap()
+        .columns[0]
+        .id;
+    let fk = app(&mut h).add_table_column(table).unwrap();
+    app(&mut h).selection = vec![table];
+    h.run();
+    let before = app(&mut h).doc.clone();
+    let source = table_column_port(&mut h, table, fk, false);
+    let target = table_column_port(&mut h, table, pk, false);
+    let from = screen(&mut h, source);
+    let to = screen(&mut h, target);
+    drag(&mut h, from, to);
+    let id = app(&mut h).selection[0];
+    let connector = app(&mut h).doc.elements[&id].as_connector().unwrap();
+    assert_eq!(
+        connector.source,
+        Endpoint::glued(table, Some(PortId::column(fk, false).as_str()))
+    );
+    assert_eq!(
+        connector.target,
+        Endpoint::glued(table, Some(PortId::column(pk, false).as_str()))
+    );
+    assert_eq!(app(&mut h).doc.validate(), Ok(()));
+    app(&mut h).undo();
+    assert_eq!(app(&mut h).doc, before);
+}
+
+#[test]
+fn erd_primary_key_port_drags_win_over_nearby_side_ports_and_resize_handles() {
+    let mut h = harness();
+    let a = add_shape(&mut h, "erd/table", Rect::new(100.0, 100.0, 380.0, 200.0));
+    let b = add_shape(&mut h, "erd/table", Rect::new(600.0, 100.0, 880.0, 200.0));
+    let pk = |h: &mut Ui, id| {
+        app(h).doc.elements[&id]
+            .as_shape()
+            .unwrap()
+            .erd
+            .as_ref()
+            .unwrap()
+            .columns[0]
+            .id
+    };
+    let source = pk(&mut h, a);
+    let target = pk(&mut h, b);
+    app(&mut h).selection = vec![a];
+    h.run();
+    let from = table_column_port(&mut h, a, source, false);
+    let to = table_column_port(&mut h, b, target, true);
+    let from = screen(&mut h, from);
+    let to = screen(&mut h, to);
+    drag(&mut h, from, to);
+    let id = app(&mut h).selection[0];
+    let connector = app(&mut h).doc.elements[&id].as_connector().unwrap();
+    assert_eq!(
+        connector.source,
+        Endpoint::glued(a, Some(PortId::column(source, false).as_str()))
+    );
+    assert_eq!(
+        connector.target,
+        Endpoint::glued(b, Some(PortId::column(target, true).as_str()))
+    );
+    assert_eq!(connector.style.dash, Some(bp_model::Dash::Solid));
 }

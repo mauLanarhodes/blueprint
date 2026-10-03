@@ -16,6 +16,31 @@ pub fn migrate(mut value: Value) -> Result<Value, IoError> {
     if version < 2 {
         value = v1_to_v2(value)?;
     }
+    if version < 3 {
+        value = v2_to_v3(value)?;
+    }
+    Ok(value)
+}
+
+/// Schema 2 → 3: structured table data and stable column relationships.
+/// Ordinary shapes retain their existing data and sparse serialization.
+fn v2_to_v3(mut value: Value) -> Result<Value, IoError> {
+    if let Some(elements) = value.get_mut("elements").and_then(Value::as_object_mut) {
+        for element in elements.values_mut() {
+            let element = element.as_object_mut().ok_or_else(|| {
+                IoError::Migration("schema 2 file: element is not an object".into())
+            })?;
+            if element.get("shape").and_then(Value::as_str) == Some("erd/table")
+                && element.get("erd").is_none_or(Value::is_null)
+            {
+                element.insert(
+                    "erd".into(),
+                    serde_json::to_value(bp_model::ErdTable::default())?,
+                );
+            }
+        }
+    }
+    value["schema_version"] = 3.into();
     Ok(value)
 }
 

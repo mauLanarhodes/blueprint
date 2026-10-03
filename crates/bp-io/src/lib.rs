@@ -10,9 +10,11 @@ mod migrate;
 
 use bp_model::{Document, ModelError, SCHEMA_VERSION};
 use serde_json::Value;
-use std::fs::{self, File};
+use std::ffi::OsString;
+use std::fs::{self, File, OpenOptions};
 use std::io::{Cursor, Read, Write};
 use std::path::{Path, PathBuf};
+use std::sync::atomic::{AtomicU64, Ordering};
 use zip::write::SimpleFileOptions;
 use zip::{CompressionMethod, ZipArchive, ZipWriter};
 
@@ -76,6 +78,7 @@ pub fn to_zip_bytes(doc: &Document) -> Result<Vec<u8>, IoError> {
 }
 
 pub fn to_json_bytes(doc: &Document) -> Result<Vec<u8>, IoError> {
+    doc.validate()?;
     let mut bytes = serde_json::to_vec_pretty(doc)?;
     bytes.push(b'\n');
     Ok(bytes)
@@ -93,12 +96,15 @@ fn is_json_path(path: &Path) -> bool {
         .is_some_and(|e| e.eq_ignore_ascii_case("json"))
 }
 
-/// Writes to a hidden temp file next to `path`, flushes it to disk, then
-/// renames it over `path` (rename replaces the target on Windows too).
-fn atomic_write(path: &Path, bytes: &[u8]) -> Result<(), IoError> {
-    let tmp = temp_path(path);
+/// Writes bytes to an exclusively created temporary file next to `path`,
+/// flushes it to disk, then renames it over `path`.
+///
+/// Concurrent writes each use their own file, and a failed write leaves the
+/// previous destination intact. This also supports non-project output such
+/// as an SVG export.
+pub fn atomic_write(path: &Path, bytes: &[u8]) -> Result<(), IoError> {
+    let (tmp, mut file) = create_temporary(path)?;
     let result = (|| {
-        let mut file = File::create(&tmp)?;
         file.write_all(bytes)?;
         file.sync_all()?;
         drop(file);
@@ -110,11 +116,23 @@ fn atomic_write(path: &Path, bytes: &[u8]) -> Result<(), IoError> {
     Ok(result?)
 }
 
-fn temp_path(path: &Path) -> PathBuf {
-    let name = path
-        .file_name()
-        .map_or_else(|| "document".into(), |n| n.to_string_lossy().into_owned());
-    path.with_file_name(format!(".{name}.tmp"))
+fn create_temporary(path: &Path) -> Result<(PathBuf, File), std::io::Error> {
+    static NEXT_TEMP: AtomicU64 = AtomicU64::new(0);
+    loop {
+        let mut name = OsString::from(".");
+        name.push(path.file_name().unwrap_or_else(|| "document".as_ref()));
+        name.push(format!(
+            ".{}.{}.tmp",
+            std::process::id(),
+            NEXT_TEMP.fetch_add(1, Ordering::Relaxed)
+        ));
+        let tmp = path.with_file_name(name);
+        match OpenOptions::new().write(true).create_new(true).open(&tmp) {
+            Ok(file) => return Ok((tmp, file)),
+            Err(error) if error.kind() == std::io::ErrorKind::AlreadyExists => continue,
+            Err(error) => return Err(error),
+        }
+    }
 }
 
 /// Adds `.blueprint` unless the path already ends in `.blueprint` or `.json`.
@@ -167,7 +185,7 @@ mod tests {
         save(&doc, &path).unwrap();
         assert!(fs::read(&path).unwrap().starts_with(ZIP_MAGIC));
         assert_eq!(load(&path).unwrap(), doc);
-        assert!(!temp_path(&path).exists());
+        assert_eq!(fs::read_dir(&dir).unwrap().count(), 1);
         fs::remove_dir_all(dir).unwrap();
     }
 
@@ -180,7 +198,7 @@ mod tests {
         assert!(
             fs::read_to_string(&path)
                 .unwrap()
-                .contains("\"schema_version\": 2")
+                .contains(&format!("\"schema_version\": {SCHEMA_VERSION}"))
         );
         assert_eq!(load(&path).unwrap(), doc);
         fs::remove_dir_all(dir).unwrap();
@@ -198,8 +216,75 @@ mod tests {
     fn rejects_inconsistent_documents() {
         let mut doc = sample();
         doc.layers.clear();
-        let err = from_bytes(&to_json_bytes(&doc).unwrap()).unwrap_err();
+        let err = from_bytes(&serde_json::to_vec(&doc).unwrap()).unwrap_err();
         assert!(matches!(err, IoError::Model(_)));
+    }
+
+    #[test]
+    fn invalid_save_preserves_the_previous_project() {
+        let dir = scratch_dir("invalid-save");
+        let path = dir.join("plan.blueprint");
+        let doc = sample();
+        save(&doc, &path).unwrap();
+        let before = fs::read(&path).unwrap();
+
+        let mut invalid = doc.clone();
+        invalid.layers.clear();
+        assert!(matches!(save(&invalid, &path), Err(IoError::Model(_))));
+        assert_eq!(fs::read(&path).unwrap(), before);
+        assert_eq!(load(&path).unwrap(), doc);
+        fs::remove_dir_all(dir).unwrap();
+    }
+
+    #[test]
+    fn save_does_not_overwrite_an_existing_temporary_file() {
+        let dir = scratch_dir("existing-temp");
+        let path = dir.join("plan.blueprint");
+        let existing = dir.join(".plan.blueprint.tmp");
+        fs::write(&existing, b"unrelated data").unwrap();
+
+        let doc = sample();
+        save(&doc, &path).unwrap();
+        assert_eq!(load(&path).unwrap(), doc);
+        assert_eq!(fs::read(existing).unwrap(), b"unrelated data");
+        fs::remove_dir_all(dir).unwrap();
+    }
+
+    #[test]
+    fn concurrent_saves_each_write_a_complete_project() {
+        use std::sync::{Arc, Barrier};
+
+        let dir = scratch_dir("concurrent");
+        let path = dir.join("plan.blueprint");
+        let documents: Vec<_> = (0..8)
+            .map(|i| {
+                let mut doc = sample();
+                doc.pages.values_mut().next().unwrap().name = format!("Writer {i}");
+                doc
+            })
+            .collect();
+        let barrier = Arc::new(Barrier::new(documents.len()));
+        std::thread::scope(|scope| {
+            let writers: Vec<_> = documents
+                .iter()
+                .map(|doc| {
+                    let barrier = Arc::clone(&barrier);
+                    let path = &path;
+                    scope.spawn(move || {
+                        barrier.wait();
+                        for _ in 0..4 {
+                            save(doc, path).unwrap();
+                        }
+                    })
+                })
+                .collect();
+            for writer in writers {
+                writer.join().unwrap();
+            }
+        });
+        assert!(documents.contains(&load(&path).unwrap()));
+        assert_eq!(fs::read_dir(&dir).unwrap().count(), 1);
+        fs::remove_dir_all(dir).unwrap();
     }
 
     #[test]

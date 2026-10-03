@@ -1,6 +1,8 @@
 use super::*;
 use bp_model::kurbo::Vec2;
-use bp_model::{Endpoint, Marker, OrderKey, Paint, Routing, ShapeRef};
+use bp_model::{
+    Endpoint, ErdColumn, Marker, OrderKey, Paint, PortId, Routing, ShapeRef, TableDisplay,
+};
 
 struct Page {
     doc: Document,
@@ -66,6 +68,199 @@ fn texts(scene: &Scene) -> Vec<String> {
             _ => None,
         })
         .collect()
+}
+
+#[test]
+fn smart_tables_draw_typed_rows_and_expand_to_fit() {
+    let mut p = Page::new();
+    let id = p.shape("erd/table", Rect::new(10.0, 20.0, 90.0, 40.0), "customers");
+    let shape = p.doc.elements.get_mut(&id).unwrap().as_shape_mut().unwrap();
+    shape.style.font_size = Some(24.0);
+    let table = shape.erd.as_mut().unwrap();
+    let mut email = ErdColumn::new(
+        "email",
+        "VARCHAR(255)",
+        OrderKey::before(&table.columns[0].order),
+    );
+    email.foreign_key = true;
+    email.unique = true;
+    email.nullable = false;
+    email.default_value = Some("'unknown@example.com'".into());
+    let email_id = email.id;
+    table.columns.push(email);
+
+    let scene = p.build();
+    let g = scene.shape(id).unwrap();
+    let erd = g.erd.as_ref().unwrap();
+    assert_eq!(g.text_box, erd.header);
+    assert_eq!(erd.rows.len(), 2);
+    assert_eq!(
+        erd.rows[1].column, email_id,
+        "PK rows remain above other rows"
+    );
+    assert_eq!(
+        g.bounds.height(),
+        erd_header_height(24.0) + 2.0 * erd_row_height(24.0)
+    );
+    assert!(
+        g.bounds.width() > 280.0,
+        "full row metadata fits the derived width"
+    );
+    let content = texts(&scene);
+    for value in [
+        "customers",
+        "id",
+        "BIGINT",
+        "PK NOT NULL",
+        "email",
+        "FK UK NOT NULL",
+        "VARCHAR(255) = 'unknown@example.com'",
+    ] {
+        assert!(
+            content.iter().any(|text| text == value),
+            "missing {value}: {content:?}"
+        );
+    }
+    for item in scene
+        .list
+        .items()
+        .filter(|i| matches!(i.primitive, Primitive::Text(_)))
+    {
+        assert!(g.bounds.contains_rect(item.bbox), "{item:?}");
+    }
+    assert!(
+        scene.list.items().any(|item| match &item.primitive {
+            Primitive::Path {
+                path, fill: None, ..
+            } => {
+                let b = path.bounding_box();
+                b.y0 == erd.rows[0].bounds.y1 && b.y1 == b.y0 && b.width() == g.bounds.width()
+            }
+            _ => false,
+        }),
+        "primary key divider is drawn"
+    );
+}
+
+#[test]
+fn column_ports_follow_identity_through_reorder_move_and_collapse() {
+    let mut p = Page::new();
+    let id = p.shape("erd/table", Rect::new(0.0, 0.0, 280.0, 80.0), "orders");
+    let column = {
+        let table = p
+            .doc
+            .elements
+            .get_mut(&id)
+            .unwrap()
+            .as_shape_mut()
+            .unwrap()
+            .erd
+            .as_mut()
+            .unwrap();
+        let first = ErdColumn::new(
+            "customer_id",
+            "BIGINT",
+            OrderKey::after(&table.columns[0].order),
+        );
+        let second = ErdColumn::new("created_at", "TIMESTAMP", OrderKey::after(&first.order));
+        let column = second.id;
+        table.columns.extend([first, second]);
+        column
+    };
+    let endpoint = Endpoint::Glued {
+        element: id,
+        port: Some(PortId::column(column, false)),
+    };
+    let connector = p.connect(endpoint.clone(), Endpoint::Free(Point::new(800.0, 100.0)));
+    let mut cache = SceneCache::default();
+    let first = cache.build(&p.doc, p.page, Libraries::builtin());
+    let initial = first.connector(connector).unwrap().points[0];
+    let row = first
+        .shape(id)
+        .unwrap()
+        .erd
+        .as_ref()
+        .unwrap()
+        .rows
+        .iter()
+        .find(|r| r.column == column)
+        .unwrap();
+    assert_eq!(initial, Point::new(row.bounds.x1, row.bounds.center().y));
+    assert_eq!(
+        first.port_near(initial, 1.0, |_| true).unwrap().1.id,
+        PortId::column(column, false)
+    );
+    drop(first);
+
+    let table = p
+        .doc
+        .elements
+        .get_mut(&id)
+        .unwrap()
+        .as_shape_mut()
+        .unwrap()
+        .erd
+        .as_mut()
+        .unwrap();
+    table.columns[2].order = OrderKey::before(&table.columns[1].order);
+    let reordered = cache.build(&p.doc, p.page, Libraries::builtin());
+    assert_eq!(
+        cache.rebuilt, 2,
+        "table data changes invalidate the attached route"
+    );
+    assert_eq!(
+        reordered.connector(connector).unwrap().points[0].y,
+        initial.y - erd_row_height(13.0)
+    );
+    drop(reordered);
+
+    let shape = p.doc.elements.get_mut(&id).unwrap().as_shape_mut().unwrap();
+    shape.bounds = shape.bounds + Vec2::new(30.0, 40.0);
+    shape.erd.as_mut().unwrap().display = TableDisplay::KeysOnly;
+    let keys = cache.build(&p.doc, p.page, Libraries::builtin());
+    let header = keys.shape(id).unwrap().erd.as_ref().unwrap().header;
+    assert_eq!(keys.shape(id).unwrap().erd.as_ref().unwrap().rows.len(), 1);
+    assert_eq!(
+        keys.connector(connector).unwrap().points[0],
+        Point::new(header.x1, header.center().y)
+    );
+    assert!(
+        keys.port_near(Point::new(header.x1, header.center().y), 1.0, |_| true)
+            .is_none(),
+        "hidden columns cannot be picked for new relationships"
+    );
+    assert!(!texts(&keys).iter().any(|t| t == "created_at"));
+    drop(keys);
+
+    p.doc
+        .elements
+        .get_mut(&id)
+        .unwrap()
+        .as_shape_mut()
+        .unwrap()
+        .erd
+        .as_mut()
+        .unwrap()
+        .display = TableDisplay::Collapsed;
+    let collapsed = cache.build(&p.doc, p.page, Libraries::builtin());
+    let g = collapsed.shape(id).unwrap();
+    assert_eq!(g.bounds, g.text_box);
+    assert!(g.erd.as_ref().unwrap().rows.is_empty());
+    assert_eq!(
+        g.visible_ports().count(),
+        4,
+        "collapsed tables expose outline ports only"
+    );
+    assert_eq!(texts(&collapsed), ["orders"]);
+    assert_eq!(
+        collapsed.connector(connector).unwrap().points[0],
+        Point::new(g.bounds.x1, g.bounds.center().y)
+    );
+    assert_eq!(
+        p.connector_mut(connector).source,
+        endpoint,
+        "filtering never rewrites the permanent port"
+    );
 }
 
 #[test]
@@ -209,6 +404,24 @@ fn markers_shorten_the_line() {
     );
     let arrow = paths[2].bounding_box();
     assert!((arrow.x1 - 200.0).abs() < 1e-6, "arrow tip at the end");
+}
+
+#[test]
+fn thick_shape_strokes_can_be_selected_at_their_outer_edge() {
+    let mut p = Page::new();
+    let id = p.shape("basic/rectangle", Rect::new(0.0, 0.0, 100.0, 50.0), "");
+    p.doc
+        .elements
+        .get_mut(&id)
+        .unwrap()
+        .as_shape_mut()
+        .unwrap()
+        .style
+        .stroke_width = Some(40.0);
+    let scene = p.build();
+    let point = Point::new(-18.0, 25.0);
+    assert!(scene.hits(id, point, 0.0));
+    assert_eq!(scene.hit(point, 0.0, |_| true), Some(id));
 }
 
 #[test]

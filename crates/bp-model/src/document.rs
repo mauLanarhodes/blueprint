@@ -1,9 +1,11 @@
-use crate::{Color, Element, ElementId, ElementKind, LayerId, OrderKey, PageId, Parent};
+use crate::{
+    Color, ColumnId, Element, ElementId, ElementKind, Endpoint, LayerId, OrderKey, PageId, Parent,
+};
 use serde::{Deserialize, Serialize};
 use std::collections::{BTreeMap, HashMap, HashSet};
 
 /// Bumped whenever the file format changes; `bp-io` migrates older files.
-pub const SCHEMA_VERSION: u32 = 2;
+pub const SCHEMA_VERSION: u32 = 3;
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct Page {
@@ -91,6 +93,27 @@ pub enum ModelError {
     IdMismatch(String),
     #[error("invalid order key {0:?}")]
     InvalidOrderKey(String),
+    #[error("table {element} contains duplicate column {column}")]
+    DuplicateColumn {
+        element: ElementId,
+        column: ColumnId,
+    },
+    #[error("table {0} has no structured ERD data")]
+    MissingErdData(ElementId),
+    #[error("shape {0} has ERD data but is not an ERD table")]
+    UnexpectedErdData(ElementId),
+    #[error("connector {connector} refers to missing column {column} in table {target}")]
+    MissingColumnEndpoint {
+        connector: ElementId,
+        target: ElementId,
+        column: ColumnId,
+    },
+    #[error("connector {connector} has invalid column port {port:?} on {target}")]
+    InvalidColumnPort {
+        connector: ElementId,
+        target: ElementId,
+        port: String,
+    },
 }
 
 impl Default for Document {
@@ -243,6 +266,22 @@ impl Document {
             .collect()
     }
 
+    /// Relationships attached to either side of a particular column row.
+    pub fn connectors_attached_to_column(&self, id: ElementId, column: ColumnId) -> Vec<ElementId> {
+        self.elements
+            .values()
+            .filter(|element| {
+                element.as_connector().is_some_and(|connector| {
+                    connector.endpoints().iter().any(|endpoint| {
+                        matches!(endpoint, Endpoint::Glued { element, port: Some(port) }
+                        if *element == id && port.column_id() == Some(column))
+                    })
+                })
+            })
+            .map(|element| element.id)
+            .collect()
+    }
+
     /// An order key that puts a new child on top of `parent`'s children.
     pub fn next_order_key(&self, parent: Parent) -> OrderKey {
         self.elements
@@ -345,6 +384,27 @@ impl Document {
                 if ![b.x0, b.y0, b.x1, b.y1].iter().all(|v| v.is_finite()) {
                     return Err(ModelError::NotFinite(element.id));
                 }
+                match (s.shape.as_str() == "erd/table", s.erd.is_some()) {
+                    (true, false) => return Err(ModelError::MissingErdData(element.id)),
+                    (false, true) => return Err(ModelError::UnexpectedErdData(element.id)),
+                    _ => {}
+                }
+                if let Some(table) = &s.erd {
+                    let mut ids = HashSet::new();
+                    for column in &table.columns {
+                        if !ids.insert(column.id) {
+                            return Err(ModelError::DuplicateColumn {
+                                element: element.id,
+                                column: column.id,
+                            });
+                        }
+                        if !column.order.is_valid() {
+                            return Err(ModelError::InvalidOrderKey(
+                                column.order.as_str().to_owned(),
+                            ));
+                        }
+                    }
+                }
             }
             ElementKind::Connector(c) => {
                 for end in c.endpoints() {
@@ -353,16 +413,7 @@ impl Document {
                             return Err(ModelError::NotFinite(element.id));
                         }
                         crate::Endpoint::Free(_) => {}
-                        crate::Endpoint::Glued {
-                            element: target, ..
-                        } => {
-                            if !self.elements.get(target).is_some_and(Element::is_shape) {
-                                return Err(ModelError::BadEndpoint {
-                                    connector: element.id,
-                                    target: *target,
-                                });
-                            }
-                        }
+                        crate::Endpoint::Glued { .. } => self.check_endpoint(element.id, end)?,
                     }
                 }
                 if !c.waypoints.iter().copied().all(finite) {
@@ -370,6 +421,52 @@ impl Document {
                 }
             }
             ElementKind::Group => {}
+        }
+        Ok(())
+    }
+
+    /// Checks glued element and stable column-port references.
+    pub fn check_endpoint(
+        &self,
+        connector: ElementId,
+        endpoint: &Endpoint,
+    ) -> Result<(), ModelError> {
+        if let Endpoint::Glued {
+            element: target,
+            port,
+        } = endpoint
+        {
+            let shape = self
+                .elements
+                .get(target)
+                .and_then(Element::as_shape)
+                .ok_or(ModelError::BadEndpoint {
+                    connector,
+                    target: *target,
+                })?;
+            if let Some(port) = port
+                .as_ref()
+                .filter(|port| port.as_str().starts_with("column:"))
+            {
+                let column = port
+                    .column_id()
+                    .ok_or_else(|| ModelError::InvalidColumnPort {
+                        connector,
+                        target: *target,
+                        port: port.as_str().to_owned(),
+                    })?;
+                if !shape
+                    .erd
+                    .as_ref()
+                    .is_some_and(|table| table.column(column).is_some())
+                {
+                    return Err(ModelError::MissingColumnEndpoint {
+                        connector,
+                        target: *target,
+                        column,
+                    });
+                }
+            }
         }
         Ok(())
     }
@@ -576,5 +673,93 @@ mod tests {
             s.bounds.x1 = f64::NAN;
         }
         assert!(matches!(doc.validate(), Err(ModelError::NotFinite(_))));
+    }
+
+    #[test]
+    fn column_ids_are_unique_within_each_table() {
+        let mut doc = Document::new();
+        let parent = Parent::Layer(doc.layers_of(doc.first_page().unwrap())[0].id);
+        let table = Element::shape(
+            ShapeRef::new("erd", "table"),
+            parent,
+            OrderKey::first(),
+            Rect::new(0.0, 0.0, 240.0, 120.0),
+        );
+        let id = table.id;
+        let column = table.as_shape().unwrap().erd.as_ref().unwrap().columns[0].clone();
+        let mut copy = table.clone();
+        copy.id = ElementId::new();
+        doc.elements.insert(copy.id, copy);
+        doc.elements.insert(id, table);
+        assert_eq!(
+            doc.validate(),
+            Ok(()),
+            "ids may repeat across copied tables"
+        );
+        doc.elements
+            .get_mut(&id)
+            .unwrap()
+            .as_shape_mut()
+            .unwrap()
+            .erd
+            .as_mut()
+            .unwrap()
+            .columns
+            .push(column.clone());
+        assert_eq!(
+            doc.validate(),
+            Err(ModelError::DuplicateColumn {
+                element: id,
+                column: column.id
+            })
+        );
+    }
+
+    #[test]
+    fn column_ports_reject_missing_rows_and_malformed_ids() {
+        let mut doc = Document::new();
+        let parent = Parent::Layer(doc.layers_of(doc.first_page().unwrap())[0].id);
+        let table = Element::shape(
+            ShapeRef::new("erd", "table"),
+            parent,
+            OrderKey::first(),
+            Rect::new(0.0, 0.0, 240.0, 120.0),
+        );
+        let id = table.id;
+        let column = table.as_shape().unwrap().erd.as_ref().unwrap().columns[0].id;
+        doc.elements.insert(id, table);
+        let mut connector = Element::connector(
+            Endpoint::Glued {
+                element: id,
+                port: Some(crate::PortId::column(column, true)),
+            },
+            Endpoint::Free(Point::ZERO),
+            parent,
+            doc.next_order_key(parent),
+        );
+        let connector_id = connector.id;
+        doc.elements.insert(connector_id, connector.clone());
+        assert_eq!(doc.validate(), Ok(()));
+        let missing = ColumnId::new();
+        connector.as_connector_mut().unwrap().source = Endpoint::Glued {
+            element: id,
+            port: Some(crate::PortId::column(missing, false)),
+        };
+        doc.elements.insert(connector_id, connector.clone());
+        assert_eq!(
+            doc.validate(),
+            Err(ModelError::MissingColumnEndpoint {
+                connector: connector_id,
+                target: id,
+                column: missing
+            })
+        );
+        connector.as_connector_mut().unwrap().source =
+            Endpoint::glued(id, Some("column:invalid:e"));
+        doc.elements.insert(connector_id, connector);
+        assert!(matches!(
+            doc.validate(),
+            Err(ModelError::InvalidColumnPort { .. })
+        ));
     }
 }

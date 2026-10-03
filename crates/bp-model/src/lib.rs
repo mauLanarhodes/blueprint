@@ -10,6 +10,7 @@
 
 mod document;
 mod element;
+mod erd;
 mod ids;
 mod order;
 mod style;
@@ -18,7 +19,8 @@ pub use document::{Document, Layer, ModelError, Page, SCHEMA_VERSION, Tree};
 pub use element::{
     Connector, Element, ElementKind, Endpoint, Marker, Parent, PortId, Routing, Shape, ShapeRef,
 };
-pub use ids::{ElementId, IdHasher, IdMap, LayerId, PageId};
+pub use erd::{ErdColumn, ErdTable, SqlDialect, TableDisplay};
+pub use ids::{ColumnId, ElementId, IdHasher, IdMap, LayerId, PageId};
 pub use kurbo;
 pub use order::OrderKey;
 pub use style::{Color, Dash, Paint, Style, StyleValues, TextAlign, VerticalAlign};

@@ -3,10 +3,11 @@
 //! stays valid after every step.
 
 use bp_commands::edit::{self, Reorder};
-use bp_commands::{Command, History, LayerProp, Prop};
+use bp_commands::{ColumnProp, Command, History, LayerProp, Prop};
 use bp_model::kurbo::{Point, Rect, Vec2};
 use bp_model::{
-    Color, Document, Element, ElementId, Endpoint, Layer, OrderKey, Page, Paint, Parent, ShapeRef,
+    Color, Document, Element, ElementId, Endpoint, ErdColumn, Layer, OrderKey, Page, Paint, Parent,
+    PortId, ShapeRef, SqlDialect, TableDisplay,
 };
 use proptest::prelude::*;
 
@@ -21,7 +22,7 @@ struct Op {
 
 fn ops() -> impl Strategy<Value = Vec<Op>> {
     prop::collection::vec(
-        (0u8..14, any::<u16>(), any::<u16>()).prop_map(|(kind, a, b)| Op { kind, a, b }),
+        (0u8..22, any::<u16>(), any::<u16>()).prop_map(|(kind, a, b)| Op { kind, a, b }),
         1..40,
     )
 }
@@ -45,6 +46,17 @@ fn commands_for(doc: &Document, op: &Op) -> Vec<Command> {
         .map(|e| e.id)
         .collect();
     let layers: Vec<_> = doc.layers.keys().copied().collect();
+    let tables: Vec<_> = doc
+        .elements
+        .values()
+        .filter(|element| element.as_shape().is_some_and(|shape| shape.erd.is_some()))
+        .map(|element| element.id)
+        .collect();
+    let row = pick(&tables, op.a).and_then(|id| {
+        let table = doc.elements[&id].as_shape().unwrap().erd.as_ref().unwrap();
+        let columns: Vec<_> = table.columns.iter().map(|column| column.id).collect();
+        pick(&columns, op.b).map(|column| (id, column))
+    });
     let layer = Parent::Layer(pick(&layers, op.a).expect("a layer"));
     let x = f64::from(op.b % 500);
     match op.kind {
@@ -134,7 +146,7 @@ fn commands_for(doc: &Document, op: &Op) -> Vec<Command> {
                 Command::InsertLayer(Box::new(layer)),
             ]
         }
-        _ => match pick(&layers, op.b) {
+        13 => match pick(&layers, op.b) {
             Some(id) => vec![
                 Command::SetLayer {
                     id,
@@ -147,6 +159,126 @@ fn commands_for(doc: &Document, op: &Op) -> Vec<Command> {
             ],
             None => vec![],
         },
+        14 => vec![Command::Insert(Box::new(Element::shape(
+            ShapeRef::new("erd", "table"),
+            layer,
+            doc.next_order_key(layer),
+            Rect::new(x, x, x + 240.0, x + 100.0),
+        )))],
+        15 => pick(&tables, op.a)
+            .map(|id| {
+                let table = doc.elements[&id].as_shape().unwrap().erd.as_ref().unwrap();
+                let order = table
+                    .columns
+                    .iter()
+                    .map(|column| &column.order)
+                    .max()
+                    .map_or_else(OrderKey::first, OrderKey::after);
+                vec![Command::InsertColumn {
+                    id,
+                    column: Box::new(ErdColumn::new(format!("column_{}", op.b), "TEXT", order)),
+                }]
+            })
+            .unwrap_or_default(),
+        16 => row
+            .map(|(id, column)| vec![Command::RemoveColumn { id, column }])
+            .unwrap_or_default(),
+        17 => row
+            .map(|(id, column)| edit::remove_column(doc, id, column))
+            .unwrap_or_default(),
+        18 => row
+            .map(|(id, column)| {
+                let flag = op.a.is_multiple_of(2);
+                let prop = match op.b % 9 {
+                    0 => ColumnProp::Name(format!("renamed_{}", op.a)),
+                    1 => ColumnProp::DataType("UUID".into()),
+                    2 => ColumnProp::Order(OrderKey::after(
+                        &doc.elements[&id]
+                            .as_shape()
+                            .unwrap()
+                            .erd
+                            .as_ref()
+                            .unwrap()
+                            .column(column)
+                            .unwrap()
+                            .order,
+                    )),
+                    3 => ColumnProp::PrimaryKey(flag),
+                    4 => ColumnProp::ForeignKey(flag),
+                    5 => ColumnProp::Unique(flag),
+                    6 => ColumnProp::Nullable(flag),
+                    7 => ColumnProp::DefaultValue(Some("0".into())),
+                    _ => ColumnProp::DefaultValue(None),
+                };
+                vec![Command::SetColumn { id, column, prop }]
+            })
+            .unwrap_or_default(),
+        19 => pick(&tables, op.a)
+            .map(|id| {
+                vec![
+                    Command::Set {
+                        id,
+                        prop: Prop::TableDisplay(
+                            TableDisplay::ALL[usize::from(op.b) % TableDisplay::ALL.len()],
+                        ),
+                    },
+                    Command::Set {
+                        id,
+                        prop: Prop::SqlDialect(
+                            SqlDialect::ALL[usize::from(op.a) % SqlDialect::ALL.len()],
+                        ),
+                    },
+                ]
+            })
+            .unwrap_or_default(),
+        20 => match (row, pick(&tables, op.b)) {
+            (Some((source, column)), Some(target)) => {
+                let Some(target_column) = doc.elements[&target]
+                    .as_shape()
+                    .unwrap()
+                    .erd
+                    .as_ref()
+                    .unwrap()
+                    .columns
+                    .first()
+                else {
+                    return vec![];
+                };
+                vec![Command::Insert(Box::new(Element::connector(
+                    Endpoint::Glued {
+                        element: source,
+                        port: Some(PortId::column(column, false)),
+                    },
+                    Endpoint::Glued {
+                        element: target,
+                        port: Some(PortId::column(target_column.id, true)),
+                    },
+                    layer,
+                    doc.next_order_key(layer),
+                )))]
+            }
+            _ => vec![],
+        },
+        21 => pick(&shapes, op.a)
+            .map(|id| {
+                vec![Command::Set {
+                    id,
+                    prop: Prop::Shape(ShapeRef::new(
+                        if doc.elements[&id].as_shape().unwrap().erd.is_some() {
+                            "basic"
+                        } else {
+                            "erd"
+                        },
+                        if doc.elements[&id].as_shape().unwrap().erd.is_some() {
+                            "rectangle"
+                        } else {
+                            "table"
+                        },
+                    )),
+                }]
+            })
+            .unwrap_or_default(),
+        _ => vec![],
     }
 }
 

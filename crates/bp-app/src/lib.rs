@@ -5,6 +5,7 @@ mod actions;
 mod app;
 mod canvas;
 mod dialogs;
+mod erd;
 mod inspector;
 mod menus;
 mod pages;

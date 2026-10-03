@@ -31,11 +31,14 @@ impl BlueprintApp {
                     .collect();
                 match selected.as_slice() {
                     [] => self.page_inspector(ui),
-                    [one] => match &one.kind {
-                        ElementKind::Shape(_) => self.shape_inspector(ui, one),
-                        ElementKind::Connector(_) => self.connector_inspector(ui, one),
-                        ElementKind::Group => self.group_inspector(ui, one),
-                    },
+                    [one] => {
+                        ui.add_enabled_ui(!self.doc.is_locked(one.id), |ui| match &one.kind {
+                            ElementKind::Shape(_) => self.shape_inspector(ui, one),
+                            ElementKind::Connector(_) => self.connector_inspector(ui, one),
+                            ElementKind::Group => self.group_inspector(ui, one),
+                        });
+                        self.arrange_section(ui);
+                    }
                     many => self.multi_inspector(ui, many),
                 }
             });
@@ -137,7 +140,9 @@ impl BlueprintApp {
         }
         ui.add_space(6.0);
 
-        if self.editing.is_none() {
+        if shape.erd.is_some() {
+            self.erd_table_inspector(ui, el);
+        } else if self.editing.is_none() {
             section(ui, "Text");
             let mut text = shape.text.clone();
             let edit = egui::TextEdit::multiline(&mut text)
@@ -193,7 +198,6 @@ impl BlueprintApp {
 
         let has_corners = def.outline == Outline::Rect;
         self.style_section(ui, el, true, has_corners);
-        self.arrange_section(ui);
     }
 
     fn connector_inspector(&mut self, ui: &mut Ui, el: &Element) {
@@ -331,7 +335,6 @@ impl BlueprintApp {
         ui.add_space(6.0);
 
         self.style_section(ui, el, false, false);
-        self.arrange_section(ui);
     }
 
     fn group_inspector(&mut self, ui: &mut Ui, el: &Element) {
@@ -351,7 +354,6 @@ impl BlueprintApp {
             self.selection.clear();
         }
         ui.add_space(6.0);
-        self.arrange_section(ui);
     }
 
     fn multi_inspector(&mut self, ui: &mut Ui, many: &[Element]) {

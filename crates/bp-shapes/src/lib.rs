@@ -17,9 +17,10 @@ use std::sync::OnceLock;
 /// Accuracy when converting curves to Béziers, in page units.
 const CURVE_ACCURACY: f64 = 0.05;
 
-const BUILTIN: [&str; 2] = [
+const BUILTIN: [&str; 3] = [
     include_str!("../libraries/basic.toml"),
     include_str!("../libraries/flowchart.toml"),
+    include_str!("../libraries/erd.toml"),
 ];
 
 #[derive(Clone, Debug, PartialEq)]
@@ -430,7 +431,7 @@ mod tests {
             .iter()
             .map(|l| l.id.as_str())
             .collect();
-        assert_eq!(ids, ["basic", "flowchart"]);
+        assert_eq!(ids, ["basic", "flowchart", "erd"]);
         assert!(builtin().shapes().count() >= 40);
     }
 
@@ -447,6 +448,26 @@ mod tests {
                 builtin().get(&ShapeRef::new("basic", name)).is_some(),
                 "{name}"
             );
+        }
+    }
+
+    #[test]
+    fn erd_shape_details_fit_small_palette_thumbnails() {
+        let bounds = Rect::new(0.0, 0.0, 24.0, 16.0);
+        let library = builtin()
+            .libraries()
+            .iter()
+            .find(|l| l.id == "erd")
+            .unwrap();
+        for def in &library.shapes {
+            assert!(bounds.contains_rect(def.outline(bounds, 0.0).bounding_box()));
+            if let Some(details) = def.details(bounds) {
+                assert!(
+                    bounds.contains_rect(details.bounding_box()),
+                    "{}",
+                    def.reference
+                );
+            }
         }
     }
 

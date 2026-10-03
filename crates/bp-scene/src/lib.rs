@@ -8,9 +8,11 @@
 //! changed), so dragging one shape in a large diagram stays cheap.
 
 mod connector;
+mod erd;
 mod text;
 
 pub use connector::ROUTE_MARGIN;
+pub use erd::{ErdGeometry, ErdRowGeometry, erd_header_height, erd_row_height};
 pub use text::{PADDING_X, PADDING_Y, TextStyle, place as place_text};
 
 use bp_geom::{SpatialIndex, distance_to_path, distance_to_polyline};
@@ -104,7 +106,23 @@ pub struct ShapeGeometry {
     pub closed: bool,
     pub ports: Vec<Port>,
     pub text_box: Rect,
+    /// Header and visible column rows of a smart ERD table.
+    pub erd: Option<ErdGeometry>,
     pub style: StyleValues,
+}
+
+impl ShapeGeometry {
+    /// Ports offered when drawing a new connector. Hidden ERD rows retain
+    /// their ports for existing relationships, but cannot be picked anew.
+    pub fn visible_ports(&self) -> impl Iterator<Item = &Port> {
+        self.ports.iter().filter(|port| {
+            port.id.column_id().is_none_or(|column| {
+                self.erd
+                    .as_ref()
+                    .is_none_or(|table| table.rows.iter().any(|row| row.column == column))
+            })
+        })
+    }
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -151,6 +169,9 @@ pub fn connector_defaults() -> StyleValues {
 pub fn shape_geometry(libraries: &Libraries, shape: &Shape) -> ShapeGeometry {
     let def = libraries.resolve(&shape.shape);
     let style = shape.style.resolve(&def.default_style());
+    if let Some(table) = &shape.erd {
+        return erd::geometry(shape, table, style);
+    }
     let bounds = shape.bounds.abs();
     ShapeGeometry {
         outline: def.outline(bounds, style.corner_radius),
@@ -158,6 +179,7 @@ pub fn shape_geometry(libraries: &Libraries, shape: &Shape) -> ShapeGeometry {
         closed: def.is_closed(),
         ports: def.ports(bounds, style.corner_radius),
         text_box: def.text_box(bounds),
+        erd: None,
         bounds,
         style,
     }
@@ -212,6 +234,10 @@ fn shape_items(
     if fill.is_some() || stroke.is_some() {
         items.push(path_item(id, g.outline.clone(), fill, stroke));
     }
+    if let (Some(table), Some(geometry)) = (&shape.erd, &g.erd) {
+        erd::items(id, shape, table, g, geometry, &mut items);
+        return items;
+    }
     if let (Some(details), Some(stroke)) = (def.details(g.bounds), stroke) {
         items.push(path_item(id, details, None, Some(stroke)));
     }
@@ -264,7 +290,9 @@ fn connector_items(
             markers.extend(paths);
         }
         let line = connector::trim(&route.path, trims[0], trims[1]);
-        items.push(path_item(id, line, None, Some(stroke)));
+        if line.segments().next().is_some() {
+            items.push(path_item(id, line, None, Some(stroke)));
+        }
         for m in markers {
             items.push(path_item(id, m.path, m.fill, m.stroke));
         }
@@ -431,7 +459,7 @@ impl Scene {
             let Some(g) = self.shape(id).filter(|_| accept(id)) else {
                 continue;
             };
-            for port in &g.ports {
+            for port in g.visible_ports() {
                 let d = (port.at - p).hypot();
                 if d <= tolerance && best.as_ref().is_none_or(|(bd, ..)| d < *bd) {
                     best = Some((d, id, port.clone()));
@@ -723,6 +751,13 @@ impl SceneCache {
         removed: &[ElementId],
     ) {
         let bounds_of = |id: &ElementId| match geometry.get(id) {
+            Some((_, g)) if matches!(**g, Geometry::Shape(_)) => {
+                let Geometry::Shape(shape) = g.as_ref() else {
+                    unreachable!()
+                };
+                let half = shape.style.stroke_width / 2.0;
+                Some(shape.bounds.inflate(half, half))
+            }
             Some((_, g)) if !matches!(**g, Geometry::Group { .. }) => Some(g.bounds()),
             _ => None,
         };

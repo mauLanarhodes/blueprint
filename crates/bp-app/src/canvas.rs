@@ -346,8 +346,7 @@ impl BlueprintApp {
             return Vec::new();
         };
         let rect = self.view.rect_to_screen(origin, g.bounds);
-        g.ports
-            .iter()
+        g.visible_ports()
             .filter(|p| Dir::ALL.iter().any(|d| d.name() == p.id.as_str()))
             .map(|p| {
                 let at = match p.dir {
@@ -427,6 +426,20 @@ impl BlueprintApp {
                 return Some(Grab::Label(id));
             }
         }
+        // Named table ports are usable while the table is selected. They
+        // take precedence over a coincident edge resize handle.
+        if let Some(shape) = self.port_shape_at(self.view.to_page(origin, pos))
+            && let Some(g) = self.scene.shape(shape)
+            && let Some(port) = g
+                .visible_ports()
+                .filter(|p| p.id.column_id().is_some())
+                .map(|port| ((at(port.at) - pos).length(), port))
+                .filter(|(distance, _)| *distance <= PORT_SNAP * 0.6)
+                .min_by(|a, b| a.0.total_cmp(&b.0))
+                .map(|(_, port)| port)
+        {
+            return Some(Grab::Port(shape, port.id.clone()));
+        }
         if let Some(bounds) = self.resize_bounds() {
             for handle in Handle::ALL {
                 if near(at(handle.at(bounds))) {
@@ -445,7 +458,7 @@ impl BlueprintApp {
             && !self.is_selected(shape)
             && let Some(g) = self.scene.shape(shape)
         {
-            for port in &g.ports {
+            for port in g.visible_ports() {
                 if (at(port.at) - pos).length() <= PORT_SNAP * 0.6 {
                     return Some(Grab::Port(shape, port.id.clone()));
                 }
@@ -773,7 +786,12 @@ impl BlueprintApp {
             Drag::Move { .. } => self.drag_move(p, no_snap, tolerance),
             Drag::Resize { .. } => self.drag_resize(ctx, p, no_snap, tolerance),
             Drag::Connect { source, .. } => {
-                let exclude = source.element();
+                let exclude = match source {
+                    Endpoint::Glued {
+                        port: Some(port), ..
+                    } if port.column_id().is_some() => None,
+                    _ => source.element(),
+                };
                 let (end, _) = self.connect_target(p, exclude);
                 if let Drag::Connect { target, .. } = &mut self.drag {
                     *target = end;
@@ -822,8 +840,14 @@ impl BlueprintApp {
             return;
         };
         let other = match end {
-            End::Source => c.target.element(),
-            End::Target => c.source.element(),
+            End::Source => &c.target,
+            End::Target => &c.source,
+        };
+        let other = match other {
+            Endpoint::Glued {
+                port: Some(port), ..
+            } if port.column_id().is_some() => None,
+            _ => other.element(),
         };
         let (endpoint, _) = self.connect_target(p, other);
         let prop = match end {
@@ -1062,7 +1086,20 @@ impl BlueprintApp {
                 self.tool = Tool::Select;
             }
             Drag::Connect { source, target } => {
-                let same_shape = source.element().is_some() && source.element() == target.element();
+                let distinct_rows = match (&source, &target) {
+                    (
+                        Endpoint::Glued { port: Some(a), .. },
+                        Endpoint::Glued { port: Some(b), .. },
+                    ) => {
+                        a.column_id().is_some()
+                            && b.column_id().is_some()
+                            && a.column_id() != b.column_id()
+                    }
+                    _ => false,
+                };
+                let same_shape = source.element().is_some()
+                    && source.element() == target.element()
+                    && !distinct_rows;
                 let too_short = match (&source, &target) {
                     (Endpoint::Free(a), Endpoint::Free(b)) => (*a - *b).hypot() < self.units(6.0),
                     _ => false,
@@ -1233,7 +1270,9 @@ impl BlueprintApp {
                     End::Source => c.source.element(),
                     End::Target => c.target.element(),
                 }),
-            _ => self.hovered_shape().filter(|s| !self.is_selected(*s)),
+            _ => self.hovered_shape().filter(|s| {
+                !self.is_selected(*s) || self.scene.shape(*s).is_some_and(|g| g.erd.is_some())
+            }),
         };
         if let Some(g) = port_shape.and_then(|s| self.scene.shape(s)) {
             if self.drag.is_active() {
@@ -1244,7 +1283,11 @@ impl BlueprintApp {
                     StrokeKind::Outside,
                 );
             }
-            for port in &g.ports {
+            for port in g.visible_ports().filter(|p| {
+                self.drag.is_active()
+                    || port_shape.is_none_or(|id| !self.is_selected(id))
+                    || p.id.column_id().is_some()
+            }) {
                 painter.circle(at(port.at), 4.0, Color32::WHITE, Stroke::new(1.5, PORT));
             }
         }

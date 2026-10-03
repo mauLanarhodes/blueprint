@@ -73,3 +73,137 @@ fn migrated_files_save_as_the_current_schema() {
     let again = bp_io::from_bytes(json.as_bytes()).unwrap();
     assert_eq!(again, doc);
 }
+
+#[test]
+fn phase1_shapes_migrate_without_changing_their_data() {
+    let mut doc = bp_model::Document::new();
+    let parent = Parent::Layer(doc.layers_of(doc.first_page().unwrap())[0].id);
+    let mut shape = bp_model::Element::shape(
+        bp_model::ShapeRef::new("basic", "rectangle"),
+        parent,
+        bp_model::OrderKey::first(),
+        bp_model::kurbo::Rect::new(10.0, 20.0, 120.0, 80.0),
+    );
+    shape.as_shape_mut().unwrap().text = "Phase 1".into();
+    doc.elements.insert(shape.id, shape);
+    let mut json = serde_json::to_value(&doc).unwrap();
+    json["schema_version"] = 2.into();
+    let loaded = bp_io::from_bytes(&serde_json::to_vec(&json).unwrap()).unwrap();
+    assert_eq!(loaded, doc);
+    assert!(
+        loaded
+            .elements
+            .values()
+            .all(|element| element.as_shape().unwrap().erd.is_none())
+    );
+}
+
+#[test]
+fn phase1_table_placeholders_gain_structured_data_on_migration() {
+    let mut doc = bp_model::Document::new();
+    let parent = Parent::Layer(doc.layers_of(doc.first_page().unwrap())[0].id);
+    let mut shape = bp_model::Element::shape(
+        bp_model::ShapeRef::new("erd", "table"),
+        parent,
+        bp_model::OrderKey::first(),
+        bp_model::kurbo::Rect::new(10.0, 20.0, 250.0, 140.0),
+    );
+    shape.as_shape_mut().unwrap().text = "accounts".into();
+    let id = shape.id;
+    doc.elements.insert(id, shape);
+    let mut json = serde_json::to_value(&doc).unwrap();
+    json["schema_version"] = 2.into();
+    json["elements"][id.to_string()]
+        .as_object_mut()
+        .unwrap()
+        .remove("erd");
+    let loaded = bp_io::from_bytes(&serde_json::to_vec(&json).unwrap()).unwrap();
+    assert_eq!(loaded.schema_version, SCHEMA_VERSION);
+    assert_eq!(loaded.elements[&id].text(), Some("accounts"));
+    let table = loaded.elements[&id]
+        .as_shape()
+        .unwrap()
+        .erd
+        .as_ref()
+        .unwrap();
+    assert_eq!(table.columns[0].name, "id");
+    assert!(table.columns[0].primary_key);
+    assert!(!table.columns[0].nullable);
+    assert_eq!(
+        bp_io::from_bytes(&bp_io::to_zip_bytes(&loaded).unwrap()).unwrap(),
+        loaded
+    );
+}
+
+#[test]
+fn structured_table_and_relationship_round_trip_in_both_formats() {
+    let mut doc = bp_model::Document::new();
+    let parent = Parent::Layer(doc.layers_of(doc.first_page().unwrap())[0].id);
+    let mut table = bp_model::Element::shape(
+        bp_model::ShapeRef::new("erd", "table"),
+        parent,
+        bp_model::OrderKey::first(),
+        bp_model::kurbo::Rect::new(0.0, 0.0, 240.0, 120.0),
+    );
+    let table_id = table.id;
+    let data = table.as_shape_mut().unwrap().erd.as_mut().unwrap();
+    data.display = bp_model::TableDisplay::KeysOnly;
+    data.dialect = bp_model::SqlDialect::Oracle;
+    let mut row = bp_model::ErdColumn::new(
+        "owner_id",
+        "RAW(16)",
+        bp_model::OrderKey::after(&data.columns[0].order),
+    );
+    row.foreign_key = true;
+    row.unique = true;
+    row.default_value = Some("SYS_GUID()".into());
+    let column = row.id;
+    data.columns.push(row);
+    doc.elements.insert(table_id, table);
+    let mut relationship = bp_model::Element::connector(
+        bp_model::Endpoint::Glued {
+            element: table_id,
+            port: Some(bp_model::PortId::column(column, false)),
+        },
+        bp_model::Endpoint::Free(bp_model::kurbo::Point::new(400.0, 90.0)),
+        parent,
+        doc.next_order_key(parent),
+    );
+    let connector = relationship.as_connector_mut().unwrap();
+    connector.start_marker = bp_model::Marker::ExactlyOne;
+    connector.end_marker = bp_model::Marker::ZeroOrMany;
+    doc.elements.insert(relationship.id, relationship);
+    for bytes in [
+        bp_io::to_json_bytes(&doc).unwrap(),
+        bp_io::to_zip_bytes(&doc).unwrap(),
+    ] {
+        assert_eq!(bp_io::from_bytes(&bytes).unwrap(), doc);
+    }
+}
+
+#[test]
+fn current_schema_rejects_table_metadata_mismatches() {
+    let mut doc = bp_model::Document::new();
+    let parent = Parent::Layer(doc.layers_of(doc.first_page().unwrap())[0].id);
+    let table = bp_model::Element::shape(
+        bp_model::ShapeRef::new("erd", "table"),
+        parent,
+        bp_model::OrderKey::first(),
+        bp_model::kurbo::Rect::new(0.0, 0.0, 240.0, 120.0),
+    );
+    let id = table.id;
+    doc.elements.insert(id, table);
+    let mut json = serde_json::to_value(&doc).unwrap();
+    json["elements"][id.to_string()]
+        .as_object_mut()
+        .unwrap()
+        .remove("erd");
+    assert!(
+        matches!(bp_io::from_bytes(&serde_json::to_vec(&json).unwrap()),Err(bp_io::IoError::Model(bp_model::ModelError::MissingErdData(target))) if target == id)
+    );
+    let mut json = serde_json::to_value(&doc).unwrap();
+    json["elements"][id.to_string()]["shape"] = "basic/rectangle".into();
+    assert!(
+        matches!(bp_io::from_bytes(&serde_json::to_vec(&json).unwrap()),Err(bp_io::IoError::Model(bp_model::ModelError::UnexpectedErdData(target))) if target == id)
+    );
+}

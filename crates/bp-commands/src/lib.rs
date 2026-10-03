@@ -11,9 +11,9 @@ pub mod edit;
 
 use bp_model::kurbo::{Point, Rect};
 use bp_model::{
-    Color, Dash, Document, Element, ElementId, ElementKind, Endpoint, Layer, LayerId, Marker,
-    ModelError, OrderKey, Page, PageId, Paint, Parent, Routing, ShapeRef, Style, TextAlign,
-    VerticalAlign,
+    Color, ColumnId, Dash, Document, Element, ElementId, ElementKind, Endpoint, ErdColumn,
+    ErdTable, Layer, LayerId, Marker, ModelError, OrderKey, Page, PageId, Paint, Parent, Routing,
+    ShapeRef, SqlDialect, Style, TableDisplay, TextAlign, VerticalAlign,
 };
 use std::mem::{Discriminant, discriminant, replace};
 use std::time::{Duration, Instant};
@@ -48,6 +48,8 @@ pub enum Prop {
     StartMarker(Marker),
     EndMarker(Marker),
     LabelPosition(f64),
+    TableDisplay(TableDisplay),
+    SqlDialect(SqlDialect),
 }
 
 impl Prop {
@@ -85,6 +87,8 @@ impl Prop {
             Prop::StartMarker(_) => "start marker",
             Prop::EndMarker(_) => "end marker",
             Prop::LabelPosition(_) => "label position",
+            Prop::TableDisplay(_) => "table display",
+            Prop::SqlDialect(_) => "SQL dialect",
         }
     }
 }
@@ -104,17 +108,59 @@ pub enum LayerProp {
     Locked(bool),
 }
 
+/// One independently editable column property; column ids remain stable.
+#[derive(Clone, Debug, PartialEq)]
+pub enum ColumnProp {
+    Name(String),
+    DataType(String),
+    Order(OrderKey),
+    PrimaryKey(bool),
+    ForeignKey(bool),
+    Unique(bool),
+    Nullable(bool),
+    DefaultValue(Option<String>),
+}
+
 #[derive(Clone, Debug, PartialEq)]
 pub enum Command {
     Insert(Box<Element>),
     Remove(ElementId),
-    Set { id: ElementId, prop: Prop },
+    Set {
+        id: ElementId,
+        prop: Prop,
+    },
     InsertPage(Box<Page>),
     RemovePage(PageId),
-    SetPage { id: PageId, prop: PageProp },
+    SetPage {
+        id: PageId,
+        prop: PageProp,
+    },
     InsertLayer(Box<Layer>),
     RemoveLayer(LayerId),
-    SetLayer { id: LayerId, prop: LayerProp },
+    SetLayer {
+        id: LayerId,
+        prop: LayerProp,
+    },
+    InsertColumn {
+        id: ElementId,
+        column: Box<ErdColumn>,
+    },
+    /// An inverse insertion that preserves the table's exact stored row sequence.
+    #[doc(hidden)]
+    RestoreColumn {
+        id: ElementId,
+        column: Box<ErdColumn>,
+        index: usize,
+    },
+    RemoveColumn {
+        id: ElementId,
+        column: ColumnId,
+    },
+    SetColumn {
+        id: ElementId,
+        column: ColumnId,
+        prop: ColumnProp,
+    },
 }
 
 #[derive(Debug, thiserror::Error, PartialEq)]
@@ -141,6 +187,12 @@ pub enum CommandError {
     WrongKind { id: ElementId, prop: &'static str },
     #[error("element {0} cannot be moved inside itself")]
     Cycle(ElementId),
+    #[error("table {id} has no column {column}")]
+    MissingColumn { id: ElementId, column: ColumnId },
+    #[error("table {id} already has column {column}")]
+    DuplicateColumn { id: ElementId, column: ColumnId },
+    #[error("column {column} in table {id} still has relationships attached")]
+    InUseColumn { id: ElementId, column: ColumnId },
     #[error(transparent)]
     Invalid(#[from] ModelError),
 }
@@ -151,6 +203,7 @@ enum Target {
     Element(ElementId),
     Page(PageId),
     Layer(LayerId),
+    Column(ElementId, ColumnId),
 }
 
 /// A target and which of its properties a set changes.
@@ -159,6 +212,7 @@ enum CoalesceKey {
     Element(ElementId, Discriminant<Prop>),
     Page(PageId, Discriminant<PageProp>),
     Layer(LayerId, Discriminant<LayerProp>),
+    Column(ElementId, ColumnId, Discriminant<ColumnProp>),
 }
 
 impl CoalesceKey {
@@ -167,6 +221,7 @@ impl CoalesceKey {
             CoalesceKey::Element(id, _) => Target::Element(id),
             CoalesceKey::Page(id, _) => Target::Page(id),
             CoalesceKey::Layer(id, _) => Target::Layer(id),
+            CoalesceKey::Column(id, column, _) => Target::Column(id, column),
         }
     }
 }
@@ -280,6 +335,103 @@ impl Command {
                 };
                 Ok(Command::SetLayer { id, prop: old })
             }
+            Command::InsertColumn { id, column } => {
+                if !column.order.is_valid() {
+                    return Err(
+                        ModelError::InvalidOrderKey(column.order.as_str().to_owned()).into(),
+                    );
+                }
+                let table = table_mut(doc, id)?;
+                if table.column(column.id).is_some() {
+                    return Err(CommandError::DuplicateColumn {
+                        id,
+                        column: column.id,
+                    });
+                }
+                let column_id = column.id;
+                table.columns.push(*column);
+                Ok(Command::RemoveColumn {
+                    id,
+                    column: column_id,
+                })
+            }
+            Command::RestoreColumn { id, column, index } => {
+                if !column.order.is_valid() {
+                    return Err(
+                        ModelError::InvalidOrderKey(column.order.as_str().to_owned()).into(),
+                    );
+                }
+                let table = table_mut(doc, id)?;
+                if table.column(column.id).is_some() {
+                    return Err(CommandError::DuplicateColumn {
+                        id,
+                        column: column.id,
+                    });
+                }
+                let column_id = column.id;
+                table
+                    .columns
+                    .insert(index.min(table.columns.len()), *column);
+                Ok(Command::RemoveColumn {
+                    id,
+                    column: column_id,
+                })
+            }
+            Command::RemoveColumn { id, column } => {
+                if !doc.connectors_attached_to_column(id, column).is_empty() {
+                    return Err(CommandError::InUseColumn { id, column });
+                }
+                let table = table_mut(doc, id)?;
+                let index = table
+                    .columns
+                    .iter()
+                    .position(|row| row.id == column)
+                    .ok_or(CommandError::MissingColumn { id, column })?;
+                Ok(Command::RestoreColumn {
+                    id,
+                    column: Box::new(table.columns.remove(index)),
+                    index,
+                })
+            }
+            Command::SetColumn { id, column, prop } => {
+                if let ColumnProp::Order(order) = &prop
+                    && !order.is_valid()
+                {
+                    return Err(ModelError::InvalidOrderKey(order.as_str().to_owned()).into());
+                }
+                let row = table_mut(doc, id)?
+                    .columns
+                    .iter_mut()
+                    .find(|row| row.id == column)
+                    .ok_or(CommandError::MissingColumn { id, column })?;
+                let old = match prop {
+                    ColumnProp::Name(value) => ColumnProp::Name(replace(&mut row.name, value)),
+                    ColumnProp::DataType(value) => {
+                        ColumnProp::DataType(replace(&mut row.data_type, value))
+                    }
+                    ColumnProp::Order(value) => ColumnProp::Order(replace(&mut row.order, value)),
+                    ColumnProp::PrimaryKey(value) => {
+                        ColumnProp::PrimaryKey(replace(&mut row.primary_key, value))
+                    }
+                    ColumnProp::ForeignKey(value) => {
+                        ColumnProp::ForeignKey(replace(&mut row.foreign_key, value))
+                    }
+                    ColumnProp::Unique(value) => {
+                        ColumnProp::Unique(replace(&mut row.unique, value))
+                    }
+                    ColumnProp::Nullable(value) => {
+                        ColumnProp::Nullable(replace(&mut row.nullable, value))
+                    }
+                    ColumnProp::DefaultValue(value) => {
+                        ColumnProp::DefaultValue(replace(&mut row.default_value, value))
+                    }
+                };
+                Ok(Command::SetColumn {
+                    id,
+                    column,
+                    prop: old,
+                })
+            }
         }
     }
 
@@ -292,6 +444,9 @@ impl Command {
             }
             Command::SetPage { id, prop } => Some(CoalesceKey::Page(*id, discriminant(prop))),
             Command::SetLayer { id, prop } => Some(CoalesceKey::Layer(*id, discriminant(prop))),
+            Command::SetColumn { id, column, prop } => {
+                Some(CoalesceKey::Column(*id, *column, discriminant(prop)))
+            }
             _ => None,
         }
     }
@@ -306,6 +461,17 @@ impl Command {
             (Command::RemovePage(r), Target::Page(id)) => *r == id,
             (Command::InsertLayer(l), Target::Layer(id)) => l.id == id,
             (Command::RemoveLayer(r), Target::Layer(id)) => *r == id,
+            (Command::Insert(e), Target::Column(id, _)) => e.id == id,
+            (Command::Remove(r), Target::Column(id, _)) => *r == id,
+            (Command::InsertColumn { id, column }, Target::Column(target, row)) => {
+                *id == target && column.id == row
+            }
+            (Command::RestoreColumn { id, column, .. }, Target::Column(target, row)) => {
+                *id == target && column.id == row
+            }
+            (Command::RemoveColumn { id, column }, Target::Column(target, row)) => {
+                *id == target && *column == row
+            }
             _ => false,
         }
     }
@@ -315,6 +481,17 @@ impl Command {
 fn check_prop(doc: &Document, id: ElementId, prop: &Prop) -> Result<(), CommandError> {
     let finite = |p: &Point| p.x.is_finite() && p.y.is_finite();
     match prop {
+        Prop::Shape(shape) => {
+            if let Some(element) = doc.elements.get(&id)
+                && let Some(data) = element.as_shape()
+            {
+                match (shape.as_str() == "erd/table", data.erd.is_some()) {
+                    (true, false) => return Err(ModelError::MissingErdData(id).into()),
+                    (false, true) => return Err(ModelError::UnexpectedErdData(id).into()),
+                    _ => {}
+                }
+            }
+        }
         Prop::Parent(parent) => {
             doc.check_parent(id, *parent)?;
             if let Parent::Element(p) = *parent
@@ -324,15 +501,7 @@ fn check_prop(doc: &Document, id: ElementId, prop: &Prop) -> Result<(), CommandE
             }
         }
         Prop::Source(end) | Prop::Target(end) => match end {
-            Endpoint::Glued { element, .. } => {
-                if !doc.elements.get(element).is_some_and(Element::is_shape) {
-                    return Err(ModelError::BadEndpoint {
-                        connector: id,
-                        target: *element,
-                    }
-                    .into());
-                }
-            }
+            Endpoint::Glued { .. } => doc.check_endpoint(id, end)?,
             Endpoint::Free(p) if !finite(p) => return Err(ModelError::NotFinite(id).into()),
             Endpoint::Free(_) => {}
         },
@@ -353,6 +522,18 @@ fn style_mut(element: &mut Element) -> Option<&mut Style> {
         ElementKind::Connector(c) => Some(&mut c.style),
         ElementKind::Group => None,
     }
+}
+
+fn table_mut(doc: &mut Document, id: ElementId) -> Result<&mut ErdTable, CommandError> {
+    doc.elements
+        .get_mut(&id)
+        .ok_or(CommandError::MissingElement(id))?
+        .as_shape_mut()
+        .and_then(|shape| shape.erd.as_mut())
+        .ok_or(CommandError::WrongKind {
+            id,
+            prop: "ERD columns",
+        })
 }
 
 /// Stores `prop` on `element` and returns the previous value.
@@ -387,6 +568,16 @@ fn set_prop(element: &mut Element, prop: Prop) -> Result<Prop, CommandError> {
             ElementKind::Shape(s) => Prop::Text(replace(&mut s.text, v)),
             ElementKind::Connector(c) => Prop::Text(replace(&mut c.text, v)),
             ElementKind::Group => return Err(wrong(Prop::Text(v))),
+        },
+        Prop::TableDisplay(v) => {
+            match element.as_shape_mut().and_then(|shape| shape.erd.as_mut()) {
+                Some(table) => Prop::TableDisplay(replace(&mut table.display, v)),
+                None => return Err(wrong(Prop::TableDisplay(v))),
+            }
+        }
+        Prop::SqlDialect(v) => match element.as_shape_mut().and_then(|shape| shape.erd.as_mut()) {
+            Some(table) => Prop::SqlDialect(replace(&mut table.dialect, v)),
+            None => return Err(wrong(Prop::SqlDialect(v))),
         },
         Prop::Fill(v) => style_field!(Fill, fill, v),
         Prop::Stroke(v) => style_field!(Stroke, stroke, v),
@@ -491,6 +682,7 @@ pub struct History {
     redo: Vec<Transaction>,
     open: Option<Transaction>,
     next_serial: u64,
+    base_serial: u64,
     limit: usize,
     revision: u64,
 }
@@ -505,6 +697,7 @@ impl Default for History {
             redo: Vec::new(),
             open: None,
             next_serial: 1,
+            base_serial: 0,
             limit: 500,
             revision: 0,
         }
@@ -530,7 +723,7 @@ impl History {
         label: impl Into<String>,
         commands: impl IntoIterator<Item = Command>,
     ) -> Result<(), CommandError> {
-        if let Some(open) = self.open.as_mut() {
+        if self.open.is_some() {
             // Apply into a scratch step first, so a failure leaves the open
             // step exactly as it was.
             let mut scratch = Transaction::new(String::new(), 0);
@@ -540,6 +733,11 @@ impl History {
                     return Err(e);
                 }
             }
+            if scratch.forward.is_empty() {
+                return Ok(());
+            }
+            let serial = self.serial();
+            let open = self.open.as_mut().expect("checked above");
             for command in scratch.forward.into_iter().zip(scratch.inverse) {
                 let (forward, inverse) = command;
                 if let Some(slot) = open.coalescable_slot(&forward) {
@@ -549,6 +747,7 @@ impl History {
                     open.inverse.push(inverse);
                 }
             }
+            open.serial = serial;
             open.touched = Instant::now();
             self.revision += 1;
             return Ok(());
@@ -587,10 +786,7 @@ impl History {
             let top = self.undo.pop().expect("checked above");
             self.open = Some(top);
             let result = self.apply(doc, "", commands);
-            let mut top = self.open.take().expect("still open");
-            if result.is_ok() {
-                top.serial = self.serial();
-            }
+            let top = self.open.take().expect("still open");
             self.undo.push(top);
             return result;
         }
@@ -635,7 +831,7 @@ impl History {
         self.redo.clear();
         self.undo.push(txn);
         if self.undo.len() > self.limit {
-            self.undo.remove(0);
+            self.base_serial = self.undo.remove(0).serial;
         }
     }
 
@@ -687,7 +883,11 @@ impl History {
     /// the last save to know whether there are unsaved changes; undoing back
     /// to the saved state makes them equal again.
     pub fn state_id(&self) -> u64 {
-        self.undo.last().map_or(0, |t| t.serial)
+        self.open
+            .as_ref()
+            .filter(|t| !t.forward.is_empty())
+            .or_else(|| self.undo.last())
+            .map_or(self.base_serial, |t| t.serial)
     }
 
     /// Counts every change to the document made through this history,
@@ -899,6 +1099,92 @@ mod tests {
         assert_ne!(h.state_id(), saved);
         h.undo(&mut doc);
         assert_eq!(h.state_id(), saved);
+    }
+
+    #[test]
+    fn state_id_tracks_each_change_in_an_open_step() {
+        let (mut doc, _, el) = setup();
+        let id = el.id;
+        doc.elements.insert(id, el);
+        let mut h = History::new();
+        let saved = h.state_id();
+        h.begin("Drag");
+        assert_eq!(h.state_id(), saved, "an empty gesture changes nothing");
+        for text in ["first", "second"] {
+            let before = h.state_id();
+            h.apply(
+                &mut doc,
+                "",
+                [Command::Set {
+                    id,
+                    prop: Prop::Text(text.into()),
+                }],
+            )
+            .unwrap();
+            assert_ne!(h.state_id(), before, "saving mid-gesture must be safe");
+        }
+        let open = h.state_id();
+        h.apply(&mut doc, "", []).unwrap();
+        assert_eq!(h.state_id(), open, "an empty apply changes nothing");
+        assert!(
+            h.apply(&mut doc, "", [Command::Remove(ElementId::new())])
+                .is_err()
+        );
+        assert_eq!(h.state_id(), open, "a failed apply changes nothing");
+        h.commit();
+        assert_eq!(h.state_id(), open, "commit keeps the document state");
+        h.undo(&mut doc);
+        assert_eq!(h.state_id(), saved);
+        h.redo(&mut doc);
+        assert_eq!(h.state_id(), open);
+        h.begin("Cancel");
+        h.apply(
+            &mut doc,
+            "",
+            [Command::Set {
+                id,
+                prop: Prop::Text("third".into()),
+            }],
+        )
+        .unwrap();
+        assert_ne!(h.state_id(), open);
+        h.cancel(&mut doc);
+        assert_eq!(h.state_id(), open, "cancel returns to the prior state");
+    }
+
+    #[test]
+    fn state_id_keeps_the_baseline_when_old_steps_are_discarded() {
+        let (mut doc, _, el) = setup();
+        let id = el.id;
+        doc.elements.insert(id, el);
+        let mut h = History::new();
+        h.limit = 2;
+        let initial = h.state_id();
+        let mut first = 0;
+        for text in ["one", "two", "three"] {
+            h.apply(
+                &mut doc,
+                "Edit",
+                [Command::Set {
+                    id,
+                    prop: Prop::Text(text.into()),
+                }],
+            )
+            .unwrap();
+            if text == "one" {
+                first = h.state_id();
+            }
+        }
+        assert!(h.undo(&mut doc));
+        assert!(h.undo(&mut doc));
+        assert!(!h.undo(&mut doc));
+        assert_eq!(doc.elements[&id].text(), Some("one"));
+        assert_eq!(h.state_id(), first);
+        assert_ne!(
+            h.state_id(),
+            initial,
+            "discarded edits remain in the document"
+        );
     }
 
     #[test]

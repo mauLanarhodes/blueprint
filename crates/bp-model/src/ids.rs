@@ -42,6 +42,10 @@ id_type!(
     /// Identifies a shape, connector or other element.
     ElementId
 );
+id_type!(
+    /// Identifies a column within an ERD table. Endpoints also carry the table id.
+    ColumnId
+);
 
 /// A hasher for id keys in runtime caches. UUIDv7s end in 62 random bits,
 /// so one multiply spreads them well; std's default SipHash would cost

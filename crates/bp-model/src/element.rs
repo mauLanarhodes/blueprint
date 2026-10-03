@@ -1,4 +1,4 @@
-use crate::{ElementId, LayerId, OrderKey, Style};
+use crate::{ColumnId, ElementId, ErdTable, LayerId, OrderKey, Style};
 use kurbo::{Point, Rect};
 use serde::{Deserialize, Serialize};
 use std::fmt;
@@ -79,6 +79,19 @@ impl PortId {
         Self(name.to_owned())
     }
 
+    /// A stable port on the left or right edge of a column row.
+    pub fn column(id: ColumnId, left: bool) -> Self {
+        Self(format!("column:{id}:{}", if left { "w" } else { "e" }))
+    }
+
+    pub fn column_id(&self) -> Option<ColumnId> {
+        let (id, side) = self.0.strip_prefix("column:")?.split_once(':')?;
+        if !matches!(side, "w" | "e") {
+            return None;
+        }
+        uuid::Uuid::parse_str(id).ok().map(ColumnId)
+    }
+
     pub fn as_str(&self) -> &str {
         &self.0
     }
@@ -151,10 +164,15 @@ pub enum Marker {
     OpenDiamond,
     Circle,
     OpenCircle,
+    ExactlyOne,
+    ZeroOrOne,
+    OneOrMany,
+    ZeroOrMany,
+    Many,
 }
 
 impl Marker {
-    pub const ALL: [Marker; 8] = [
+    pub const ALL: [Marker; 13] = [
         Marker::None,
         Marker::Arrow,
         Marker::OpenArrow,
@@ -163,6 +181,11 @@ impl Marker {
         Marker::OpenDiamond,
         Marker::Circle,
         Marker::OpenCircle,
+        Marker::ExactlyOne,
+        Marker::ZeroOrOne,
+        Marker::OneOrMany,
+        Marker::ZeroOrMany,
+        Marker::Many,
     ];
 
     pub fn label(self) -> &'static str {
@@ -175,6 +198,11 @@ impl Marker {
             Marker::OpenDiamond => "Open diamond",
             Marker::Circle => "Circle",
             Marker::OpenCircle => "Open circle",
+            Marker::ExactlyOne => "Exactly one",
+            Marker::ZeroOrOne => "Zero or one",
+            Marker::OneOrMany => "One or many",
+            Marker::ZeroOrMany => "Zero or many",
+            Marker::Many => "Many",
         }
     }
 
@@ -217,6 +245,8 @@ pub struct Shape {
     pub text: String,
     #[serde(default, skip_serializing_if = "Style::is_empty")]
     pub style: Style,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub erd: Option<ErdTable>,
 }
 
 /// A line between two endpoints. Its route is derived on every load, so
@@ -299,14 +329,21 @@ impl Element {
 
     /// A shape with no style overrides. `bounds` is normalised.
     pub fn shape(shape: ShapeRef, parent: Parent, order: OrderKey, bounds: Rect) -> Self {
+        let erd = (shape.as_str() == "erd/table").then(ErdTable::default);
+        let text = if erd.is_some() {
+            "Table".to_owned()
+        } else {
+            String::new()
+        };
         Self::new(
             parent,
             order,
             ElementKind::Shape(Shape {
                 shape,
                 bounds: bounds.abs(),
-                text: String::new(),
+                text,
                 style: Style::default(),
+                erd,
             }),
         )
     }
@@ -408,6 +445,19 @@ mod tests {
         for bad in ["", "basic", "/x", "x/", "a/b c", "a\\b"] {
             assert!(ShapeRef::parse(bad).is_none(), "{bad:?}");
         }
+    }
+
+    #[test]
+    fn column_ports_keep_the_same_stable_row_on_both_sides() {
+        let id = ColumnId::new();
+        let left = PortId::column(id, true);
+        let right = PortId::column(id, false);
+        assert_eq!(left.as_str(), format!("column:{id}:w"));
+        assert_eq!(right.as_str(), format!("column:{id}:e"));
+        assert_eq!(left.column_id(), Some(id));
+        assert_eq!(right.column_id(), Some(id));
+        assert_eq!(PortId::new("n").column_id(), None);
+        assert_eq!(PortId::new(&format!("column:{id}:n")).column_id(), None);
     }
 
     #[test]

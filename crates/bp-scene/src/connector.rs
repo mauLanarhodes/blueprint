@@ -350,6 +350,54 @@ pub(crate) fn marker(
                 r * 2.0,
             )
         }
+        Marker::ExactlyOne
+        | Marker::ZeroOrOne
+        | Marker::OneOrMany
+        | Marker::ZeroOrMany
+        | Marker::Many => {
+            // The fork touches the entity, while the minimum-cardinality
+            // symbol sits farther along the relationship. Open circles
+            // mask the line beneath them with the same page background.
+            let at = |distance: f64| tip - dir * distance;
+            let bar = |distance: f64| MarkerPath {
+                path: polyline_path(&[at(distance) - normal * half, at(distance) + normal * half]),
+                fill: None,
+                stroke: Some(solid),
+            };
+            let circle = |distance: f64| MarkerPath {
+                path: bp_model::kurbo::Circle::new(at(distance), len * 0.3).to_path(0.05),
+                fill: Some(background),
+                stroke: Some(solid),
+            };
+            let mut paths = Vec::new();
+            if matches!(
+                marker,
+                Marker::OneOrMany | Marker::ZeroOrMany | Marker::Many
+            ) {
+                let hub = at(len);
+                let mut path = BezPath::new();
+                path.move_to(tip - normal * half);
+                path.line_to(hub);
+                path.line_to(tip + normal * half);
+                paths.push(MarkerPath {
+                    path,
+                    fill: None,
+                    stroke: Some(solid),
+                });
+            } else {
+                paths.push(bar(len * 0.3));
+            }
+            match marker {
+                Marker::ExactlyOne => paths.push(bar(len)),
+                Marker::ZeroOrOne => paths.push(circle(len * 1.1)),
+                Marker::OneOrMany => paths.push(bar(len * 1.35)),
+                Marker::ZeroOrMany => paths.push(circle(len * 1.5)),
+                _ => {}
+            }
+            // Keep the central prong and the line connecting the marker
+            // to the entity; hollow symbols cover only their own area.
+            (paths, 0.0)
+        }
     }
 }
 
@@ -374,35 +422,44 @@ pub(crate) fn end_direction(path: &BezPath, at_end: bool) -> Option<Vec2> {
 /// `path` with `start` and `end` units of length cut off its ends (as
 /// long as something is left).
 pub(crate) fn trim(path: &BezPath, start: f64, end: f64) -> BezPath {
-    let mut segs: Vec<PathSeg> = path.segments().collect();
+    let segs: Vec<PathSeg> = path.segments().collect();
     if segs.is_empty() {
         return path.clone();
     }
-    if start > 0.0 {
-        let first = segs[0];
-        let len = first.arclen(0.01);
-        if len > start * 1.5 {
-            let t = first.inv_arclen(start, 0.01);
-            segs[0] = first.subsegment(t..1.0);
-        }
-    }
-    if end > 0.0 {
-        let n = segs.len() - 1;
-        let last = segs[n];
-        let len = last.arclen(0.01);
-        if len > end * 1.5 {
-            let t = last.inv_arclen(len - end, 0.01);
-            segs[n] = last.subsegment(0.0..t);
-        }
-    }
+    let lengths: Vec<f64> = segs.iter().map(|s| s.arclen(0.01)).collect();
+    let from = start.max(0.0);
+    let to = lengths.iter().sum::<f64>() - end.max(0.0);
     let mut out = BezPath::new();
-    out.move_to(segs[0].start());
-    for seg in segs {
+    if from >= to {
+        return out;
+    }
+    let mut offset = 0.0;
+    for (seg, len) in segs.into_iter().zip(lengths) {
+        let next = offset + len;
+        if next <= from || offset >= to || len <= 0.0 {
+            offset = next;
+            continue;
+        }
+        let t0 = if from > offset {
+            seg.inv_arclen(from - offset, 0.01)
+        } else {
+            0.0
+        };
+        let t1 = if to < next {
+            seg.inv_arclen(to - offset, 0.01)
+        } else {
+            1.0
+        };
+        let seg = seg.subsegment(t0..t1);
+        if out.is_empty() {
+            out.move_to(seg.start());
+        }
         match seg {
             PathSeg::Line(l) => out.line_to(l.p1),
             PathSeg::Quad(q) => out.quad_to(q.p1, q.p2),
             PathSeg::Cubic(c) => out.curve_to(c.p1, c.p2, c.p3),
         }
+        offset = next;
     }
     out
 }
@@ -410,4 +467,75 @@ pub(crate) fn trim(path: &BezPath, start: f64, end: f64) -> BezPath {
 /// The label anchor: the point at `t` along the route.
 pub(crate) fn label_point(points: &[Point], t: f64) -> Point {
     polyline_point_at(points, t).map_or(Point::ZERO, |(p, _)| p)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn marker_trims_cross_short_terminal_segments() {
+        let path = polyline_path(&[
+            Point::new(0.0, 0.0),
+            Point::new(5.0, 0.0),
+            Point::new(5.0, 100.0),
+            Point::new(10.0, 100.0),
+        ]);
+        let trimmed = trim(&path, 10.0, 10.0);
+        let segments: Vec<_> = trimmed.segments().collect();
+        assert_eq!(segments.first().unwrap().start(), Point::new(5.0, 5.0));
+        assert_eq!(segments.last().unwrap().end(), Point::new(5.0, 95.0));
+    }
+
+    #[test]
+    fn markers_covering_the_whole_route_leave_no_stroke() {
+        let path = polyline_path(&[Point::ZERO, Point::new(10.0, 0.0)]);
+        assert!(trim(&path, 6.0, 6.0).segments().next().is_none());
+    }
+
+    #[test]
+    fn crows_foot_markers_use_solid_bars_forks_and_hollow_circles() {
+        let stroke = Stroke {
+            color: Color::BLACK,
+            width: 1.5,
+            dash: Some([4.0, 3.0]),
+        };
+        let tip = Point::new(100.0, 50.0);
+        let len = marker_length(stroke.width);
+        for kind in [
+            Marker::ExactlyOne,
+            Marker::ZeroOrOne,
+            Marker::OneOrMany,
+            Marker::ZeroOrMany,
+            Marker::Many,
+        ] {
+            let (paths, trim) = marker(kind, tip, Vec2::new(1.0, 0.0), &stroke, Color::WHITE);
+            assert_eq!(paths.len(), if kind == Marker::Many { 1 } else { 2 });
+            assert_eq!(trim, 0.0, "central prong reaches the attachment");
+            assert!(paths.iter().all(|p| p.stroke.unwrap().dash.is_none()));
+            if matches!(kind, Marker::Many | Marker::OneOrMany | Marker::ZeroOrMany) {
+                let fork = &paths[0].path;
+                assert_eq!(fork.elements().len(), 3);
+                assert_eq!(
+                    fork.elements()[1],
+                    PathEl::LineTo(Point::new(tip.x - len, tip.y))
+                );
+                assert_eq!(fork.bounding_box().x1, tip.x);
+            }
+            let circles: Vec<_> = paths.iter().filter(|p| p.fill.is_some()).collect();
+            assert_eq!(
+                circles.len(),
+                usize::from(matches!(kind, Marker::ZeroOrOne | Marker::ZeroOrMany))
+            );
+            assert!(circles.iter().all(|c| c.fill == Some(Color::WHITE)));
+            // Rotating the route rotates every part of the marker together.
+            let (rotated, _) = marker(kind, tip, Vec2::new(0.0, -1.0), &stroke, Color::WHITE);
+            for (a, b) in paths.iter().zip(rotated) {
+                let a = a.path.bounding_box();
+                let b = b.path.bounding_box();
+                assert!((a.width() - b.height()).abs() < 1e-9);
+                assert!((a.height() - b.width()).abs() < 1e-9);
+            }
+        }
+    }
 }

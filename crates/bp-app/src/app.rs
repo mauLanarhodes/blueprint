@@ -5,7 +5,7 @@ use crate::palette::{PaletteState, QuickInsert};
 use bp_commands::{Command, History};
 use bp_geom::Guide;
 use bp_model::kurbo::Point;
-use bp_model::{Document, ElementId, Layer, LayerId, OrderKey, PageId, ShapeRef};
+use bp_model::{ColumnId, Document, ElementId, Layer, LayerId, OrderKey, PageId, ShapeRef};
 use bp_render_egui::Viewport;
 use bp_scene::{Scene, SceneCache};
 use bp_shapes::Libraries;
@@ -119,6 +119,8 @@ pub struct BlueprintApp {
     pub drag: Drag,
     pub guides: Vec<Guide>,
     pub editing: Option<TextEditing>,
+    /// A newly inserted table row whose name field should receive focus.
+    pub(crate) column_focus: Option<(ElementId, ColumnId)>,
     pub canvas_rect: egui::Rect,
     /// The pointer position on the page, when it is over the canvas.
     pub pointer: Option<Point>,
@@ -161,6 +163,7 @@ impl BlueprintApp {
             drag: Drag::None,
             guides: Vec::new(),
             editing: None,
+            column_focus: None,
             canvas_rect: egui::Rect::NOTHING,
             pointer: None,
             fit_requested: false,
@@ -183,6 +186,31 @@ impl BlueprintApp {
 
     pub fn is_dirty(&self) -> bool {
         self.history.state_id() != self.saved_state
+            || self.editing.as_ref().is_some_and(|edit| {
+                self.doc
+                    .elements
+                    .get(&edit.id)
+                    .and_then(|e| e.text())
+                    .is_some_and(|text| text != edit.text)
+            })
+            || self.renaming.as_ref().is_some_and(|rename| match rename {
+                Renaming::Page(id, name) => {
+                    !name.trim().is_empty()
+                        && self
+                            .doc
+                            .pages
+                            .get(id)
+                            .is_some_and(|p| p.name != name.trim())
+                }
+                Renaming::Layer(id, name) => {
+                    !name.trim().is_empty()
+                        && self
+                            .doc
+                            .layers
+                            .get(id)
+                            .is_some_and(|l| l.name != name.trim())
+                }
+            })
     }
 
     pub fn file_name(&self) -> String {
@@ -239,6 +267,7 @@ impl BlueprintApp {
 
     pub fn undo(&mut self) {
         self.editing = None;
+        self.column_focus = None;
         self.cancel_drag();
         if self.history.undo(&mut self.doc) {
             self.after_history_jump();
@@ -247,6 +276,7 @@ impl BlueprintApp {
 
     pub fn redo(&mut self) {
         self.editing = None;
+        self.column_focus = None;
         self.cancel_drag();
         if self.history.redo(&mut self.doc) {
             self.after_history_jump();
@@ -312,6 +342,7 @@ impl BlueprintApp {
 
     /// Runs `action` now, or asks to save first if there are unsaved changes.
     pub fn request(&mut self, action: Pending) {
+        self.finish_inline_edits();
         if self.is_dirty() {
             self.pending = Some(action);
         } else {
@@ -344,6 +375,11 @@ impl BlueprintApp {
         self.selection.clear();
         self.scope = None;
         self.editing = None;
+        self.renaming = None;
+        self.column_focus = None;
+        self.quick_insert = None;
+        self.palette.dragging = None;
+        self.tool = Tool::Select;
         self.drag = Drag::None;
         self.guides.clear();
         self.views.clear();
@@ -378,7 +414,7 @@ impl BlueprintApp {
     }
 
     fn save_to(&mut self, path: PathBuf) -> bool {
-        self.finish_text_edit(true);
+        self.finish_inline_edits();
         self.cancel_drag();
         self.history.commit();
         match bp_io::save(&self.doc, &path) {
@@ -444,9 +480,12 @@ impl BlueprintApp {
     // ----- Frame -----------------------------------------------------------
 
     fn handle_window_events(&mut self, ctx: &egui::Context) {
-        if ctx.input(|i| i.viewport().close_requested()) && self.is_dirty() && !self.allow_close {
-            ctx.send_viewport_cmd(ViewportCommand::CancelClose);
-            self.pending = Some(Pending::Quit);
+        if ctx.input(|i| i.viewport().close_requested()) && !self.allow_close {
+            self.finish_inline_edits();
+            if self.is_dirty() {
+                ctx.send_viewport_cmd(ViewportCommand::CancelClose);
+                self.pending = Some(Pending::Quit);
+            }
         }
         if self.allow_close {
             ctx.send_viewport_cmd(ViewportCommand::Close);
@@ -540,4 +579,142 @@ fn first_page_and_layer(doc: &mut Document) -> (PageId, LayerId) {
     let id = layer.id;
     doc.layers.insert(id, layer);
     (page, id)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use bp_model::kurbo::{Rect, Vec2};
+    use bp_model::{Element, Endpoint, Parent};
+
+    fn saved_app() -> (BlueprintApp, ElementId) {
+        let mut app = BlueprintApp::new(&egui::Context::default(), None);
+        let id = app
+            .insert_shape(
+                ShapeRef::new("basic", "rectangle"),
+                Rect::new(100.0, 100.0, 200.0, 160.0),
+            )
+            .unwrap();
+        app.saved_state = app.history.state_id();
+        (app, id)
+    }
+
+    #[test]
+    fn requesting_new_preserves_unsaved_inline_text() {
+        let (mut app, id) = saved_app();
+        app.start_text_edit(id);
+        app.editing.as_mut().unwrap().text = "Unsaved text".into();
+        assert!(app.is_dirty());
+        app.request(Pending::New);
+        assert_eq!(app.pending, Some(Pending::New));
+        assert_eq!(app.doc.elements[&id].text(), Some("Unsaved text"));
+        assert!(app.editing.is_none());
+    }
+
+    #[test]
+    fn unchanged_inline_edits_do_not_prompt_to_save() {
+        let (mut app, id) = saved_app();
+        app.start_text_edit(id);
+        assert!(!app.is_dirty());
+        app.request(Pending::New);
+        assert!(app.pending.is_none());
+        assert!(app.doc.elements.is_empty());
+    }
+
+    #[test]
+    fn save_commits_inline_renames() {
+        for page_rename in [true, false] {
+            let (mut app, _) = saved_app();
+            app.renaming = Some(if page_rename {
+                Renaming::Page(app.page, "Renamed page".into())
+            } else {
+                Renaming::Layer(app.layer, "Renamed layer".into())
+            });
+            assert!(app.is_dirty());
+            let path = std::env::temp_dir()
+                .join(format!("blueprint-app-{}.blueprint.json", ElementId::new()));
+            assert!(app.save_to(path.clone()));
+            let loaded = bp_io::load(&path).unwrap();
+            if page_rename {
+                assert_eq!(loaded.pages[&app.page].name, "Renamed page");
+            } else {
+                assert_eq!(loaded.layers[&app.layer].name, "Renamed layer");
+            }
+            assert!(app.renaming.is_none());
+            assert!(!app.is_dirty());
+            std::fs::remove_file(path).unwrap();
+        }
+    }
+
+    #[test]
+    fn page_duplication_preserves_cross_layer_connectors() {
+        let (mut app, a) = saved_app();
+        let first_layer = app.layer;
+        app.add_layer();
+        let second_layer = app.layer;
+        let b = app
+            .insert_shape(
+                ShapeRef::new("basic", "ellipse"),
+                Rect::new(300.0, 100.0, 400.0, 160.0),
+            )
+            .unwrap();
+        app.insert_connector(Endpoint::glued(a, Some("e")), Endpoint::glued(b, Some("w")))
+            .unwrap();
+        // Page duplication must include hidden elements as well.
+        app.set_layer_flag(first_layer, bp_commands::LayerProp::Visible(false));
+        let source = app.page;
+        let original = app.doc.clone();
+        app.duplicate_page(source);
+        let duplicate = app.page;
+        assert_ne!(duplicate, source);
+        let layers = app.doc.layers_of(duplicate);
+        assert_eq!(layers.len(), 2);
+        assert_eq!(layers[0].visible, original.layers[&first_layer].visible);
+        assert_eq!(layers[1].name, original.layers[&second_layer].name);
+        let copied: Vec<&Element> = app
+            .doc
+            .elements
+            .values()
+            .filter(|e| app.doc.page_of(e.id) == Some(duplicate))
+            .collect();
+        assert_eq!(copied.len(), 3);
+        let connector = copied.iter().find_map(|e| e.as_connector()).unwrap();
+        for endpoint in [&connector.source, &connector.target] {
+            let target = endpoint.element().expect("endpoint stays glued");
+            assert_ne!(target, a);
+            assert_ne!(target, b);
+            assert_eq!(app.doc.page_of(target), Some(duplicate));
+        }
+        let new_a = connector.source.element().unwrap();
+        let new_b = connector.target.element().unwrap();
+        assert_eq!(
+            app.doc.elements[&new_a].as_shape().unwrap().bounds,
+            original.elements[&a].as_shape().unwrap().bounds
+        );
+        assert_ne!(app.doc.layer_of(new_a), app.doc.layer_of(new_b));
+        assert_eq!(app.doc.validate(), Ok(()));
+        app.undo();
+        assert_eq!(app.doc, original);
+        app.redo();
+        assert_eq!(app.doc.validate(), Ok(()));
+    }
+
+    #[test]
+    fn request_during_a_drag_detects_unsaved_changes() {
+        let (mut app, id) = saved_app();
+        let snapshot = app.doc.clone();
+        app.history.begin("Move");
+        app.drag = Drag::Move {
+            ids: vec![id],
+            start: Point::ZERO,
+            bounds: Some(snapshot.elements[&id].as_shape().unwrap().bounds),
+            snapshot: Box::new(snapshot),
+        };
+        let commands = bp_commands::edit::translate(&app.doc, &[id], Vec2::new(20.0, 0.0));
+        app.apply("Move", commands);
+        app.request(Pending::Quit);
+        assert_eq!(app.pending, Some(Pending::Quit));
+        assert!(!app.allow_close);
+        assert_eq!(app.doc.elements[&id].parent, Parent::Layer(app.layer));
+    }
 }

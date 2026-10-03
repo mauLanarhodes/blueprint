@@ -108,13 +108,29 @@ fn export(e: &Export) -> Result<(), String> {
         ..Default::default()
     };
     let svg = bp_export::page_to_svg(&doc, page, &options);
-    let output = e.output.clone().unwrap_or_else(|| {
-        let stem = e.input.with_extension("");
-        stem.with_extension("svg")
-    });
-    std::fs::write(&output, svg).map_err(|err| format!("{}: {err}", output.display()))?;
+    let output = e.output.clone().unwrap_or_else(|| default_output(&e.input));
+    if e.input.canonicalize().ok() == output.canonicalize().ok() {
+        return Err("the export output must be different from the input project".into());
+    }
+    bp_io::atomic_write(&output, svg.as_bytes())
+        .map_err(|err| format!("{}: {err}", output.display()))?;
     println!("Wrote {}", output.display());
     Ok(())
+}
+
+fn default_output(input: &std::path::Path) -> PathBuf {
+    let stem = input.with_extension("");
+    if input
+        .extension()
+        .is_some_and(|extension| extension.eq_ignore_ascii_case("json"))
+        && stem
+            .extension()
+            .is_some_and(|extension| extension.eq_ignore_ascii_case(bp_io::FILE_EXTENSION))
+    {
+        stem.with_extension("svg")
+    } else {
+        input.with_extension("svg")
+    }
 }
 
 fn info(input: PathBuf) -> Result<(), String> {
@@ -142,4 +158,54 @@ fn info(input: PathBuf) -> Result<(), String> {
         }
     }
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use bp_model::{Document, ElementId};
+
+    #[test]
+    fn export_names_preserve_dots_in_the_project_name() {
+        for (input, expected) in [
+            ("flow.blueprint", "flow.svg"),
+            ("flow.v2.blueprint", "flow.v2.svg"),
+            ("flow.v2.blueprint.json", "flow.v2.svg"),
+            ("flow.v2.json", "flow.v2.svg"),
+            ("flow.v2.BLUEPRINT.JSON", "flow.v2.svg"),
+        ] {
+            assert_eq!(
+                default_output(std::path::Path::new(input)),
+                PathBuf::from(expected)
+            );
+        }
+    }
+
+    #[test]
+    fn exporting_cannot_overwrite_the_source_project() {
+        let dir = std::env::temp_dir().join(format!("blueprint-cli-{}", ElementId::new()));
+        std::fs::create_dir_all(&dir).unwrap();
+        // Input format is detected from contents, so a project can have an SVG extension.
+        let input = dir.join("project.svg");
+        let doc = Document::new();
+        bp_io::save(&doc, &input).unwrap();
+        let original = std::fs::read(&input).unwrap();
+        for output in [
+            None,
+            Some(input.clone()),
+            Some(dir.join(".").join("project.svg")),
+        ] {
+            let error = export(&Export {
+                input: input.clone(),
+                output,
+                page: None,
+                embed_fonts: false,
+            })
+            .unwrap_err();
+            assert!(error.contains("different from the input"));
+            assert_eq!(std::fs::read(&input).unwrap(), original);
+        }
+        assert_eq!(bp_io::load(&input).unwrap(), doc);
+        std::fs::remove_dir_all(dir).unwrap();
+    }
 }

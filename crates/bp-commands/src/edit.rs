@@ -5,7 +5,9 @@
 
 use crate::{Command, Prop};
 use bp_model::kurbo::{Affine, Point, Rect, Vec2};
-use bp_model::{Document, Element, ElementId, ElementKind, Endpoint, OrderKey, PageId, Parent};
+use bp_model::{
+    ColumnId, Document, Element, ElementId, ElementKind, Endpoint, OrderKey, PageId, Parent,
+};
 use std::collections::{BTreeSet, HashMap, HashSet};
 
 /// `ids` without any element whose ancestor is also in `ids`, in paint
@@ -89,6 +91,15 @@ pub fn remove_page(doc: &Document, page: PageId) -> Vec<Command> {
             .map(|l| Command::RemoveLayer(l.id)),
     );
     commands.push(Command::RemovePage(page));
+    commands
+}
+
+/// Deletes a column and the relationships attached to its row as one edit.
+/// The row is restored before the connectors when the transaction is undone.
+pub fn remove_column(doc: &Document, id: ElementId, column: ColumnId) -> Vec<Command> {
+    let attached = doc.connectors_attached_to_column(id, column);
+    let mut commands = remove(doc, &attached);
+    commands.push(Command::RemoveColumn { id, column });
     commands
 }
 
@@ -572,6 +583,13 @@ impl Clip {
             }
             commands.push(Command::Insert(Box::new(element)));
         }
+        // Stacking order and dependency order can differ: a connector may
+        // be painted below a shape it joins. Insert its targets first while
+        // preserving the order keys assigned above. Shapes and groups are
+        // already ordered with parents before children by `copy`.
+        commands.sort_by_key(
+            |command| matches!(command, Command::Insert(element) if element.is_connector()),
+        );
         (roots, commands)
     }
 }
@@ -767,6 +785,30 @@ mod tests {
             }
         }
         let _ = joined;
+    }
+
+    #[test]
+    fn paste_preserves_connectors_painted_below_their_shapes() {
+        let mut f = Fixture::new();
+        let a = f.shape(f.layer, 0.0, 0.0);
+        let b = f.shape(f.layer, 100.0, 0.0);
+        let connector = f.connect(a, b);
+        f.run(reorder(&f.doc, &[connector], Reorder::Back));
+        let before = f.doc.clone();
+        let clip = Clip::copy(&f.doc, &[connector, b, a], |_, _| None);
+        assert_eq!(clip.elements[0].id, connector);
+        let (roots, commands) = clip.paste(&f.doc, f.layer, Vec2::new(10.0, 20.0));
+        f.run(commands);
+        assert_eq!(roots.len(), 3);
+        let c = f.doc.elements[&roots[0]].as_connector().unwrap();
+        assert_eq!(c.source.element(), Some(roots[1]));
+        assert_eq!(c.target.element(), Some(roots[2]));
+        assert_eq!(&f.paint()[3..], roots.as_slice());
+        let after = f.doc.clone();
+        f.history.undo(&mut f.doc);
+        assert_eq!(f.doc, before);
+        f.history.redo(&mut f.doc);
+        assert_eq!(f.doc, after);
     }
 
     #[test]

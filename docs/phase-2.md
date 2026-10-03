@@ -1,0 +1,74 @@
+# Phase 2 — ERDs
+
+Phase 2 starts with a usable smart-table and Crow's Foot milestone. The
+project plan also calls for Chen, UML and IDEF1X notation and more direct
+table editing; those remain later gates. Starting this milestone does not
+close the remaining [Phase 1 editor work](phase-1.md#left-for-phase-1).
+
+## First milestone: smart tables and Crow's Foot
+
+- [x] Insert a smart table from the ERD palette, edit its name and typed
+      columns, and show primary keys above a divider.
+- [x] Edit PK, FK, UK, nullability and default values. Add, remove and
+      reorder columns with undo/redo; column ids and attached endpoints
+      survive renaming and reordering.
+- [x] Select PostgreSQL, MySQL, SQL Server, SQLite or Oracle as the table's
+      dialect, with type suggestions in the inspector.
+- [x] Draw relationships between stable left/right column ports, with
+      exactly one, zero or one, one or many, zero or many, or many markers.
+      Solid and dashed relationship styles use the existing stroke controls.
+- [x] Connect a column to another table's primary key to mark the column
+      as FK and set the relationship cardinalities in the same undo step.
+      Self-referencing columns are supported; a PK/FK creates a solid
+      identifying relationship. Unique referencing columns default to
+      zero or one instead of zero or many.
+- [x] Collapse tables or show keys only. Hidden row ports move to the
+      header while retaining their ids and relationships.
+- [x] Store ERD data in schema 3, migrate earlier documents, and preserve
+      existing flowcharts and their styles.
+- [x] Save and reopen an ERD identically in both native formats, then export
+      it through the real CLI with the same text and cardinality geometry
+      as the canvas scene (`crates/bp-cli/tests/erd.rs`).
+
+The inspector supplies the initial column-editing workflow. Double-click
+edits the table header; the column controls edit the rows. Removing a
+column removes its attached relationships in the same undo step. Undo
+restores the column and the relationships together.
+
+Open the editable [orders example](../examples/orders.blueprint.json) with
+`cargo run -p bp-app --release -- examples/orders.blueprint.json`. Regenerate
+it with `cargo run -p bp-app --example erd -- examples/orders.blueprint.json`.
+
+This milestone records the selected dialect and offers common types;
+it does not validate SQL expressions or generate SQL.
+
+## Remaining Phase 2 gates
+
+- [ ] Edit column cells directly on the canvas, with Enter adding a row,
+      Tab moving between name and type, and dialect-specific completion.
+- [ ] Reorder column rows by dragging on the canvas.
+- [ ] Complete the remaining Crow's Foot shape set: view, enum type and
+      schema container behavior.
+- [ ] Add Chen entities, weak entities, relationships and attributes,
+      including identifying relationships and participation notation.
+- [ ] Add UML class compartments, association classes and multiplicities.
+- [ ] Add IDEF1X entity/category shapes and relationship notation.
+- [ ] Exercise each notation's complete mouse and keyboard workflow,
+      native round trip and CLI export before marking Phase 2 complete.
+
+SQL DDL generation/import and live-database reverse engineering remain
+v1.x work in the project plan.
+
+## Validation
+
+The ERD CLI gate covers saved column data and stable endpoints, typed
+column text and badges in SVG, and all five Crow's Foot markers. It also
+checks that cached routes follow reordered rows, collapse to the header,
+and return after undo. Model, command, scene and editor tests cover their
+respective behavior. Run the workspace checks with:
+
+```sh
+cargo test --workspace
+cargo clippy --workspace --all-targets -- -D warnings
+cargo fmt --all --check
+```
