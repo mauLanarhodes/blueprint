@@ -3,7 +3,7 @@
 use crate::app::BlueprintApp;
 use crate::theme::ACCENT;
 use bp_model::kurbo::{Point, Rect};
-use bp_model::{ShapeRef, StyleValues};
+use bp_model::{DiagramKind, ShapeRef, StyleValues};
 use bp_render_egui::{Viewport, paint};
 use bp_scene::{DisplayItem, DisplayList, Primitive, Stroke as SceneStroke};
 use bp_shapes::{Libraries, ShapeDef};
@@ -74,6 +74,26 @@ pub fn search<'a>(libraries: &'a Libraries, query: &str) -> Vec<&'a ShapeDef> {
     scored.into_iter().map(|(_, _, def)| def).collect()
 }
 
+fn library_visible(kind: Option<DiagramKind>, library: &str) -> bool {
+    match kind {
+        Some(DiagramKind::Erd) => matches!(library, "basic" | "erd"),
+        Some(DiagramKind::Flowchart) => matches!(library, "basic" | "flowchart"),
+        None => false,
+    }
+}
+
+/// Searches the shape libraries available on this kind of page.
+pub fn search_for_kind<'a>(
+    libraries: &'a Libraries,
+    query: &str,
+    kind: Option<DiagramKind>,
+) -> Vec<&'a ShapeDef> {
+    search(libraries, query)
+        .into_iter()
+        .filter(|def| library_visible(kind, def.reference.library()))
+        .collect()
+}
+
 /// Draws `def` fitted into `rect` (screen points).
 fn paint_thumbnail(painter: &egui::Painter, def: &ShapeDef, rect: egui::Rect, alpha: f32) {
     let (w, h) = def.default_size;
@@ -118,6 +138,13 @@ fn paint_thumbnail(painter: &egui::Painter, def: &ShapeDef, rect: egui::Rect, al
 impl BlueprintApp {
     pub fn palette(&mut self, ui: &mut Ui) {
         ui.add_space(6.0);
+        let kind = self.page_kind();
+        let Some(kind) = kind else {
+            ui.label(RichText::new("Choose a diagram type to start").weak());
+            return;
+        };
+        ui.label(RichText::new(kind.label()).strong().color(ACCENT));
+        ui.add_space(4.0);
         ui.horizontal(|ui| {
             ui.label(crate::theme::icon(icon::MAGNIFYING_GLASS).color(Color32::from_gray(120)));
             ui.add(
@@ -132,25 +159,36 @@ impl BlueprintApp {
             .auto_shrink(false)
             .show(ui, |ui| {
                 if !self.palette.query.trim().is_empty() {
-                    let results = search(libraries, &self.palette.query);
+                    let results = search_for_kind(libraries, &self.palette.query, Some(kind));
                     if results.is_empty() {
                         ui.label(RichText::new("No shapes match").weak());
                     }
                     self.shape_grid(ui, &results);
                     return;
                 }
-                if !self.palette.recent.is_empty() {
+                let recent: Vec<&ShapeDef> = self
+                    .palette
+                    .recent
+                    .iter()
+                    .filter(|r| library_visible(Some(kind), r.library()))
+                    .filter_map(|r| libraries.get(r))
+                    .collect();
+                if !recent.is_empty() {
                     ui.label(RichText::new("Recent").small().strong());
-                    let recent: Vec<&ShapeDef> = self
-                        .palette
-                        .recent
-                        .iter()
-                        .filter_map(|r| libraries.get(r))
-                        .collect();
                     self.shape_grid(ui, &recent);
                     ui.add_space(4.0);
                 }
-                for lib in libraries.libraries() {
+                let specialized = match kind {
+                    DiagramKind::Erd => "erd",
+                    DiagramKind::Flowchart => "flowchart",
+                };
+                let mut available: Vec<_> = libraries
+                    .libraries()
+                    .iter()
+                    .filter(|lib| library_visible(Some(kind), &lib.id))
+                    .collect();
+                available.sort_by_key(|lib| lib.id != specialized);
+                for lib in available {
                     let open = !self.palette.collapsed.contains(&lib.id);
                     let header = egui::CollapsingHeader::new(RichText::new(&lib.name).strong())
                         .id_salt(("palette-lib", &lib.id))
@@ -158,6 +196,10 @@ impl BlueprintApp {
                         .show(ui, |ui| {
                             let shapes: Vec<&ShapeDef> = lib.shapes.iter().collect();
                             self.shape_grid(ui, &shapes);
+                            if lib.id == "erd" {
+                                ui.add_space(8.0);
+                                self.erd_connection_palette(ui);
+                            }
                         });
                     if header.header_response.clicked() {
                         if open {
@@ -238,6 +280,9 @@ impl BlueprintApp {
     }
 
     pub fn open_quick_insert(&mut self) {
+        if self.page_kind().is_none() {
+            return;
+        }
         let at = self.pointer.unwrap_or_else(|| self.view_center());
         self.quick_insert = Some(QuickInsert {
             query: String::new(),
@@ -248,11 +293,12 @@ impl BlueprintApp {
     }
 
     pub fn quick_insert_popup(&mut self, ctx: &egui::Context) {
+        let kind = self.page_kind();
         let Some(qi) = &mut self.quick_insert else {
             return;
         };
         let screen = self.view.to_screen(self.canvas_rect.min, qi.at);
-        let results: Vec<&ShapeDef> = search(self.libraries, &qi.query)
+        let results: Vec<&ShapeDef> = search_for_kind(self.libraries, &qi.query, kind)
             .into_iter()
             .take(8)
             .collect();

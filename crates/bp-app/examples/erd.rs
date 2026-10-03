@@ -4,7 +4,7 @@
 use bp_app::BlueprintApp;
 use bp_commands::{ColumnProp, Command, Prop};
 use bp_model::kurbo::Rect;
-use bp_model::{ElementId, Endpoint, PortId, ShapeRef};
+use bp_model::{DiagramKind, ElementId, Endpoint, PortId, ShapeRef};
 use std::path::PathBuf;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -13,6 +13,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         .map(PathBuf::from)
         .unwrap_or_else(|| "orders.blueprint.json".into());
     let mut app = BlueprintApp::new(&egui::Context::default(), None);
+    app.choose_page_kind(DiagramKind::Erd);
     let customers = table(&mut app, "customers", Rect::new(40.0, 60.0, 390.0, 240.0));
     let orders = table(&mut app, "orders", Rect::new(570.0, 140.0, 920.0, 350.0));
     column(&mut app, customers, "email", "VARCHAR(255)", true);

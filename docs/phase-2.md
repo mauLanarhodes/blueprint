@@ -7,6 +7,15 @@ close the remaining [Phase 1 editor work](phase-1.md#left-for-phase-1).
 
 ## First milestone: smart tables and Crow's Foot
 
+- [x] Choose ERD or Flowchart for each new page and preserve that type in
+      native files. Palettes, search, recent shapes and tools show the
+      selected notation plus basic shapes. Existing populated pages are
+      inferred without changing their content.
+- [x] Offer all five Crow's Foot connection presets beneath ERD shapes,
+      with vector symbols and explanatory hover text. C activates the
+      current connector and Shift+C cycles presets; the floating toolbar
+      displays and selects the current type. Explicit tools honor the
+      chosen target marker; direct Select-tool row drags retain FK inference.
 - [x] Insert a smart table from the ERD palette, edit its name and typed
       columns, and show primary keys above a divider.
 - [x] Edit PK, FK, UK, nullability and default values. Add, remove and

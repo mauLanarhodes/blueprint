@@ -5,7 +5,8 @@
       "id": "01a102b9-0beb-75a3-a6e2-2af7a92cfdb3",
       "name": "Page 1",
       "order": "V",
-      "background": "#ffffff"
+      "background": "#ffffff",
+      "diagram_kind": "erd"
     }
   },
   "layers": {

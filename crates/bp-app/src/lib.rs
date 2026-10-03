@@ -4,6 +4,7 @@
 mod actions;
 mod app;
 mod canvas;
+mod connections;
 mod dialogs;
 mod erd;
 mod inspector;
@@ -13,4 +14,5 @@ mod palette;
 mod selection;
 mod theme;
 
-pub use app::{BlueprintApp, Tool};
+pub use app::{BlueprintApp, PageChoice, Tool};
+pub use connections::ErdConnection;

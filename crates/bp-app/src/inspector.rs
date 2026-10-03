@@ -7,8 +7,8 @@ use bp_commands::edit::{Align, Reorder};
 use bp_commands::{Command, PageProp, Prop};
 use bp_model::kurbo::Rect;
 use bp_model::{
-    Color, Dash, Element, ElementKind, Marker, Paint, Routing, Style, StyleValues, TextAlign,
-    VerticalAlign,
+    Color, Dash, DiagramKind, Element, ElementKind, Marker, Paint, Routing, Style, StyleValues,
+    TextAlign, VerticalAlign,
 };
 use bp_shapes::Outline;
 use egui::{Button, DragValue, RichText, Ui};
@@ -65,6 +65,22 @@ impl BlueprintApp {
                 );
             }
             ui.end_row();
+            ui.label("Diagram type");
+            let current_kind = self.page_kind();
+            let mut chosen_kind = current_kind;
+            egui::ComboBox::from_id_salt("page-diagram-kind")
+                .selected_text(current_kind.map_or("Choose type…", DiagramKind::label))
+                .show_ui(ui, |ui| {
+                    for kind in [DiagramKind::Erd, DiagramKind::Flowchart] {
+                        ui.selectable_value(&mut chosen_kind, Some(kind), kind.label());
+                    }
+                });
+            if chosen_kind != current_kind
+                && let Some(kind) = chosen_kind
+            {
+                self.set_page_kind(kind);
+            }
+            ui.end_row();
             ui.label("Background");
             let mut bg = page.background;
             if color_button(ui, &mut bg) {
@@ -99,13 +115,20 @@ impl BlueprintApp {
         );
         ui.add_space(10.0);
         section(ui, "Shortcuts");
+        let erd = self.page_kind() == Some(DiagramKind::Erd);
+        let shape_shortcuts = if erd {
+            ("R O N", "Rectangle, ellipse, note")
+        } else {
+            ("R O D N", "Rectangle, ellipse, decision, note")
+        };
         egui::Grid::new("shortcuts")
             .num_columns(2)
             .striped(true)
             .show(ui, |ui| {
                 for (keys, action) in [
                     ("V H C T", "Select, pan, connector, text"),
-                    ("R O D N", "Rectangle, ellipse, decision, note"),
+                    shape_shortcuts,
+                    ("Shift+C", "Cycle ERD relationships"),
                     ("/", "Insert a shape by name"),
                     ("Drag a port", "Draw a connector"),
                     ("Double-click", "Edit text / enter group"),
@@ -120,6 +143,9 @@ impl BlueprintApp {
                     ("Arrows", "Nudge (Shift: grid)"),
                     ("Esc", "Cancel / deselect / leave group"),
                 ] {
+                    if keys == "Shift+C" && !erd {
+                        continue;
+                    }
                     ui.label(RichText::new(keys).monospace().small());
                     ui.label(RichText::new(action).small());
                     ui.end_row();
@@ -243,6 +269,7 @@ impl BlueprintApp {
         ui.add_space(6.0);
 
         section(ui, "Ends");
+        let erd = self.page_kind() == Some(DiagramKind::Erd);
         egui::Grid::new("ends").num_columns(2).show(ui, |ui| {
             for (label, current, is_start) in [
                 ("Start", c.start_marker, true),
@@ -253,6 +280,17 @@ impl BlueprintApp {
                     .selected_text(current.label())
                     .show_ui(ui, |ui| {
                         for marker in Marker::ALL {
+                            let is_erd = matches!(
+                                marker,
+                                Marker::ExactlyOne
+                                    | Marker::ZeroOrOne
+                                    | Marker::OneOrMany
+                                    | Marker::ZeroOrMany
+                                    | Marker::Many
+                            );
+                            if marker != Marker::None && is_erd != erd {
+                                continue;
+                            }
                             if ui
                                 .selectable_label(current == marker, marker.label())
                                 .clicked()

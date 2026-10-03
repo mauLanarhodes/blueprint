@@ -33,9 +33,13 @@ Set `BLUEPRINT_RENDERER=glow` or `=wgpu` to force one.
 
 ## Using the editor
 
+- Choose **ERD** or **Flowchart** when starting a document or adding a page.
+  Each page remembers its type: ERD shows ERD shapes and basic shapes;
+  Flowchart shows flowchart symbols and basic shapes. Search and recent
+  shapes follow the current page. Change its type in the page inspector.
 - Shapes: click or drag them from the palette, press `/` on the canvas to
   insert one by name, or use the tools (`R` rectangle, `O` ellipse,
-  `D` decision, `N` sticky note, `T` text).
+  `D` decision on flowchart pages, `N` sticky note, `T` text).
 - Connectors: hover a shape and drag from one of its ports, drag the blue
   arrows beside a selected shape, or use the connector tool (`C`). Drop on a
   port to glue there, or anywhere on a shape to float on its outline.
@@ -51,6 +55,14 @@ Set `BLUEPRINT_RENDERER=glow` or `=wgpu` to force one.
   use the row controls to add, remove or reorder them. Primary keys stay
   above the divider. Enter in a row field adds a column; Tab moves between
   fields. Double-click a table to edit its header.
+- ERD connection tools appear directly below the ERD shapes: **Exactly
+  one**, **Zero or one**, **One or many**, **Zero or many**, and **Many**.
+  Hover a symbol for its meaning, then click it and drag a relationship.
+  `C` activates the chosen tool; `Shift+C` cycles through the five types.
+  The floating toolbar shows the chosen symbol and name, with a menu to
+  change it. The chosen cardinality applies to the end you drag toward;
+  the starting end is exactly one. Selection-tool row-port drags still
+  infer cardinalities from the table columns.
 - Each table column has left and right ports. Connect a column to another
   table's primary key to flag the column as FK and create a Crow's Foot
   relationship. Choose either end's cardinality and a solid or dashed line

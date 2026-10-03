@@ -1,5 +1,5 @@
 //! Renders the real app to a PNG, for checking the UI by eye:
-//! `cargo run -p bp-app --example screenshot -- out.png [diagram.blueprint] [mode]`
+//! `cargo run -p bp-app --example screenshot -- out.png [diagram.blueprint | erd | flowchart] [mode]`
 //!
 //! Modes: `shape` (select the first shape), `connector` (the first
 //! connector), `all` (everything), `drag` (mid-way through moving the
@@ -8,6 +8,7 @@
 //! selected.
 
 use bp_app::BlueprintApp;
+use bp_model::DiagramKind;
 use bp_model::kurbo::{Point, Vec2};
 use egui::{Event, Modifiers, PointerButton, Pos2};
 use egui_kittest::Harness;
@@ -16,7 +17,13 @@ use std::path::PathBuf;
 fn main() {
     let mut args = std::env::args().skip(1);
     let out = args.next().unwrap_or_else(|| "blueprint.png".into());
-    let file = args.next().map(PathBuf::from);
+    let source = args.next();
+    let kind = match source.as_deref() {
+        Some("erd") => Some(DiagramKind::Erd),
+        Some("flowchart") => Some(DiagramKind::Flowchart),
+        _ => None,
+    };
+    let file = source.filter(|_| kind.is_none()).map(PathBuf::from);
     let mode = args.next().unwrap_or_default();
     let mut h = Harness::builder()
         .with_size(egui::vec2(1360.0, 860.0))
@@ -25,6 +32,9 @@ fn main() {
         .build_ui_state(
             move |ui, app: &mut Option<BlueprintApp>| {
                 let app = app.get_or_insert_with(|| BlueprintApp::new(ui.ctx(), file.clone()));
+                if let Some(kind) = kind {
+                    app.choose_page_kind(kind);
+                }
                 app.frame(ui);
             },
             None,

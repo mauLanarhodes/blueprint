@@ -5,8 +5,8 @@ use bp_commands::edit::{self, Align, Clip, Reorder};
 use bp_commands::{Command, LayerProp, PageProp, Prop};
 use bp_model::kurbo::{Point, Rect, Vec2};
 use bp_model::{
-    Element, ElementId, ElementKind, Endpoint, Layer, LayerId, OrderKey, Page, PageId, Parent,
-    ShapeRef,
+    DiagramKind, Element, ElementId, ElementKind, Endpoint, Layer, LayerId, OrderKey, Page, PageId,
+    Parent, ShapeRef,
 };
 use egui::{Key, KeyboardShortcut, Modifiers};
 
@@ -136,6 +136,9 @@ impl BlueprintApp {
                 column,
                 prop: bp_commands::ColumnProp::ForeignKey(true),
             });
+        }
+        if let Some(connector) = el.as_connector_mut() {
+            self.configure_connection(connector);
         }
         commands.push(Command::Insert(Box::new(el)));
         self.apply("Add connector", commands).then(|| {
@@ -433,6 +436,10 @@ impl BlueprintApp {
     // ----- Pages -----------------------------------------------------------
 
     pub fn add_page(&mut self) {
+        self.request_add_page();
+    }
+
+    pub fn add_page_with_kind(&mut self, kind: DiagramKind) {
         let pages = self.doc.pages_sorted();
         let current = pages.iter().position(|p| p.id == self.page).unwrap_or(0);
         let below = pages[current].order.clone();
@@ -441,10 +448,11 @@ impl BlueprintApp {
         while pages.iter().any(|p| p.name == format!("Page {n}")) {
             n += 1;
         }
-        let page = Page::new(
+        let mut page = Page::new(
             format!("Page {n}"),
             OrderKey::between(Some(&below), above.as_ref()),
         );
+        page.diagram_kind = Some(kind);
         let layer = Layer::new(page.id, "Layer 1", OrderKey::first());
         let id = page.id;
         if self.apply(
@@ -490,6 +498,7 @@ impl BlueprintApp {
             OrderKey::between(Some(&original.order), above.as_ref()),
         );
         page.background = original.background;
+        page.diagram_kind = self.page_kind_for(source);
         let new_page = page.id;
         let mut commands = vec![Command::InsertPage(Box::new(page))];
         let mut layers = std::collections::HashMap::new();
@@ -720,7 +729,9 @@ impl BlueprintApp {
 
     pub fn handle_shortcuts(&mut self, ctx: &egui::Context) {
         use shortcuts::*;
-        let typing = ctx.egui_wants_keyboard_input();
+        let typing = ctx.egui_wants_keyboard_input()
+            || self.editing.is_some()
+            || self.quick_insert.is_some();
         let pressed = |s: KeyboardShortcut| ctx.input_mut(|i| i.consume_shortcut(&s));
 
         // Shift variants first: Ctrl+S also matches Ctrl+Shift+S.
@@ -786,7 +797,7 @@ impl BlueprintApp {
             self.step_page(-1);
         }
 
-        let toolbar = Tool::toolbar();
+        let toolbar = self.available_tools();
         let (keys, modifiers, slash) = ctx.input(|i| {
             let keys: Vec<Key> = [
                 Key::Delete,
@@ -840,6 +851,7 @@ impl BlueprintApp {
                         self.tool = tool.clone();
                     }
                 }
+                Key::C if modifiers == Modifiers::SHIFT => self.cycle_erd_connection(),
                 _ => {}
             }
         }

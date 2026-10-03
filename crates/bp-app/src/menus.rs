@@ -1,7 +1,7 @@
 //! Menu bar, toolbar and status bar.
 
 use crate::actions::shortcuts::*;
-use crate::app::{BlueprintApp, Pending, Tool};
+use crate::app::{BlueprintApp, Pending};
 use crate::theme::labelled;
 use bp_commands::edit::{Align, Reorder};
 use egui::{Button, KeyboardShortcut, RichText, Ui, ViewportCommand};
@@ -150,7 +150,7 @@ impl BlueprintApp {
 
             ui.menu_button("Page", |ui| {
                 if item(ui, "New page", None, true) {
-                    self.add_page();
+                    self.request_add_page();
                 }
                 if item(ui, "Duplicate page", None, true) {
                     self.duplicate_page(self.page);
@@ -174,10 +174,40 @@ impl BlueprintApp {
         });
     }
 
+    pub fn floating_toolbar(&mut self, ctx: &egui::Context) {
+        let id = egui::Id::new("floating_toolbar");
+        let previous_size = ctx.memory(|memory| memory.area_rect(id).map(|rect| rect.size()));
+        let response = egui::Area::new(id)
+            .order(egui::Order::Foreground)
+            .sense(egui::Sense::click_and_drag())
+            .constrain_to(self.canvas_rect)
+            .anchor(egui::Align2::CENTER_BOTTOM, egui::vec2(0.0, -32.0))
+            .default_width((self.canvas_rect.width() - 24.0).max(0.0))
+            .show(ctx, |ui| {
+                ui.set_max_width((self.canvas_rect.width() - 24.0).max(0.0));
+                egui::Frame::new()
+                    .fill(ui.visuals().panel_fill)
+                    .stroke(egui::Stroke::new(1.0, crate::theme::CANVAS_EDGE))
+                    .corner_radius(12)
+                    .inner_margin(8)
+                    .shadow(egui::Shadow {
+                        offset: [0, 4],
+                        blur: 16,
+                        spread: 0,
+                        color: egui::Color32::from_black_alpha(24),
+                    })
+                    .show(ui, |ui| self.toolbar(ui));
+            });
+        // Re-anchor after wrapping changes the bar's size, including window resizes.
+        if previous_size != Some(response.response.rect.size()) {
+            ctx.request_repaint();
+        }
+    }
+
     pub fn toolbar(&mut self, ui: &mut Ui) {
-        ui.horizontal(|ui| {
+        ui.horizontal_wrapped(|ui| {
             ui.spacing_mut().item_spacing.x = 2.0;
-            for (tool, glyph, label, key) in Tool::toolbar() {
+            for (tool, glyph, label, key) in self.available_tools() {
                 let selected = self.tool == tool;
                 let button = Button::new(crate::theme::icon(glyph).size(17.0))
                     .selected(selected)
@@ -189,6 +219,9 @@ impl BlueprintApp {
                 {
                     self.tool = tool;
                 }
+            }
+            if self.page_kind() == Some(bp_model::DiagramKind::Erd) {
+                self.erd_connection_toolbar(ui);
             }
             ui.separator();
             if ui

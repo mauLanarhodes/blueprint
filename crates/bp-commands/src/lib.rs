@@ -11,9 +11,9 @@ pub mod edit;
 
 use bp_model::kurbo::{Point, Rect};
 use bp_model::{
-    Color, ColumnId, Dash, Document, Element, ElementId, ElementKind, Endpoint, ErdColumn,
-    ErdTable, Layer, LayerId, Marker, ModelError, OrderKey, Page, PageId, Paint, Parent, Routing,
-    ShapeRef, SqlDialect, Style, TableDisplay, TextAlign, VerticalAlign,
+    Color, ColumnId, Dash, DiagramKind, Document, Element, ElementId, ElementKind, Endpoint,
+    ErdColumn, ErdTable, Layer, LayerId, Marker, ModelError, OrderKey, Page, PageId, Paint, Parent,
+    Routing, ShapeRef, SqlDialect, Style, TableDisplay, TextAlign, VerticalAlign,
 };
 use std::mem::{Discriminant, discriminant, replace};
 use std::time::{Duration, Instant};
@@ -98,6 +98,7 @@ pub enum PageProp {
     Name(String),
     Order(OrderKey),
     Background(Color),
+    DiagramKind(Option<DiagramKind>),
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -297,6 +298,9 @@ impl Command {
                     PageProp::Order(v) => PageProp::Order(replace(&mut page.order, v)),
                     PageProp::Background(v) => {
                         PageProp::Background(replace(&mut page.background, v))
+                    }
+                    PageProp::DiagramKind(v) => {
+                        PageProp::DiagramKind(replace(&mut page.diagram_kind, v))
                     }
                 };
                 Ok(Command::SetPage { id, prop: old })
@@ -1328,6 +1332,37 @@ mod tests {
             h.apply(&mut doc, "", [Command::Remove(a_id)]),
             Err(CommandError::NotEmpty(format!("element {a_id}")))
         );
+    }
+
+    #[test]
+    fn page_kind_choice_is_undoable_and_redoable() {
+        let (mut doc, _, _) = setup();
+        let page = doc.first_page().unwrap();
+        let mut history = History::new();
+        assert_eq!(doc.pages[&page].diagram_kind, None);
+
+        for kind in [Some(DiagramKind::Erd), Some(DiagramKind::Flowchart), None] {
+            history
+                .apply(
+                    &mut doc,
+                    "Choose diagram kind",
+                    [Command::SetPage {
+                        id: page,
+                        prop: PageProp::DiagramKind(kind),
+                    }],
+                )
+                .unwrap();
+            assert_eq!(doc.pages[&page].diagram_kind, kind);
+        }
+        for kind in [Some(DiagramKind::Flowchart), Some(DiagramKind::Erd), None] {
+            assert!(history.undo(&mut doc));
+            assert_eq!(doc.pages[&page].diagram_kind, kind);
+        }
+        for kind in [Some(DiagramKind::Erd), Some(DiagramKind::Flowchart), None] {
+            assert!(history.redo(&mut doc));
+            assert_eq!(doc.pages[&page].diagram_kind, kind);
+        }
+        assert_eq!(doc.validate(), Ok(()));
     }
 
     #[test]

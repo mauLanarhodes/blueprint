@@ -100,7 +100,7 @@ impl BlueprintApp {
                 .on_hover_text("Add page")
                 .clicked()
             {
-                self.add_page();
+                self.request_add_page();
             }
         });
     }

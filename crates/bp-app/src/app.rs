@@ -1,11 +1,14 @@
 //! Application state, file actions, the scene cache and the frame layout.
 
 use crate::canvas::Drag;
+use crate::connections::ErdConnection;
 use crate::palette::{PaletteState, QuickInsert};
 use bp_commands::{Command, History};
 use bp_geom::Guide;
 use bp_model::kurbo::Point;
-use bp_model::{ColumnId, Document, ElementId, Layer, LayerId, OrderKey, PageId, ShapeRef};
+use bp_model::{
+    ColumnId, DiagramKind, Document, ElementId, Layer, LayerId, OrderKey, PageId, ShapeRef,
+};
 use bp_render_egui::Viewport;
 use bp_scene::{Scene, SceneCache};
 use bp_shapes::Libraries;
@@ -64,6 +67,13 @@ pub enum Pending {
     Quit,
 }
 
+/// The first page needs a type; additional pages are created after choosing one.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum PageChoice {
+    Existing(PageId),
+    New,
+}
+
 /// Text being edited in place on the canvas.
 pub struct TextEditing {
     pub id: ElementId,
@@ -112,6 +122,9 @@ pub struct BlueprintApp {
     scene_key: Option<(u64, PageId)>,
     pub libraries: &'static Libraries,
     pub tool: Tool,
+    pub erd_connection: ErdConnection,
+    connections_by_page: HashMap<PageId, ErdConnection>,
+    pub page_choice: Option<PageChoice>,
     /// Selected elements, in the order they were selected.
     pub selection: Vec<ElementId>,
     /// The group being edited from the inside (after a double-click), if any.
@@ -158,6 +171,9 @@ impl BlueprintApp {
             scene_key: None,
             libraries: Libraries::builtin(),
             tool: Tool::Select,
+            erd_connection: ErdConnection::default(),
+            connections_by_page: HashMap::new(),
+            page_choice: Some(PageChoice::Existing(page)),
             selection: Vec::new(),
             scope: None,
             drag: Drag::None,
@@ -266,20 +282,22 @@ impl BlueprintApp {
     }
 
     pub fn undo(&mut self) {
+        let previous_kind = self.page_kind();
         self.editing = None;
         self.column_focus = None;
         self.cancel_drag();
         if self.history.undo(&mut self.doc) {
-            self.after_history_jump();
+            self.after_history_jump(previous_kind);
         }
     }
 
     pub fn redo(&mut self) {
+        let previous_kind = self.page_kind();
         self.editing = None;
         self.column_focus = None;
         self.cancel_drag();
         if self.history.redo(&mut self.doc) {
-            self.after_history_jump();
+            self.after_history_jump(previous_kind);
         }
     }
 
@@ -291,7 +309,7 @@ impl BlueprintApp {
         self.guides.clear();
     }
 
-    fn after_history_jump(&mut self) {
+    fn after_history_jump(&mut self, previous_kind: Option<DiagramKind>) {
         // Undo can remove the page or layer we were on.
         if !self.doc.pages.contains_key(&self.page) {
             let page = self.doc.first_page().expect("documents keep a page");
@@ -301,9 +319,109 @@ impl BlueprintApp {
             self.layer = self.default_layer(self.page);
         }
         self.prune_selection();
+        if self.page_kind() != previous_kind {
+            self.tool = Tool::Select;
+            self.quick_insert = None;
+            self.palette.query.clear();
+            self.palette.dragging = None;
+            self.page_choice = self
+                .page_kind()
+                .is_none()
+                .then_some(PageChoice::Existing(self.page));
+        }
+        if !self
+            .available_tools()
+            .iter()
+            .any(|(tool, ..)| *tool == self.tool)
+        {
+            self.tool = Tool::Select;
+        }
     }
 
     // ----- Pages and layers ---------------------------------------------
+
+    pub fn page_kind(&self) -> Option<DiagramKind> {
+        self.page_kind_for(self.page)
+    }
+
+    /// Older files have no stored type. Infer it from their content without
+    /// modifying or removing any existing elements, including hidden layers.
+    pub fn page_kind_for(&self, page: PageId) -> Option<DiagramKind> {
+        if let Some(kind) = self.doc.pages.get(&page)?.diagram_kind {
+            return Some(kind);
+        }
+        let mut populated = false;
+        for element in self.doc.elements.values() {
+            if self.doc.page_of(element.id) != Some(page) {
+                continue;
+            }
+            populated = true;
+            if element
+                .as_shape()
+                .is_some_and(|shape| shape.erd.is_some() || shape.shape.library() == "erd")
+                || element.as_connector().is_some_and(|connector| {
+                    ErdConnection::from_marker(connector.start_marker).is_some()
+                        || ErdConnection::from_marker(connector.end_marker).is_some()
+                })
+            {
+                return Some(DiagramKind::Erd);
+            }
+        }
+        populated.then_some(DiagramKind::Flowchart)
+    }
+
+    pub fn available_tools(&self) -> Vec<(Tool, &'static str, &'static str, Key)> {
+        let kind = self.page_kind();
+        Tool::toolbar()
+            .into_iter()
+            .filter(|(tool, ..)| match tool {
+                Tool::Shape(shape) => {
+                    kind.is_some()
+                        && (shape.library() == "basic"
+                            || (kind == Some(DiagramKind::Flowchart)
+                                && shape.library() == "flowchart"))
+                }
+                _ => true,
+            })
+            .collect()
+    }
+
+    pub fn request_add_page(&mut self) {
+        self.finish_inline_edits();
+        self.cancel_drag();
+        self.quick_insert = None;
+        self.palette.dragging = None;
+        self.page_choice = Some(PageChoice::New);
+    }
+
+    pub fn choose_page_kind(&mut self, kind: DiagramKind) {
+        match self.page_choice.take() {
+            Some(PageChoice::New) => self.add_page_with_kind(kind),
+            Some(PageChoice::Existing(page)) if page == self.page => self.set_page_kind(kind),
+            _ => {}
+        }
+    }
+
+    pub fn set_page_kind(&mut self, kind: DiagramKind) {
+        if self.doc.pages[&self.page].diagram_kind == Some(kind) {
+            return;
+        }
+        self.finish_inline_edits();
+        self.cancel_drag();
+        if self.apply(
+            "Change diagram type",
+            [Command::SetPage {
+                id: self.page,
+                prop: bp_commands::PageProp::DiagramKind(Some(kind)),
+            }],
+        ) {
+            self.tool = Tool::Select;
+            self.quick_insert = None;
+            self.palette.query.clear();
+            self.palette.dragging = None;
+            self.page_choice = None;
+        }
+    }
 
     /// The topmost visible, unlocked layer of `page` (or its top layer).
     pub fn default_layer(&mut self, page: PageId) -> LayerId {
@@ -328,10 +446,25 @@ impl BlueprintApp {
         self.finish_text_edit(true);
         self.cancel_drag();
         self.views.insert(self.page, self.view);
+        self.connections_by_page
+            .insert(self.page, self.erd_connection);
         self.page = page;
         self.layer = self.default_layer(page);
         self.selection.clear();
         self.scope = None;
+        self.tool = Tool::Select;
+        self.erd_connection = self
+            .connections_by_page
+            .get(&page)
+            .copied()
+            .unwrap_or_default();
+        self.quick_insert = None;
+        self.palette.query.clear();
+        self.palette.dragging = None;
+        self.page_choice = self
+            .page_kind()
+            .is_none()
+            .then_some(PageChoice::Existing(page));
         match self.views.get(&page) {
             Some(view) => self.view = *view,
             None => self.fit_requested = true,
@@ -378,8 +511,15 @@ impl BlueprintApp {
         self.renaming = None;
         self.column_focus = None;
         self.quick_insert = None;
+        self.palette.query.clear();
         self.palette.dragging = None;
         self.tool = Tool::Select;
+        self.erd_connection = ErdConnection::default();
+        self.connections_by_page.clear();
+        self.page_choice = self
+            .page_kind()
+            .is_none()
+            .then_some(PageChoice::Existing(page));
         self.drag = Drag::None;
         self.guides.clear();
         self.views.clear();
@@ -521,13 +661,28 @@ impl BlueprintApp {
             return;
         }
         self.handle_window_events(&ctx);
-        if self.pending.is_none() && self.error.is_none() {
+        if matches!(self.page_choice, Some(PageChoice::Existing(_))) {
+            if self.page_kind().is_some() {
+                self.page_choice = None;
+            } else if self.pending.is_none() && self.error.is_none() {
+                let redo = ctx.input_mut(|input| {
+                    input.consume_shortcut(&crate::actions::shortcuts::REDO)
+                        || input.consume_shortcut(&crate::actions::shortcuts::REDO_ALT)
+                });
+                if redo {
+                    self.redo();
+                }
+            }
+        }
+        if self.page_choice.is_none() && self.page_kind().is_none() {
+            self.page_choice = Some(PageChoice::Existing(self.page));
+        }
+        if self.pending.is_none() && self.error.is_none() && self.page_choice.is_none() {
             self.handle_shortcuts(&ctx);
         }
         self.refresh_scene();
 
         egui::Panel::top("menu_bar").show(ui, |ui| self.menu_bar(ui));
-        egui::Panel::top("toolbar").show(ui, |ui| self.toolbar(ui));
         egui::Panel::bottom("status_bar").show(ui, |ui| self.status_bar(ui));
         egui::Panel::bottom("page_tabs")
             .frame(

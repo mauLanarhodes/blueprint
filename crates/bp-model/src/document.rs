@@ -4,8 +4,25 @@ use crate::{
 use serde::{Deserialize, Serialize};
 use std::collections::{BTreeMap, HashMap, HashSet};
 
-/// Bumped whenever the file format changes; `bp-io` migrates older files.
+/// Bumped for incompatible format changes; `bp-io` migrates older files.
 pub const SCHEMA_VERSION: u32 = 3;
+
+/// The tools and shape libraries a page presents in the editor.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum DiagramKind {
+    Flowchart,
+    Erd,
+}
+
+impl DiagramKind {
+    pub fn label(self) -> &'static str {
+        match self {
+            Self::Flowchart => "Flowchart",
+            Self::Erd => "ERD",
+        }
+    }
+}
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct Page {
@@ -14,6 +31,9 @@ pub struct Page {
     pub order: OrderKey,
     #[serde(default = "default_background")]
     pub background: Color,
+    /// `None` keeps legacy pages unclassified until their kind is chosen.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub diagram_kind: Option<DiagramKind>,
 }
 
 impl Page {
@@ -23,6 +43,7 @@ impl Page {
             name: name.into(),
             order,
             background: Color::WHITE,
+            diagram_kind: None,
         }
     }
 }
@@ -529,6 +550,25 @@ mod tests {
         assert_eq!(doc.pages.len(), 1);
         assert_eq!(doc.layers.len(), 1);
         assert_eq!(doc.validate(), Ok(()));
+    }
+
+    #[test]
+    fn page_kind_is_optional_and_serializes_with_stable_names() {
+        let mut page = Page::new("Page 1", OrderKey::first());
+        let legacy = serde_json::to_value(&page).unwrap();
+        assert!(legacy.get("diagram_kind").is_none());
+        assert_eq!(serde_json::from_value::<Page>(legacy).unwrap(), page);
+
+        for (kind, value, label) in [
+            (DiagramKind::Flowchart, "flowchart", "Flowchart"),
+            (DiagramKind::Erd, "erd", "ERD"),
+        ] {
+            page.diagram_kind = Some(kind);
+            let json = serde_json::to_value(&page).unwrap();
+            assert_eq!(json["diagram_kind"], value);
+            assert_eq!(serde_json::from_value::<Page>(json).unwrap(), page);
+            assert_eq!(kind.label(), label);
+        }
     }
 
     #[test]

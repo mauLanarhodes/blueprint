@@ -184,6 +184,7 @@ impl BlueprintApp {
         let ctx = ui.ctx().clone();
         let origin = response.rect.min;
         self.canvas_rect = response.rect;
+        self.floating_toolbar(&ctx);
 
         if self.fit_requested {
             self.fit_requested = false;
@@ -1124,6 +1125,7 @@ impl BlueprintApp {
         self.palette.dragging = None;
         if let Some(pos) = pos
             && response.rect.contains(pos)
+            && ctx.layer_id_at(pos) == Some(response.layer_id)
         {
             self.insert_shape_at(shape, self.page_at(origin, pos));
             self.tool = Tool::Select;
@@ -1341,6 +1343,7 @@ impl BlueprintApp {
             }
             Drag::Connect { source, target } => {
                 let mut c = Connector::new(source.clone(), target.clone());
+                self.configure_connection(&mut c);
                 c.style.stroke = Some(Paint::Color(bp_model::Color::rgb(37, 99, 235)));
                 let items = bp_scene::connector_preview(&self.doc, self.page, self.libraries, &c);
                 paint(painter, origin, &self.view, &preview_list(items), None);

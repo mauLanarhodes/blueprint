@@ -1,6 +1,6 @@
 //! Files saved by older versions of Blueprint must keep opening.
 
-use bp_model::{Color, ElementKind, Paint, Parent, SCHEMA_VERSION};
+use bp_model::{Color, DiagramKind, ElementKind, OrderKey, Page, Paint, Parent, SCHEMA_VERSION};
 use std::path::Path;
 
 fn fixture(name: &str) -> std::path::PathBuf {
@@ -13,6 +13,7 @@ fn fixture(name: &str) -> std::path::PathBuf {
 fn check_phase0(doc: &bp_model::Document) {
     assert_eq!(doc.schema_version, SCHEMA_VERSION);
     assert_eq!(doc.validate(), Ok(()));
+    assert!(doc.pages.values().all(|page| page.diagram_kind.is_none()));
     let page = doc.first_page().unwrap();
     let layer = doc.layers_of(page)[0].id;
     let shapes: Vec<_> = doc
@@ -178,6 +179,36 @@ fn structured_table_and_relationship_round_trip_in_both_formats() {
         bp_io::to_zip_bytes(&doc).unwrap(),
     ] {
         assert_eq!(bp_io::from_bytes(&bytes).unwrap(), doc);
+    }
+}
+
+#[test]
+fn page_kinds_round_trip_in_json_and_zip_without_classifying_legacy_pages() {
+    let mut doc = bp_io::load(&fixture("phase0.blueprint.json")).unwrap();
+    let first = doc.first_page().unwrap();
+    let mut order = doc.pages[&first].order.clone();
+    for kind in [DiagramKind::Erd, DiagramKind::Flowchart] {
+        order = OrderKey::after(&order);
+        let mut page = Page::new(kind.label(), order.clone());
+        page.diagram_kind = Some(kind);
+        doc.pages.insert(page.id, page);
+    }
+
+    for bytes in [
+        bp_io::to_json_bytes(&doc).unwrap(),
+        bp_io::to_zip_bytes(&doc).unwrap(),
+    ] {
+        let loaded = bp_io::from_bytes(&bytes).unwrap();
+        assert_eq!(loaded, doc);
+        assert_eq!(loaded.pages[&first].diagram_kind, None);
+        assert_eq!(
+            loaded
+                .pages_sorted()
+                .iter()
+                .map(|page| page.diagram_kind)
+                .collect::<Vec<_>>(),
+            [None, Some(DiagramKind::Erd), Some(DiagramKind::Flowchart)]
+        );
     }
 }
 
