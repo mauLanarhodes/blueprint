@@ -1639,3 +1639,193 @@ fn new_and_open_clear_palette_search_and_legacy_page_inference_preserves_content
     assert!(h.query_all_by_label("Table").next().is_some());
     assert!(h.query_by_label("Choose diagram type").is_none());
 }
+
+#[test]
+fn sql_paste_preview_warns_before_one_undoable_import() {
+    let mut h = harness_for(DiagramKind::Erd);
+    let original = add_shape(
+        &mut h,
+        "basic/sticky-note",
+        Rect::new(80.0, 80.0, 240.0, 220.0),
+    );
+    let before = app(&mut h).doc.clone();
+    h.get_by_label("File").click();
+    h.run();
+    h.get_by_label("Paste SQL schema…").click();
+    h.run();
+    let sql = "CREATE TABLE users (id bigint PRIMARY KEY);\nCREATE TABLE posts (id bigint PRIMARY KEY, user_id bigint REFERENCES users(id));\nSELECT * FROM users;";
+    h.event(Event::Paste(sql.into()));
+    h.run();
+    assert_eq!(app(&mut h).sql.import.as_ref().unwrap().source, sql);
+    assert_eq!(
+        app(&mut h).doc,
+        before,
+        "pasting does not change the diagram"
+    );
+    assert!(
+        h.get_by_label("Apply import")
+            .accesskit_node()
+            .is_disabled()
+    );
+    h.key_press(Key::R);
+    h.run();
+    assert_eq!(
+        app(&mut h).tool,
+        Tool::Select,
+        "modal blocks canvas shortcuts"
+    );
+    h.get_by_label("Preview schema").click();
+    h.run();
+    assert!(
+        h.query_by_label("2 tables, 3 columns, 1 relationship")
+            .is_some()
+    );
+    assert!(h.query_by_label_contains("Line 3:").is_some());
+    assert_eq!(app(&mut h).doc, before, "preview does not import");
+    h.get_by_label("Apply import").click();
+    h.run();
+    let imported = app(&mut h).doc.clone();
+    assert!(app(&mut h).sql.import.is_none());
+    assert_eq!(app(&mut h).history.undo_label(), Some("Import SQL schema"));
+    assert!(app(&mut h).selection.len() >= 3);
+    assert_eq!(app(&mut h).doc.validate(), Ok(()));
+    app(&mut h).undo();
+    h.run();
+    assert_eq!(app(&mut h).doc, before);
+    assert!(
+        app(&mut h).doc.elements.contains_key(&original),
+        "prior edit stays separate"
+    );
+    app(&mut h).redo();
+    h.run();
+    assert_eq!(app(&mut h).doc, imported);
+}
+
+#[test]
+fn sql_preview_invalidates_after_edit_and_cancel_keeps_the_diagram() {
+    let mut h = harness_for(DiagramKind::Erd);
+    let before = app(&mut h).doc.clone();
+    app(&mut h).paste_sql_schema();
+    app(&mut h).sql.import.as_mut().unwrap().source = "CREATE TABLE old_name (id integer);".into();
+    h.run();
+    h.get_by_label("Preview schema").click();
+    h.run();
+    assert!(
+        !h.get_by_label("Apply import")
+            .accesskit_node()
+            .is_disabled()
+    );
+    app(&mut h).sql.import.as_mut().unwrap().source = "CREATE TABLE new_name (id integer);".into();
+    h.run();
+    assert!(
+        h.get_by_label("Apply import")
+            .accesskit_node()
+            .is_disabled()
+    );
+    assert!(!app(&mut h).apply_sql_import());
+    h.get_by_label("Cancel").click();
+    h.run();
+    assert!(app(&mut h).sql.import.is_none());
+    assert_eq!(app(&mut h).doc, before);
+}
+
+#[test]
+fn sql_export_preview_is_read_only_and_blocks_diagram_editing() {
+    let mut h = harness_for(DiagramKind::Erd);
+    let id = add_shape(&mut h, "erd/table", Rect::new(100.0, 100.0, 380.0, 230.0));
+    app(&mut h).selection = vec![id];
+    let before = app(&mut h).doc.clone();
+    h.get_by_label("File").click();
+    h.run();
+    h.get_by_label("Export page as SQL…").click();
+    h.run();
+    assert!(h.query_by_label("SQL DDL preview").is_some());
+    let sql = app(&mut h).sql.export.as_ref().unwrap().preview.sql.clone();
+    assert!(sql.contains("CREATE TABLE"));
+    h.key_press(Key::Delete);
+    h.event(Event::Paste("DROP TABLE anything;".into()));
+    h.run();
+    assert_eq!(app(&mut h).doc, before);
+    assert_eq!(app(&mut h).sql.export.as_ref().unwrap().preview.sql, sql);
+    h.get_by_label("Close").click();
+    h.run();
+    assert!(app(&mut h).sql.export.is_none());
+}
+
+#[test]
+fn sql_foreign_key_swap_preserves_schema_and_mapping_editor_follows_owner() {
+    let mut h = harness_for(DiagramKind::Erd);
+    app(&mut h).paste_sql_schema();
+    app(&mut h).sql.import.as_mut().unwrap().source = "CREATE TABLE parent (id integer PRIMARY KEY); CREATE TABLE child (old_id integer, new_id integer, CONSTRAINT child_parent FOREIGN KEY (old_id) REFERENCES parent(id) ON DELETE CASCADE);".into();
+    app(&mut h).preview_sql_import();
+    assert!(app(&mut h).apply_sql_import());
+    let element = app(&mut h)
+        .doc
+        .elements
+        .values()
+        .find(|element| element.as_connector().is_some())
+        .unwrap()
+        .clone();
+    let connector = element.as_connector().unwrap();
+    let id = element.id;
+    let old_key = connector.foreign_key.clone().unwrap();
+    let owner = connector.source.element().unwrap();
+    let new_column = app(&mut h).doc.elements[&owner]
+        .as_shape()
+        .unwrap()
+        .erd
+        .as_ref()
+        .unwrap()
+        .columns
+        .iter()
+        .find(|column| column.name == "new_id")
+        .unwrap()
+        .id;
+    let before = app(&mut h).doc.clone();
+    let page = app(&mut h).page;
+    let ddl = bp_sql::export_page(&before, page, bp_model::SqlDialect::PostgreSql)
+        .unwrap()
+        .sql;
+    app(&mut h).selection = vec![id];
+    h.run();
+    h.get_by_label_contains("Swap ends").scroll_to_me();
+    h.run();
+    h.get_by_label_contains("Swap ends").click();
+    h.run();
+    let swapped = app(&mut h).doc.clone();
+    let line = swapped.elements[&id].as_connector().unwrap();
+    assert!(line.foreign_key.as_ref().unwrap().owner_at_target);
+    assert_eq!(line.foreign_key.as_ref().unwrap().columns, old_key.columns);
+    assert_eq!(line.source, connector.target);
+    assert_eq!(line.target, connector.source);
+    assert_eq!(
+        (line.start_marker, line.end_marker),
+        (connector.end_marker, connector.start_marker)
+    );
+    assert_eq!(
+        bp_sql::export_page(&swapped, page, bp_model::SqlDialect::PostgreSql)
+            .unwrap()
+            .sql,
+        ddl
+    );
+    app(&mut h).undo();
+    assert_eq!(app(&mut h).doc, before);
+    app(&mut h).redo();
+    assert_eq!(app(&mut h).doc, swapped);
+    let mut key = app(&mut h).doc.elements[&id]
+        .as_connector()
+        .unwrap()
+        .foreign_key
+        .clone()
+        .unwrap();
+    key.columns = vec![new_column];
+    app(&mut h).set_sql_foreign_key(id, key);
+    let updated = app(&mut h).doc.elements[&id].as_connector().unwrap();
+    assert!(
+        matches!(&updated.target, Endpoint::Glued { element, port: Some(port) }
+        if *element == owner && port.column_id() == Some(new_column))
+    );
+    assert_eq!(app(&mut h).doc.validate(), Ok(()));
+    app(&mut h).undo();
+    assert_eq!(app(&mut h).doc, swapped);
+}

@@ -255,6 +255,7 @@ impl BlueprintApp {
                 );
             }
         }
+        self.erd_sql_metadata_inspector(ui, el);
         ui.horizontal(|ui| {
             ui.label("SQL dialect");
             egui::ComboBox::from_id_salt(("dialect", id))

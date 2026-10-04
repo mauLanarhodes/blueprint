@@ -21,7 +21,10 @@ pub use document::{DiagramKind, Document, Layer, ModelError, Page, SCHEMA_VERSIO
 pub use element::{
     Connector, Element, ElementKind, Endpoint, Marker, Parent, PortId, Routing, Shape, ShapeRef,
 };
-pub use erd::{ErdColumn, ErdTable, SqlDialect, TableDisplay};
+pub use erd::{
+    ErdColumn, ErdForeignKey, ErdIndex, ErdIndexExpression, ErdIndexReference, ErdKey, ErdTable,
+    SqlDialect, TableDisplay,
+};
 pub use ids::{ColumnId, ElementId, IdHasher, IdMap, LayerId, PageId};
 pub use kurbo;
 pub use order::OrderKey;

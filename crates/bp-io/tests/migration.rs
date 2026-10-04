@@ -1,6 +1,35 @@
 //! Files saved by older versions of Blueprint must keep opening.
 
 use bp_model::{Color, DiagramKind, ElementKind, OrderKey, Page, Paint, Parent, SCHEMA_VERSION};
+
+#[test]
+fn format4_erd_tables_gain_empty_sql_metadata_without_changing_columns() {
+    let mut doc = bp_model::Document::new();
+    let page = doc.first_page().unwrap();
+    let parent = Parent::Layer(doc.layers_of(page)[0].id);
+    let element = bp_model::Element::shape(
+        bp_model::ShapeRef::new("erd", "table"),
+        parent,
+        OrderKey::first(),
+        bp_model::kurbo::Rect::new(0.0, 0.0, 240.0, 120.0),
+    );
+    let id = element.id;
+    doc.elements.insert(id, element);
+    let mut json = serde_json::to_value(&doc).unwrap();
+    json["schema_version"] = 4.into();
+    let loaded = bp_io::from_bytes(&serde_json::to_vec(&json).unwrap()).unwrap();
+    assert_eq!(loaded, doc);
+    let table = loaded.elements[&id]
+        .as_shape()
+        .unwrap()
+        .erd
+        .as_ref()
+        .unwrap();
+    assert!(table.schema.is_empty());
+    assert!(table.primary_key.is_none());
+    assert!(table.unique_keys.is_empty());
+    assert!(table.indexes.is_empty());
+}
 use std::path::Path;
 
 fn fixture(name: &str) -> std::path::PathBuf {
@@ -27,7 +56,7 @@ fn schema3_pages_and_diagrams_migrate_without_changing_content() {
     old.as_object_mut().unwrap().remove("icons");
     let migrated = bp_io::from_bytes(&serde_json::to_vec(&old).unwrap()).unwrap();
     assert_eq!(migrated, doc);
-    assert_eq!(migrated.schema_version, 4);
+    assert_eq!(migrated.schema_version, SCHEMA_VERSION);
     assert!(migrated.icons.is_empty());
 }
 

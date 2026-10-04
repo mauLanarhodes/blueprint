@@ -1,6 +1,6 @@
 [package]
 name = "bp-cli"
-description = "Blueprint command-line tool: headless export and file checks"
+description = "Blueprint command-line tool: schema import, export and file checks"
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true
@@ -14,6 +14,8 @@ path = "src/main.rs"
 bp-export.workspace = true
 bp-io.workspace = true
 bp-model.workspace = true
+bp-sql.workspace = true
+bp-commands.workspace = true
 
 [dev-dependencies]
 bp-commands.workspace = true

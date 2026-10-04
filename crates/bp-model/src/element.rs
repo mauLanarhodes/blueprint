@@ -1,4 +1,4 @@
-use crate::{ColumnId, ElementId, ErdTable, LayerId, OrderKey, Style};
+use crate::{ColumnId, ElementId, ErdForeignKey, ErdTable, LayerId, OrderKey, Style};
 use kurbo::{Point, Rect};
 use serde::{Deserialize, Serialize};
 use std::fmt;
@@ -275,6 +275,8 @@ pub struct Connector {
     pub label_position: f64,
     #[serde(default, skip_serializing_if = "Style::is_empty")]
     pub style: Style,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub foreign_key: Option<ErdForeignKey>,
 }
 
 impl Connector {
@@ -289,11 +291,23 @@ impl Connector {
             text: String::new(),
             label_position: 0.5,
             style: Style::default(),
+            foreign_key: None,
         }
     }
 
     pub fn endpoints(&self) -> [&Endpoint; 2] {
         [&self.source, &self.target]
+    }
+
+    /// SQL ownership is independent of the visual drawing direction.
+    pub fn foreign_key_endpoints(&self) -> Option<(&Endpoint, &Endpoint)> {
+        self.foreign_key.as_ref().map(|key| {
+            if key.owner_at_target {
+                (&self.target, &self.source)
+            } else {
+                (&self.source, &self.target)
+            }
+        })
     }
 }
 

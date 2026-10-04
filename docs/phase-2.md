@@ -48,8 +48,12 @@ Open the editable [orders example](../examples/orders.blueprint.json) with
 `cargo run -p bp-app --release -- examples/orders.blueprint.json`. Regenerate
 it with `cargo run -p bp-app --example erd -- examples/orders.blueprint.json`.
 
-This milestone records the selected dialect and offers common types;
-it does not validate SQL expressions or generate SQL.
+PostgreSQL SQL import and export now build on this milestone. Preview a file
+or pasted script with line-specific warnings, import editable tables and
+relationships in one undo step, and preview DDL before saving a separate
+SQL file. See [SQL schema interchange](erd-sql.md) for dialect coverage,
+supported definitions and CLI examples. Type suggestions for other dialects
+do not imply SQL interchange support.
 
 ## Remaining Phase 2 gates
 
@@ -65,8 +69,8 @@ it does not validate SQL expressions or generate SQL.
 - [ ] Exercise each notation's complete mouse and keyboard workflow,
       native round trip and CLI export before marking Phase 2 complete.
 
-SQL DDL generation/import and live-database reverse engineering remain
-v1.x work in the project plan.
+Additional SQL interchange dialects and live-database reverse engineering
+remain future work. SQL scripts are never executed by the importer.
 
 ## Validation
 

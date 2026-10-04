@@ -536,7 +536,7 @@ enum EndKey {
     /// A shape built in the same scene, at this version of its entry.
     Shape(ElementId, u64),
     /// A shape outside the scene (hidden layer, other page), by its data.
-    Elsewhere(ElementId, Option<Shape>),
+    Elsewhere(ElementId, Option<Box<Shape>>),
 }
 
 struct Entry {
@@ -579,7 +579,11 @@ impl SceneCache {
                 }
                 _ => EndKey::Elsewhere(
                     id,
-                    doc.elements.get(&id).and_then(Element::as_shape).cloned(),
+                    doc.elements
+                        .get(&id)
+                        .and_then(Element::as_shape)
+                        .cloned()
+                        .map(Box::new),
                 ),
             },
         }

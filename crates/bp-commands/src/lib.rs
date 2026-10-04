@@ -12,8 +12,9 @@ pub mod edit;
 use bp_model::kurbo::{Point, Rect};
 use bp_model::{
     CloudIcon, Color, ColumnId, Dash, DiagramKind, Document, Element, ElementId, ElementKind,
-    Endpoint, ErdColumn, ErdTable, Layer, LayerId, Marker, ModelError, OrderKey, Page, PageId,
-    Paint, Parent, Routing, ShapeRef, SqlDialect, Style, TableDisplay, TextAlign, VerticalAlign,
+    Endpoint, ErdColumn, ErdForeignKey, ErdKey, ErdTable, Layer, LayerId, Marker, ModelError,
+    OrderKey, Page, PageId, Paint, Parent, Routing, ShapeRef, SqlDialect, Style, TableDisplay,
+    TextAlign, VerticalAlign,
 };
 use std::mem::{Discriminant, discriminant, replace};
 use std::time::{Duration, Instant};
@@ -50,6 +51,9 @@ pub enum Prop {
     LabelPosition(f64),
     TableDisplay(TableDisplay),
     SqlDialect(SqlDialect),
+    /// Typed table data, used by the constraint/schema/index inspector.
+    ErdTable(Box<ErdTable>),
+    ForeignKey(Option<ErdForeignKey>),
 }
 
 impl Prop {
@@ -58,7 +62,12 @@ impl Prop {
     fn is_reference(&self) -> bool {
         matches!(
             self,
-            Prop::Parent(_) | Prop::Source(_) | Prop::Target(_) | Prop::Shape(_)
+            Prop::Parent(_)
+                | Prop::Source(_)
+                | Prop::Target(_)
+                | Prop::Shape(_)
+                | Prop::ErdTable(_)
+                | Prop::ForeignKey(_)
         )
     }
 
@@ -92,6 +101,8 @@ impl Prop {
             Prop::LabelPosition(_) => "label position",
             Prop::TableDisplay(_) => "table display",
             Prop::SqlDialect(_) => "SQL dialect",
+            Prop::ErdTable(_) => "SQL table definition",
+            Prop::ForeignKey(_) => "foreign key definition",
         }
     }
 }
@@ -427,15 +438,17 @@ impl Command {
                     return Err(CommandError::InUseColumn { id, column });
                 }
                 let table = table_mut(doc, id)?;
+                let before = table.clone();
                 let index = table
                     .columns
                     .iter()
                     .position(|row| row.id == column)
                     .ok_or(CommandError::MissingColumn { id, column })?;
-                Ok(Command::RestoreColumn {
+                table.columns.remove(index);
+                table.remove_column_metadata(column);
+                Ok(Command::Set {
                     id,
-                    column: Box::new(table.columns.remove(index)),
-                    index,
+                    prop: Prop::ErdTable(Box::new(before)),
                 })
             }
             Command::SetColumn { id, column, prop } => {
@@ -444,7 +457,73 @@ impl Command {
                 {
                     return Err(ModelError::InvalidOrderKey(order.as_str().to_owned()).into());
                 }
-                let row = table_mut(doc, id)?
+                let table = table_mut(doc, id)?;
+                if let ColumnProp::PrimaryKey(value) | ColumnProp::Unique(value) = &prop {
+                    let before = table.clone();
+                    let row = table
+                        .columns
+                        .iter_mut()
+                        .find(|row| row.id == column)
+                        .ok_or(CommandError::MissingColumn { id, column })?;
+                    match &prop {
+                        ColumnProp::PrimaryKey(_) => {
+                            row.primary_key = *value;
+                            let mut columns = before
+                                .primary_key
+                                .as_ref()
+                                .map(|key| key.columns.clone())
+                                .unwrap_or_else(|| {
+                                    before
+                                        .columns
+                                        .iter()
+                                        .filter(|row| row.primary_key)
+                                        .map(|row| row.id)
+                                        .collect()
+                                });
+                            columns.retain(|id| *id != column);
+                            if *value {
+                                let position = before
+                                    .primary_key
+                                    .as_ref()
+                                    .and_then(|key| key.columns.iter().position(|id| *id == column))
+                                    .unwrap_or(columns.len());
+                                columns.insert(position.min(columns.len()), column);
+                            }
+                            table.primary_key = if columns.is_empty() {
+                                None
+                            } else {
+                                Some(ErdKey {
+                                    name: table
+                                        .primary_key
+                                        .as_ref()
+                                        .and_then(|key| key.name.clone()),
+                                    columns,
+                                })
+                            };
+                        }
+                        ColumnProp::Unique(_) => {
+                            row.unique = *value;
+                            table.unique_keys.retain(|key| key.columns != [column]);
+                            if *value {
+                                let name = before
+                                    .unique_keys
+                                    .iter()
+                                    .find(|key| key.columns == [column])
+                                    .and_then(|key| key.name.clone());
+                                table.unique_keys.push(ErdKey {
+                                    name,
+                                    columns: vec![column],
+                                });
+                            }
+                        }
+                        _ => unreachable!(),
+                    }
+                    return Ok(Command::Set {
+                        id,
+                        prop: Prop::ErdTable(Box::new(before)),
+                    });
+                }
+                let row = table
                     .columns
                     .iter_mut()
                     .find(|row| row.id == column)
@@ -489,7 +568,9 @@ impl Command {
             }
             Command::SetPage { id, prop } => Some(CoalesceKey::Page(*id, discriminant(prop))),
             Command::SetLayer { id, prop } => Some(CoalesceKey::Layer(*id, discriminant(prop))),
-            Command::SetColumn { id, column, prop } => {
+            Command::SetColumn { id, column, prop }
+                if !matches!(prop, ColumnProp::PrimaryKey(_) | ColumnProp::Unique(_)) =>
+            {
                 Some(CoalesceKey::Column(*id, *column, discriminant(prop)))
             }
             _ => None,
@@ -500,6 +581,13 @@ impl Command {
     /// range in which sets of `target` may be coalesced.
     fn creates_or_destroys(&self, target: Target) -> bool {
         match (self, target) {
+            (
+                Command::Set {
+                    id,
+                    prop: Prop::ErdTable(_),
+                },
+                Target::Column(target, _),
+            ) => *id == target,
             (Command::Insert(e), Target::Element(id)) => e.id == id,
             (Command::Remove(r), Target::Element(id)) => *r == id,
             (Command::InsertPage(p), Target::Page(id)) => p.id == id,
@@ -526,6 +614,34 @@ impl Command {
 fn check_prop(doc: &Document, id: ElementId, prop: &Prop) -> Result<(), CommandError> {
     let finite = |p: &Point| p.x.is_finite() && p.y.is_finite();
     match prop {
+        Prop::ErdTable(_) if doc.elements.contains_key(&id) => {
+            let mut candidate = doc.clone();
+            set_prop(
+                candidate.elements.get_mut(&id).expect("checked above"),
+                prop.clone(),
+            )?;
+            candidate.validate()?;
+        }
+        Prop::ForeignKey(_) => {
+            let mut element = doc
+                .elements
+                .get(&id)
+                .ok_or(CommandError::MissingElement(id))?
+                .clone();
+            set_prop(&mut element, prop.clone())?;
+            doc.check_kind(&element)?;
+        }
+        Prop::Source(_) | Prop::Target(_)
+            if doc
+                .elements
+                .get(&id)
+                .and_then(Element::as_connector)
+                .is_some_and(|connector| connector.foreign_key.is_some()) =>
+        {
+            let mut element = doc.elements[&id].clone();
+            set_prop(&mut element, prop.clone())?;
+            doc.check_kind(&element)?;
+        }
         Prop::Shape(shape) => {
             if shape.is_cloud() && !doc.icons.contains_key(shape) {
                 return Err(ModelError::MissingIcon {
@@ -631,6 +747,10 @@ fn set_prop(element: &mut Element, prop: Prop) -> Result<Prop, CommandError> {
             Some(table) => Prop::SqlDialect(replace(&mut table.dialect, v)),
             None => return Err(wrong(Prop::SqlDialect(v))),
         },
+        Prop::ErdTable(v) => match element.as_shape_mut().and_then(|shape| shape.erd.as_mut()) {
+            Some(table) => Prop::ErdTable(Box::new(replace(table, *v))),
+            None => return Err(wrong(Prop::ErdTable(v))),
+        },
         Prop::Fill(v) => style_field!(Fill, fill, v),
         Prop::Stroke(v) => style_field!(Stroke, stroke, v),
         Prop::StrokeWidth(v) => style_field!(StrokeWidth, stroke_width, v),
@@ -658,6 +778,7 @@ fn set_prop(element: &mut Element, prop: Prop) -> Result<Prop, CommandError> {
                 Prop::LabelPosition(v) => {
                     Prop::LabelPosition(replace(&mut c.label_position, v.clamp(0.0, 1.0)))
                 }
+                Prop::ForeignKey(v) => Prop::ForeignKey(replace(&mut c.foreign_key, v)),
                 other => unreachable!("{} is handled above", other.name()),
             }
         }
