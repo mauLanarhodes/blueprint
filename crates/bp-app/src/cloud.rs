@@ -48,6 +48,27 @@ fn default_pack_root() -> Option<PathBuf> {
 }
 
 impl CloudState {
+    fn import_disabled_reason(&self) -> Option<&'static str> {
+        if !self.terms_accepted {
+            return Some("Check the terms box above to enable importing.");
+        }
+        let version = self.version.trim();
+        if version.is_empty() {
+            return Some(
+                "Enter a pack version above to enable importing. The grey example is a placeholder.",
+            );
+        }
+        if version.len() > 64
+            || matches!(version, "." | "..")
+            || !version
+                .bytes()
+                .all(|byte| byte.is_ascii_alphanumeric() || b"._-".contains(&byte))
+        {
+            return Some("Use 1–64 letters, digits, dots, underscores or hyphens for the version.");
+        }
+        None
+    }
+
     pub(crate) fn load() -> Self {
         let mut state = Self::default();
         if let Some(root) = &state.pack_root {
@@ -278,12 +299,19 @@ impl BlueprintApp {
                 }
                 ui.checkbox(&mut self.cloud.terms_accepted, "I have read and accept this provider’s icon usage terms");
                 ui.horizontal(|ui| {
-                    ui.label("Pack release / version");
-                    ui.add(egui::TextEdit::singleline(&mut self.cloud.version).hint_text("e.g. 2026-07").desired_width(150.0));
+                    let label = ui.label("Pack version (required)");
+                    ui.add(egui::TextEdit::singleline(&mut self.cloud.version).hint_text("e.g. 2026-07-31").desired_width(150.0))
+                        .labelled_by(label.id);
                 });
                 ui.label(RichText::new("Use a distinct version for each release. Existing diagrams keep their original icons.").small().weak());
-                import = ui.add_enabled(self.cloud.terms_accepted && !self.cloud.version.trim().is_empty(),
-                    egui::Button::new("Import ZIP…")).clicked();
+                let reason = self.cloud.import_disabled_reason();
+                let button = ui.add_enabled(reason.is_none(), egui::Button::new("Import ZIP…"));
+                if let Some(reason) = reason {
+                    button.on_disabled_hover_text(reason);
+                    ui.label(reason);
+                } else {
+                    import = button.clicked();
+                }
             });
             if busy { ui.horizontal(|ui| { ui.spinner(); ui.label("Importing icons…"); }); }
             if let Some(message) = &self.cloud.message { ui.add_space(8.0); ui.label(message); }

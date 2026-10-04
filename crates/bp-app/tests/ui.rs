@@ -270,8 +270,22 @@ fn cloud_import_requires_terms_and_version_and_blocks_canvas_shortcuts() {
     h.get_by_label("Manage icon packs…").click();
     h.run();
     assert!(h.get_by_label("Import ZIP…").accesskit_node().is_disabled());
+    assert!(
+        h.query_by_label("Check the terms box above to enable importing.")
+            .is_some()
+    );
     h.get_by_label("I have read and accept this provider’s icon usage terms")
         .click();
+    h.run();
+    assert!(h.get_by_label("Import ZIP…").accesskit_node().is_disabled());
+    assert!(
+        h.query_by_label_contains("Enter a pack version above to enable importing")
+            .is_some()
+    );
+    app(&mut h).cloud.version = "version with spaces".into();
+    h.run();
+    assert!(h.get_by_label("Import ZIP…").accesskit_node().is_disabled());
+    assert!(h.query_by_label_contains("Use 1–64 letters").is_some());
     app(&mut h).cloud.version = "test-v2".into();
     h.run();
     assert!(!h.get_by_label("Import ZIP…").accesskit_node().is_disabled());
