@@ -1,12 +1,15 @@
 //! Exports a display list as SVG. Every later format (PNG, JPEG, WebP via
 //! resvg; PDF via krilla) is produced from this one SVG writer.
 
-use bp_model::{Color, Document, PageId};
-use bp_scene::{DisplayList, Primitive, line_centers};
+use bp_model::{Color, Document, PageId, TextAlign};
+use bp_scene::{DisplayList, Primitive, Stroke, TextRun};
+use bp_text::Face;
 use kurbo::{BezPath, PathEl, Point, Rect};
+use std::collections::BTreeSet;
 use std::fmt::Write;
 
-/// Font stack used for exported text until fonts are bundled (bp-text).
+/// Font stack for exported text: the bundled font first, then lookalikes
+/// for viewers that have neither it nor the embedded copy.
 pub const FONT_FAMILY: &str = "Inter, 'Segoe UI', 'Helvetica Neue', Arial, sans-serif";
 
 #[derive(Clone, Debug, PartialEq)]
@@ -15,6 +18,9 @@ pub struct SvgOptions {
     pub padding: f64,
     /// Overrides the page background; `Some(None)` exports transparent.
     pub background: Option<Option<Color>>,
+    /// Embed the font faces the text uses, so the file looks the same on
+    /// machines without Inter (adds roughly 550 KB per face).
+    pub embed_fonts: bool,
 }
 
 impl Default for SvgOptions {
@@ -22,13 +28,14 @@ impl Default for SvgOptions {
         Self {
             padding: 20.0,
             background: None,
+            embed_fonts: false,
         }
     }
 }
 
 /// Exports one page of `doc`.
 pub fn page_to_svg(doc: &Document, page: PageId, options: &SvgOptions) -> String {
-    to_svg(&bp_scene::build_page(doc, page), options)
+    to_svg(&bp_scene::build_page(doc, page).list, options)
 }
 
 /// Writes `list` as a standalone SVG document cropped to its content.
@@ -49,6 +56,9 @@ pub fn to_svg(list: &DisplayList, options: &SvgOptions) -> String {
         w = num(view.width()),
         h = num(view.height()),
     );
+    if options.embed_fonts {
+        write_font_faces(&mut svg, list);
+    }
     if let Some(bg) = background {
         let _ = writeln!(
             svg,
@@ -61,53 +71,94 @@ pub fn to_svg(list: &DisplayList, options: &SvgOptions) -> String {
         );
     }
 
-    for item in &list.items {
+    for item in list.items() {
         match &item.primitive {
             Primitive::Path { path, fill, stroke } => {
-                let stroke_attrs = match stroke {
-                    Some(s) => format!(
-                        r#"{} stroke-width="{}" stroke-linejoin="round""#,
-                        paint("stroke", Some(s.color)),
-                        num(s.width)
-                    ),
-                    None => String::new(),
-                };
                 let _ = writeln!(
                     svg,
                     r#"  <path d="{}"{}{}/>"#,
                     path_data(path),
                     paint("fill", *fill),
-                    stroke_attrs
+                    stroke_attrs(stroke.as_ref()),
                 );
             }
-            Primitive::Text {
-                center,
-                lines,
-                font_size,
-                color,
-            } => {
-                for (line, at) in lines
-                    .iter()
-                    .zip(line_centers(*center, lines.len(), *font_size))
-                {
-                    if line.is_empty() {
-                        continue;
-                    }
-                    let _ = writeln!(
-                        svg,
-                        r#"  <text x="{}" y="{}" font-family="{FONT_FAMILY}" font-size="{}"{} text-anchor="middle" dominant-baseline="central">{}</text>"#,
-                        num(at.x),
-                        num(at.y),
-                        num(*font_size),
-                        paint("fill", Some(*color)),
-                        escape(line),
-                    );
-                }
-            }
+            Primitive::Text(run) => write_text(&mut svg, run),
         }
     }
     svg.push_str("</svg>\n");
     svg
+}
+
+fn stroke_attrs(stroke: Option<&Stroke>) -> String {
+    let Some(s) = stroke else {
+        return String::new();
+    };
+    let mut out = format!(
+        r#"{} stroke-width="{}" stroke-linejoin="round""#,
+        paint("stroke", Some(s.color)),
+        num(s.width)
+    );
+    if let Some([on, off]) = s.dash {
+        let _ = write!(out, r#" stroke-dasharray="{} {}""#, num(on), num(off));
+    }
+    out
+}
+
+fn write_text(svg: &mut String, run: &TextRun) {
+    let anchor = match run.align {
+        TextAlign::Left => "start",
+        TextAlign::Center => "middle",
+        TextAlign::Right => "end",
+    };
+    let mut font = format!(
+        r#"font-family="{FONT_FAMILY}" font-size="{}""#,
+        num(run.size)
+    );
+    if run.face.is_bold() {
+        font.push_str(r#" font-weight="bold""#);
+    }
+    if run.face.is_italic() {
+        font.push_str(r#" font-style="italic""#);
+    }
+    for line in &run.lines {
+        if line.text.trim().is_empty() {
+            continue;
+        }
+        let _ = writeln!(
+            svg,
+            r#"  <text x="{}" y="{}" {font}{} text-anchor="{anchor}" xml:space="preserve">{}</text>"#,
+            num(line.x),
+            num(line.baseline),
+            paint("fill", Some(run.color)),
+            escape(&line.text),
+        );
+    }
+}
+
+/// `@font-face` rules carrying every face the text uses.
+fn write_font_faces(svg: &mut String, list: &DisplayList) {
+    let faces: BTreeSet<usize> = list
+        .items()
+        .filter_map(|i| match &i.primitive {
+            Primitive::Text(run) => Some(Face::ALL.iter().position(|f| *f == run.face)?),
+            _ => None,
+        })
+        .collect();
+    if faces.is_empty() {
+        return;
+    }
+    svg.push_str("  <defs><style>\n");
+    for index in faces {
+        let face = Face::ALL[index];
+        let _ = writeln!(
+            svg,
+            "    @font-face {{ font-family: Inter; font-weight: {}; font-style: {}; src: url(data:font/ttf;base64,{}) format('truetype'); }}",
+            if face.is_bold() { "bold" } else { "normal" },
+            if face.is_italic() { "italic" } else { "normal" },
+            base64(face.data()),
+        );
+    }
+    svg.push_str("  </style></defs>\n");
 }
 
 /// ` fill="#rrggbb"` plus an opacity attribute when needed; `none` if unset.
@@ -163,25 +214,57 @@ fn escape(text: &str) -> String {
     out
 }
 
+fn base64(data: &[u8]) -> String {
+    const ALPHABET: &[u8; 64] = b"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+    let mut out = String::with_capacity(data.len().div_ceil(3) * 4);
+    for chunk in data.chunks(3) {
+        let b = [
+            chunk[0],
+            *chunk.get(1).unwrap_or(&0),
+            *chunk.get(2).unwrap_or(&0),
+        ];
+        let n = (u32::from(b[0]) << 16) | (u32::from(b[1]) << 8) | u32::from(b[2]);
+        for (i, shift) in [18, 12, 6, 0].into_iter().enumerate() {
+            if i <= chunk.len() {
+                out.push(ALPHABET[((n >> shift) & 63) as usize] as char);
+            } else {
+                out.push('=');
+            }
+        }
+    }
+    out
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
-    use bp_model::{Element, ShapeKind};
+    use bp_model::{Element, ElementKind, Endpoint, Paint, Parent, ShapeRef};
+
+    fn doc_with(shape: &str, bounds: Rect, text: &str) -> (Document, PageId, Parent) {
+        let mut doc = Document::new();
+        let page = doc.first_page().unwrap();
+        let layer = Parent::Layer(doc.layers_of(page)[0].id);
+        let (library, name) = shape.split_once('/').unwrap();
+        let mut el = Element::shape(
+            ShapeRef::new(library, name),
+            layer,
+            doc.next_order_key(layer),
+            bounds,
+        );
+        if let ElementKind::Shape(s) = &mut el.kind {
+            s.text = text.into();
+        }
+        doc.elements.insert(el.id, el);
+        (doc, page, layer)
+    }
 
     #[test]
     fn exports_shapes_and_escaped_text() {
-        let mut doc = Document::new();
-        let page = doc.first_page().unwrap();
-        let layer = doc.layers_of(page)[0].id;
-        let mut el = Element::new(
-            ShapeKind::Rectangle,
-            layer,
-            doc.next_order_key(layer),
+        let (doc, page, _) = doc_with(
+            "basic/rectangle",
             Rect::new(0.0, 0.0, 120.0, 60.0),
+            "A & <B>",
         );
-        el.text = "A & <B>".into();
-        doc.elements.insert(el.id, el);
-
         let svg = page_to_svg(&doc, page, &SvgOptions::default());
         assert!(svg.starts_with("<?xml"));
         assert!(
@@ -197,22 +280,19 @@ mod tests {
             "{svg}"
         );
         assert!(svg.contains(">A &amp; &lt;B&gt;</text>"));
+        assert!(svg.contains(r#"text-anchor="middle""#));
         assert!(svg.trim_end().ends_with("</svg>"));
+        assert!(!svg.contains("@font-face"));
     }
 
     #[test]
     fn transparent_background_and_translucent_fill() {
-        let mut doc = Document::new();
-        let page = doc.first_page().unwrap();
-        let layer = doc.layers_of(page)[0].id;
-        let mut el = Element::new(
-            ShapeKind::Ellipse,
-            layer,
-            doc.next_order_key(layer),
-            Rect::new(0.0, 0.0, 10.0, 10.0),
-        );
-        el.style.fill = Some(Color::rgba(255, 0, 0, 128));
-        doc.elements.insert(el.id, el);
+        let (mut doc, page, _) = doc_with("basic/ellipse", Rect::new(0.0, 0.0, 10.0, 10.0), "");
+        for el in doc.elements.values_mut() {
+            if let ElementKind::Shape(s) = &mut el.kind {
+                s.style.fill = Some(Paint::Color(Color::rgba(255, 0, 0, 128)));
+            }
+        }
         let options = SvgOptions {
             background: Some(None),
             ..SvgOptions::default()
@@ -223,10 +303,61 @@ mod tests {
     }
 
     #[test]
-    fn number_formatting() {
+    fn dashes_bold_text_and_connectors() {
+        let (mut doc, page, layer) = doc_with(
+            "basic/sticky-note",
+            Rect::new(0.0, 0.0, 160.0, 120.0),
+            "Bold note",
+        );
+        let id = *doc.elements.keys().next().unwrap();
+        if let ElementKind::Shape(s) = &mut doc.elements.get_mut(&id).unwrap().kind {
+            s.style.bold = Some(true);
+            s.style.dash = Some(bp_model::Dash::Dashed);
+        }
+        let c = Element::connector(
+            Endpoint::glued(id, Some("e")),
+            Endpoint::Free(Point::new(300.0, 60.0)),
+            layer,
+            doc.next_order_key(layer),
+        );
+        doc.elements.insert(c.id, c);
+        let svg = page_to_svg(&doc, page, &SvgOptions::default());
+        assert!(svg.contains(r#"stroke-dasharray="4 3""#), "{svg}");
+        assert!(svg.contains(r#"font-weight="bold""#));
+        assert!(
+            svg.contains(r#"text-anchor="start""#),
+            "sticky notes align left"
+        );
+        assert!(
+            svg.contains(r#"<path d="M160,60 L"#),
+            "connector leaves the east port"
+        );
+    }
+
+    #[test]
+    fn fonts_embed_on_request() {
+        let (doc, page, _) = doc_with("basic/text", Rect::new(0.0, 0.0, 100.0, 30.0), "Hi");
+        let options = SvgOptions {
+            embed_fonts: true,
+            ..SvgOptions::default()
+        };
+        let svg = page_to_svg(&doc, page, &options);
+        assert_eq!(svg.matches("@font-face").count(), 1, "only the face in use");
+        assert!(
+            svg.contains("data:font/ttf;base64,AAEAAA"),
+            "a TrueType header"
+        );
+    }
+
+    #[test]
+    fn number_formatting_and_base64() {
         assert_eq!(num(1.5), "1.5");
         assert_eq!(num(2.0), "2");
         assert_eq!(num(-0.0001), "0");
         assert_eq!(num(1.23456), "1.235");
+        assert_eq!(base64(b"Man"), "TWFu");
+        assert_eq!(base64(b"Ma"), "TWE=");
+        assert_eq!(base64(b"M"), "TQ==");
+        assert_eq!(base64(b""), "");
     }
 }

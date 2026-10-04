@@ -1,0 +1,17 @@
+[package]
+name = "bp-text"
+description = "Blueprint text: bundled fonts, measurement and line breaking"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+# The bundled Inter fonts are under the SIL Open Font License 1.1
+# (fonts/Inter-OFL.txt).
+include = ["src/**", "fonts/**", "Cargo.toml"]
+
+[dependencies]
+harfrust.workspace = true
+skrifa.workspace = true
+
+[lints]
+workspace = true

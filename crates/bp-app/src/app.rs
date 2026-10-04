@@ -1,29 +1,62 @@
-//! Application state, file actions and the per-frame layout.
+//! Application state, file actions, the scene cache and the frame layout.
 
+use crate::canvas::Drag;
+use crate::connections::ErdConnection;
+use crate::palette::{PaletteState, QuickInsert};
 use bp_commands::{Command, History};
-use bp_model::kurbo::{Point, Rect};
-use bp_model::{Document, Element, ElementId, LayerId, OrderKey, PageId, ShapeKind};
+use bp_geom::Guide;
+use bp_model::kurbo::Point;
+use bp_model::{
+    ColumnId, DiagramKind, Document, ElementId, Layer, LayerId, OrderKey, PageId, ShapeRef,
+};
 use bp_render_egui::Viewport;
-use egui::{Key, KeyboardShortcut, Modifiers, ViewportCommand};
+use bp_scene::{Scene, SceneCache};
+use bp_shapes::Libraries;
+use egui::{Key, ViewportCommand};
+use egui_phosphor::regular as icon;
+use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub enum Tool {
     Select,
     Pan,
-    Shape(ShapeKind),
+    Connector,
+    Text,
+    /// Click or drag on the canvas to insert this library shape.
+    Shape(ShapeRef),
 }
 
 impl Tool {
-    pub const ALL: [(Tool, &'static str, Key); 7] = [
-        (Tool::Select, "Select", Key::V),
-        (Tool::Pan, "Pan", Key::H),
-        (Tool::Shape(ShapeKind::Rectangle), "Rectangle", Key::R),
-        (Tool::Shape(ShapeKind::RoundedRectangle), "Rounded", Key::U),
-        (Tool::Shape(ShapeKind::Ellipse), "Ellipse", Key::O),
-        (Tool::Shape(ShapeKind::Diamond), "Diamond", Key::D),
-        (Tool::Shape(ShapeKind::Text), "Text", Key::T),
-    ];
+    /// The tools on the toolbar, with their shortcut keys.
+    pub fn toolbar() -> Vec<(Tool, &'static str, &'static str, Key)> {
+        let shape = |library: &str, name: &str| Tool::Shape(ShapeRef::new(library, name));
+        vec![
+            (Tool::Select, icon::CURSOR, "Select", Key::V),
+            (Tool::Pan, icon::HAND, "Pan", Key::H),
+            (Tool::Connector, icon::FLOW_ARROW, "Connector", Key::C),
+            (Tool::Text, icon::TEXT_T, "Text", Key::T),
+            (
+                shape("basic", "rectangle"),
+                icon::SQUARE,
+                "Rectangle",
+                Key::R,
+            ),
+            (shape("basic", "ellipse"), icon::CIRCLE, "Ellipse", Key::O),
+            (
+                shape("flowchart", "decision"),
+                icon::DIAMOND,
+                "Decision",
+                Key::D,
+            ),
+            (
+                shape("basic", "sticky-note"),
+                icon::NOTE,
+                "Sticky note",
+                Key::N,
+            ),
+        ]
+    }
 }
 
 /// Something that would discard unsaved work, waiting for the user's answer.
@@ -34,11 +67,44 @@ pub enum Pending {
     Quit,
 }
 
+/// The first page needs a type; additional pages are created after choosing one.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum PageChoice {
+    Existing(PageId),
+    New,
+}
+
 /// Text being edited in place on the canvas.
 pub struct TextEditing {
     pub id: ElementId,
     pub text: String,
     pub focused_once: bool,
+}
+
+/// A page or layer being renamed inline.
+#[derive(Clone, Debug, PartialEq)]
+pub enum Renaming {
+    Page(PageId, String),
+    Layer(LayerId, String),
+}
+
+pub struct Settings {
+    pub show_grid: bool,
+    pub snap_to_grid: bool,
+    pub snap_to_shapes: bool,
+    /// Grid spacing in page units.
+    pub grid: f64,
+}
+
+impl Default for Settings {
+    fn default() -> Self {
+        Self {
+            show_grid: true,
+            snap_to_grid: true,
+            snap_to_shapes: true,
+            grid: 10.0,
+        }
+    }
 }
 
 pub struct BlueprintApp {
@@ -47,15 +113,38 @@ pub struct BlueprintApp {
     pub path: Option<PathBuf>,
     saved_state: u64,
     pub page: PageId,
+    /// Where new elements go.
     pub layer: LayerId,
-    pub tool: Tool,
-    pub selection: Option<ElementId>,
     pub view: Viewport,
-    pub drag: crate::canvas::Drag,
+    views: HashMap<PageId, Viewport>,
+    pub scene: Scene,
+    cache: SceneCache,
+    scene_key: Option<(u64, PageId)>,
+    pub libraries: &'static Libraries,
+    pub tool: Tool,
+    pub erd_connection: ErdConnection,
+    connections_by_page: HashMap<PageId, ErdConnection>,
+    pub page_choice: Option<PageChoice>,
+    /// Selected elements, in the order they were selected.
+    pub selection: Vec<ElementId>,
+    /// The group being edited from the inside (after a double-click), if any.
+    pub scope: Option<ElementId>,
+    pub drag: Drag,
+    pub guides: Vec<Guide>,
     pub editing: Option<TextEditing>,
+    /// A newly inserted table row whose name field should receive focus.
+    pub(crate) column_focus: Option<(ElementId, ColumnId)>,
     pub canvas_rect: egui::Rect,
+    /// The pointer position on the page, when it is over the canvas.
+    pub pointer: Option<Point>,
     pub fit_requested: bool,
-    pub show_grid: bool,
+    pub settings: Settings,
+    pub palette: PaletteState,
+    pub quick_insert: Option<QuickInsert>,
+    /// The last copied clip, for duplicate and when the system clipboard
+    /// is unavailable.
+    pub clip: Option<String>,
+    pub renaming: Option<Renaming>,
     pub pending: Option<Pending>,
     pub error: Option<String>,
     pub status: String,
@@ -63,34 +152,9 @@ pub struct BlueprintApp {
     title: String,
 }
 
-pub mod shortcuts {
-    use super::*;
-    const fn cmd(key: Key) -> KeyboardShortcut {
-        KeyboardShortcut::new(Modifiers::COMMAND, key)
-    }
-    const fn cmd_shift(key: Key) -> KeyboardShortcut {
-        KeyboardShortcut::new(Modifiers::COMMAND.plus(Modifiers::SHIFT), key)
-    }
-    pub const NEW: KeyboardShortcut = cmd(Key::N);
-    pub const OPEN: KeyboardShortcut = cmd(Key::O);
-    pub const SAVE: KeyboardShortcut = cmd(Key::S);
-    pub const SAVE_AS: KeyboardShortcut = cmd_shift(Key::S);
-    pub const EXPORT_SVG: KeyboardShortcut = cmd(Key::E);
-    pub const QUIT: KeyboardShortcut = cmd(Key::Q);
-    pub const UNDO: KeyboardShortcut = cmd(Key::Z);
-    pub const REDO: KeyboardShortcut = cmd_shift(Key::Z);
-    pub const REDO_ALT: KeyboardShortcut = cmd(Key::Y);
-    pub const ZOOM_IN: KeyboardShortcut = cmd(Key::Equals);
-    pub const ZOOM_OUT: KeyboardShortcut = cmd(Key::Minus);
-    pub const ZOOM_100: KeyboardShortcut = cmd(Key::Num0);
-    pub const ZOOM_FIT: KeyboardShortcut = KeyboardShortcut::new(Modifiers::SHIFT, Key::Num1);
-    pub const FRONT: KeyboardShortcut = cmd_shift(Key::CloseBracket);
-    pub const BACK: KeyboardShortcut = cmd_shift(Key::OpenBracket);
-}
-
 impl BlueprintApp {
-    pub fn new(cc: &eframe::CreationContext<'_>, file: Option<PathBuf>) -> Self {
-        cc.egui_ctx.set_theme(egui::Theme::Light);
+    pub fn new(ctx: &egui::Context, file: Option<PathBuf>) -> Self {
+        crate::theme::install(ctx);
         let mut doc = Document::new();
         let (page, layer) = first_page_and_layer(&mut doc);
         let mut app = Self {
@@ -100,14 +164,30 @@ impl BlueprintApp {
             saved_state: 0,
             page,
             layer,
-            tool: Tool::Select,
-            selection: None,
             view: Viewport::default(),
-            drag: crate::canvas::Drag::None,
+            views: HashMap::new(),
+            scene: Scene::default(),
+            cache: SceneCache::default(),
+            scene_key: None,
+            libraries: Libraries::builtin(),
+            tool: Tool::Select,
+            erd_connection: ErdConnection::default(),
+            connections_by_page: HashMap::new(),
+            page_choice: Some(PageChoice::Existing(page)),
+            selection: Vec::new(),
+            scope: None,
+            drag: Drag::None,
+            guides: Vec::new(),
             editing: None,
+            column_focus: None,
             canvas_rect: egui::Rect::NOTHING,
+            pointer: None,
             fit_requested: false,
-            show_grid: true,
+            settings: Settings::default(),
+            palette: PaletteState::default(),
+            quick_insert: None,
+            clip: None,
+            renaming: None,
             pending: None,
             error: None,
             status: "Ready".into(),
@@ -122,6 +202,31 @@ impl BlueprintApp {
 
     pub fn is_dirty(&self) -> bool {
         self.history.state_id() != self.saved_state
+            || self.editing.as_ref().is_some_and(|edit| {
+                self.doc
+                    .elements
+                    .get(&edit.id)
+                    .and_then(|e| e.text())
+                    .is_some_and(|text| text != edit.text)
+            })
+            || self.renaming.as_ref().is_some_and(|rename| match rename {
+                Renaming::Page(id, name) => {
+                    !name.trim().is_empty()
+                        && self
+                            .doc
+                            .pages
+                            .get(id)
+                            .is_some_and(|p| p.name != name.trim())
+                }
+                Renaming::Layer(id, name) => {
+                    !name.trim().is_empty()
+                        && self
+                            .doc
+                            .layers
+                            .get(id)
+                            .is_some_and(|l| l.name != name.trim())
+                }
+            })
     }
 
     pub fn file_name(&self) -> String {
@@ -131,139 +236,238 @@ impl BlueprintApp {
             .map_or_else(|| "Untitled".into(), |n| n.to_string_lossy().into_owned())
     }
 
+    /// Brings the scene up to date with the document (cheap when nothing
+    /// changed; only changed elements are rebuilt otherwise).
+    pub fn refresh_scene(&mut self) {
+        let key = (self.history.revision(), self.page);
+        if self.scene_key != Some(key) {
+            // Dropping the old scene first lets the cache update the
+            // spatial index it shares in place.
+            self.scene = Scene::default();
+            self.scene = self.cache.build(&self.doc, self.page, self.libraries);
+            self.scene_key = Some(key);
+        }
+    }
+
     // ----- Editing -------------------------------------------------------
 
-    /// Applies commands as one undo step, reporting failures in the status bar.
-    pub fn apply(&mut self, label: &str, commands: impl IntoIterator<Item = Command>) {
-        if let Err(e) = self.history.apply(&mut self.doc, label, commands) {
-            self.status = format!("{label} failed: {e}");
+    /// Applies commands as one undo step (or into the open step),
+    /// reporting failures in the status bar. Returns whether it worked.
+    pub fn apply(&mut self, label: &str, commands: impl IntoIterator<Item = Command>) -> bool {
+        let commands: Vec<Command> = commands.into_iter().collect();
+        if commands.is_empty() {
+            return false;
+        }
+        match self.history.apply(&mut self.doc, label, commands) {
+            Ok(()) => true,
+            Err(e) => {
+                self.status = format!("{label} failed: {e}");
+                false
+            }
         }
     }
 
-    /// Like [`Self::apply`] but merges rapid repeats (sliders, colour pickers).
-    pub fn apply_merging(&mut self, label: &str, key: String, command: Command) {
+    /// Like [`Self::apply`] but merges rapid repeats (sliders, colour
+    /// pickers, nudges) into one undo step.
+    pub fn apply_merging(&mut self, label: &str, key: String, commands: Vec<Command>) {
+        if commands.is_empty() {
+            return;
+        }
         if let Err(e) = self
             .history
-            .apply_merging(&mut self.doc, label, key, [command])
+            .apply_merging(&mut self.doc, label, key, commands)
         {
             self.status = format!("{label} failed: {e}");
-        }
-    }
-
-    pub fn create_shape(&mut self, kind: ShapeKind, bounds: Rect) {
-        let order = self.doc.next_order_key(self.layer);
-        let mut element = Element::new(kind, self.layer, order, bounds);
-        if kind == ShapeKind::Text {
-            element.text = "Text".into();
-        }
-        let id = element.id;
-        self.apply(
-            &format!("Add {}", kind.label().to_lowercase()),
-            [Command::Insert(Box::new(element))],
-        );
-        self.selection = Some(id);
-        self.tool = Tool::Select;
-        if kind == ShapeKind::Text {
-            self.start_text_edit(id);
-        }
-    }
-
-    /// Default-sized shape centred on `at`, for a click without a drag.
-    pub fn create_shape_at(&mut self, kind: ShapeKind, at: Point) {
-        let size = match kind {
-            ShapeKind::Text => (120.0, 32.0),
-            ShapeKind::Diamond => (120.0, 90.0),
-            _ => (140.0, 70.0),
-        };
-        self.create_shape(kind, Rect::from_center_size(at, size));
-    }
-
-    pub fn delete_selection(&mut self) {
-        if let Some(id) = self.selection.take() {
-            self.editing = None;
-            self.apply("Delete", [Command::Remove(id)]);
-        }
-    }
-
-    pub fn bring_to_front(&mut self) {
-        let Some(id) = self.selection else { return };
-        let Some(layer) = self.doc.elements.get(&id).map(|e| e.layer) else {
-            return;
-        };
-        let order = self.doc.next_order_key(layer);
-        self.apply("Bring to front", [Command::SetOrder { id, order }]);
-    }
-
-    pub fn send_to_back(&mut self) {
-        let Some(id) = self.selection else { return };
-        let Some(layer) = self.doc.elements.get(&id).map(|e| e.layer) else {
-            return;
-        };
-        let lowest = self
-            .doc
-            .elements
-            .values()
-            .filter(|e| e.layer == layer)
-            .map(|e| &e.order)
-            .min()
-            .cloned();
-        if let Some(lowest) = lowest {
-            let order = OrderKey::before(&lowest);
-            self.apply("Send to back", [Command::SetOrder { id, order }]);
-        }
-    }
-
-    pub fn start_text_edit(&mut self, id: ElementId) {
-        if let Some(el) = self.doc.elements.get(&id) {
-            self.selection = Some(id);
-            self.editing = Some(TextEditing {
-                id,
-                text: el.text.clone(),
-                focused_once: false,
-            });
-        }
-    }
-
-    pub fn finish_text_edit(&mut self, keep: bool) {
-        let Some(edit) = self.editing.take() else {
-            return;
-        };
-        let changed = self
-            .doc
-            .elements
-            .get(&edit.id)
-            .is_some_and(|el| el.text != edit.text);
-        if keep && changed {
-            self.apply(
-                "Edit text",
-                [Command::SetText {
-                    id: edit.id,
-                    text: edit.text,
-                }],
-            );
         }
     }
 
     pub fn undo(&mut self) {
+        let previous_kind = self.page_kind();
         self.editing = None;
+        self.column_focus = None;
+        self.cancel_drag();
         if self.history.undo(&mut self.doc) {
-            self.after_history_jump();
+            self.after_history_jump(previous_kind);
         }
     }
 
     pub fn redo(&mut self) {
+        let previous_kind = self.page_kind();
         self.editing = None;
+        self.column_focus = None;
+        self.cancel_drag();
         if self.history.redo(&mut self.doc) {
-            self.after_history_jump();
+            self.after_history_jump(previous_kind);
         }
     }
 
-    fn after_history_jump(&mut self) {
-        if self
-            .selection
-            .is_some_and(|id| !self.doc.elements.contains_key(&id))
+    /// Abandons a drag in progress, undoing what it changed.
+    pub fn cancel_drag(&mut self) {
+        if std::mem::take(&mut self.drag).edits() {
+            self.history.cancel(&mut self.doc);
+        }
+        self.guides.clear();
+    }
+
+    fn after_history_jump(&mut self, previous_kind: Option<DiagramKind>) {
+        // Undo can remove the page or layer we were on.
+        if !self.doc.pages.contains_key(&self.page) {
+            let page = self.doc.first_page().expect("documents keep a page");
+            self.set_page(page);
+        }
+        if !self.doc.layers.contains_key(&self.layer) {
+            self.layer = self.default_layer(self.page);
+        }
+        self.prune_selection();
+        if self.page_kind() != previous_kind {
+            self.tool = Tool::Select;
+            self.quick_insert = None;
+            self.palette.query.clear();
+            self.palette.dragging = None;
+            self.page_choice = self
+                .page_kind()
+                .is_none()
+                .then_some(PageChoice::Existing(self.page));
+        }
+        if !self
+            .available_tools()
+            .iter()
+            .any(|(tool, ..)| *tool == self.tool)
         {
-            self.selection = None;
+            self.tool = Tool::Select;
+        }
+    }
+
+    // ----- Pages and layers ---------------------------------------------
+
+    pub fn page_kind(&self) -> Option<DiagramKind> {
+        self.page_kind_for(self.page)
+    }
+
+    /// Older files have no stored type. Infer it from their content without
+    /// modifying or removing any existing elements, including hidden layers.
+    pub fn page_kind_for(&self, page: PageId) -> Option<DiagramKind> {
+        if let Some(kind) = self.doc.pages.get(&page)?.diagram_kind {
+            return Some(kind);
+        }
+        let mut populated = false;
+        for element in self.doc.elements.values() {
+            if self.doc.page_of(element.id) != Some(page) {
+                continue;
+            }
+            populated = true;
+            if element
+                .as_shape()
+                .is_some_and(|shape| shape.erd.is_some() || shape.shape.library() == "erd")
+                || element.as_connector().is_some_and(|connector| {
+                    ErdConnection::from_marker(connector.start_marker).is_some()
+                        || ErdConnection::from_marker(connector.end_marker).is_some()
+                })
+            {
+                return Some(DiagramKind::Erd);
+            }
+        }
+        populated.then_some(DiagramKind::Flowchart)
+    }
+
+    pub fn available_tools(&self) -> Vec<(Tool, &'static str, &'static str, Key)> {
+        let kind = self.page_kind();
+        Tool::toolbar()
+            .into_iter()
+            .filter(|(tool, ..)| match tool {
+                Tool::Shape(shape) => {
+                    kind.is_some()
+                        && (shape.library() == "basic"
+                            || (kind == Some(DiagramKind::Flowchart)
+                                && shape.library() == "flowchart"))
+                }
+                _ => true,
+            })
+            .collect()
+    }
+
+    pub fn request_add_page(&mut self) {
+        self.finish_inline_edits();
+        self.cancel_drag();
+        self.quick_insert = None;
+        self.palette.dragging = None;
+        self.page_choice = Some(PageChoice::New);
+    }
+
+    pub fn choose_page_kind(&mut self, kind: DiagramKind) {
+        match self.page_choice.take() {
+            Some(PageChoice::New) => self.add_page_with_kind(kind),
+            Some(PageChoice::Existing(page)) if page == self.page => self.set_page_kind(kind),
+            _ => {}
+        }
+    }
+
+    pub fn set_page_kind(&mut self, kind: DiagramKind) {
+        if self.doc.pages[&self.page].diagram_kind == Some(kind) {
+            return;
+        }
+        self.finish_inline_edits();
+        self.cancel_drag();
+        if self.apply(
+            "Change diagram type",
+            [Command::SetPage {
+                id: self.page,
+                prop: bp_commands::PageProp::DiagramKind(Some(kind)),
+            }],
+        ) {
+            self.tool = Tool::Select;
+            self.quick_insert = None;
+            self.palette.query.clear();
+            self.palette.dragging = None;
+            self.page_choice = None;
+        }
+    }
+
+    /// The topmost visible, unlocked layer of `page` (or its top layer).
+    pub fn default_layer(&mut self, page: PageId) -> LayerId {
+        let layers = self.doc.layers_of(page);
+        if let Some(l) = layers.iter().rev().find(|l| l.visible && !l.locked) {
+            return l.id;
+        }
+        if let Some(l) = layers.last() {
+            return l.id;
+        }
+        // A page without layers (from an old or hand-edited file).
+        let layer = Layer::new(page, "Layer 1", OrderKey::first());
+        let id = layer.id;
+        self.apply("Add layer", [Command::InsertLayer(Box::new(layer))]);
+        id
+    }
+
+    pub fn set_page(&mut self, page: PageId) {
+        if page == self.page && self.doc.pages.contains_key(&page) {
+            return;
+        }
+        self.finish_text_edit(true);
+        self.cancel_drag();
+        self.views.insert(self.page, self.view);
+        self.connections_by_page
+            .insert(self.page, self.erd_connection);
+        self.page = page;
+        self.layer = self.default_layer(page);
+        self.selection.clear();
+        self.scope = None;
+        self.tool = Tool::Select;
+        self.erd_connection = self
+            .connections_by_page
+            .get(&page)
+            .copied()
+            .unwrap_or_default();
+        self.quick_insert = None;
+        self.palette.query.clear();
+        self.palette.dragging = None;
+        self.page_choice = self
+            .page_kind()
+            .is_none()
+            .then_some(PageChoice::Existing(page));
+        match self.views.get(&page) {
+            Some(view) => self.view = *view,
+            None => self.fit_requested = true,
         }
     }
 
@@ -271,6 +475,7 @@ impl BlueprintApp {
 
     /// Runs `action` now, or asks to save first if there are unsaved changes.
     pub fn request(&mut self, action: Pending) {
+        self.finish_inline_edits();
         if self.is_dirty() {
             self.pending = Some(action);
         } else {
@@ -299,9 +504,25 @@ impl BlueprintApp {
         self.path = path;
         self.history.clear();
         self.saved_state = self.history.state_id();
-        self.selection = None;
+        self.cache.clear();
+        self.selection.clear();
+        self.scope = None;
         self.editing = None;
-        self.drag = crate::canvas::Drag::None;
+        self.renaming = None;
+        self.column_focus = None;
+        self.quick_insert = None;
+        self.palette.query.clear();
+        self.palette.dragging = None;
+        self.tool = Tool::Select;
+        self.erd_connection = ErdConnection::default();
+        self.connections_by_page.clear();
+        self.page_choice = self
+            .page_kind()
+            .is_none()
+            .then_some(PageChoice::Existing(page));
+        self.drag = Drag::None;
+        self.guides.clear();
+        self.views.clear();
         self.view = Viewport::default();
         self.fit_requested = true;
     }
@@ -310,7 +531,7 @@ impl BlueprintApp {
         match bp_io::load(path) {
             Ok(doc) => {
                 self.reset(doc, Some(path.to_owned()));
-                self.status = format!("Opened {}", path.display());
+                self.status = format!("Opened {}", self.file_name());
             }
             Err(e) => self.error = Some(format!("Could not open {}:\n{e}", path.display())),
         }
@@ -333,12 +554,13 @@ impl BlueprintApp {
     }
 
     fn save_to(&mut self, path: PathBuf) -> bool {
-        self.finish_text_edit(true);
+        self.finish_inline_edits();
+        self.cancel_drag();
         self.history.commit();
         match bp_io::save(&self.doc, &path) {
             Ok(()) => {
-                self.status = format!("Saved {}", path.display());
                 self.path = Some(path);
+                self.status = format!("Saved {}", self.file_name());
                 self.saved_state = self.history.state_id();
                 true
             }
@@ -351,135 +573,43 @@ impl BlueprintApp {
 
     pub fn export_svg(&mut self) {
         self.finish_text_edit(true);
+        let page_name = self
+            .doc
+            .pages
+            .get(&self.page)
+            .map(|p| p.name.clone())
+            .unwrap_or_default();
+        let multi = self.doc.pages.len() > 1;
+        let name = if multi {
+            format!("{} - {page_name}.svg", self.file_stem())
+        } else {
+            format!("{}.svg", self.file_stem())
+        };
         let dialog = rfd::FileDialog::new()
             .add_filter("SVG image", &["svg"])
-            .set_file_name(format!("{}.svg", self.file_stem()));
+            .set_file_name(name);
         let Some(mut path) = dialog.save_file() else {
             return;
         };
         if path.extension().is_none() {
             path.set_extension("svg");
         }
-        let svg = bp_export::page_to_svg(&self.doc, self.page, &Default::default());
+        let options = bp_export::SvgOptions {
+            embed_fonts: true,
+            ..Default::default()
+        };
+        self.refresh_scene();
+        let svg = bp_export::to_svg(&self.scene.list, &options);
         match std::fs::write(&path, svg) {
             Ok(()) => self.status = format!("Exported {}", path.display()),
             Err(e) => self.error = Some(format!("Could not export {}:\n{e}", path.display())),
         }
     }
 
-    fn file_stem(&self) -> String {
+    pub fn file_stem(&self) -> String {
         let name = self.file_name();
         let name = name.strip_suffix(".json").unwrap_or(&name);
         name.strip_suffix(".blueprint").unwrap_or(name).to_owned()
-    }
-
-    // ----- Frame -----------------------------------------------------------
-
-    fn handle_shortcuts(&mut self, ctx: &egui::Context) {
-        use shortcuts::*;
-        let typing = ctx.text_edit_focused();
-        let pressed = |s: KeyboardShortcut| ctx.input_mut(|i| i.consume_shortcut(&s));
-
-        // Shift variants first: Ctrl+Z also matches Ctrl+Shift+Z.
-        if pressed(SAVE_AS) {
-            self.save_as();
-        } else if pressed(SAVE) {
-            self.save();
-        } else if pressed(NEW) {
-            self.request(Pending::New);
-        } else if pressed(OPEN) {
-            self.request(Pending::Open(None));
-        } else if pressed(EXPORT_SVG) {
-            self.export_svg();
-        } else if pressed(QUIT) {
-            ctx.send_viewport_cmd(ViewportCommand::Close);
-        }
-        if typing {
-            return;
-        }
-        if pressed(REDO) || pressed(REDO_ALT) {
-            self.redo();
-        } else if pressed(UNDO) {
-            self.undo();
-        } else if pressed(FRONT) {
-            self.bring_to_front();
-        } else if pressed(BACK) {
-            self.send_to_back();
-        } else if pressed(ZOOM_IN) {
-            self.zoom_by(1.25);
-        } else if pressed(ZOOM_OUT) {
-            self.zoom_by(0.8);
-        } else if pressed(ZOOM_100) {
-            self.zoom_by(1.0 / self.view.zoom);
-        } else if pressed(ZOOM_FIT) {
-            self.fit_requested = true;
-        }
-
-        let (keys, modifiers) = ctx.input(|i| {
-            let keys: Vec<Key> = [
-                Key::Delete,
-                Key::Backspace,
-                Key::Escape,
-                Key::Enter,
-                Key::ArrowLeft,
-                Key::ArrowRight,
-                Key::ArrowUp,
-                Key::ArrowDown,
-            ]
-            .into_iter()
-            .chain(Tool::ALL.iter().map(|t| t.2))
-            .filter(|k| i.key_pressed(*k))
-            .collect();
-            (keys, i.modifiers)
-        });
-        for key in keys {
-            match key {
-                Key::Delete | Key::Backspace => self.delete_selection(),
-                Key::Escape => {
-                    // Cancel a drag in progress, otherwise clear the selection.
-                    if std::mem::replace(&mut self.drag, crate::canvas::Drag::None).is_edit() {
-                        self.history.cancel(&mut self.doc);
-                    } else {
-                        self.selection = None;
-                    }
-                    self.tool = Tool::Select;
-                }
-                Key::Enter => {
-                    if let Some(id) = self.selection {
-                        self.start_text_edit(id);
-                    }
-                }
-                Key::ArrowLeft | Key::ArrowRight | Key::ArrowUp | Key::ArrowDown => {
-                    let step = if modifiers.shift { 10.0 } else { 1.0 };
-                    let (dx, dy) = match key {
-                        Key::ArrowLeft => (-step, 0.0),
-                        Key::ArrowRight => (step, 0.0),
-                        Key::ArrowUp => (0.0, -step),
-                        _ => (0.0, step),
-                    };
-                    self.nudge(dx, dy);
-                }
-                tool_key if modifiers.is_none() => {
-                    if let Some((tool, _, _)) = Tool::ALL.iter().find(|t| t.2 == tool_key) {
-                        self.tool = *tool;
-                    }
-                }
-                _ => {}
-            }
-        }
-    }
-
-    fn nudge(&mut self, dx: f64, dy: f64) {
-        let Some(id) = self.selection else { return };
-        let Some(bounds) = self.doc.elements.get(&id).map(|e| e.bounds) else {
-            return;
-        };
-        let bounds = bounds + bp_model::kurbo::Vec2::new(dx, dy);
-        self.apply_merging(
-            "Nudge",
-            format!("nudge:{id}"),
-            Command::SetBounds { id, bounds },
-        );
     }
 
     pub fn zoom_by(&mut self, factor: f32) {
@@ -487,10 +617,15 @@ impl BlueprintApp {
         self.view.zoom_around(self.canvas_rect.min, center, factor);
     }
 
+    // ----- Frame -----------------------------------------------------------
+
     fn handle_window_events(&mut self, ctx: &egui::Context) {
-        if ctx.input(|i| i.viewport().close_requested()) && self.is_dirty() && !self.allow_close {
-            ctx.send_viewport_cmd(ViewportCommand::CancelClose);
-            self.pending = Some(Pending::Quit);
+        if ctx.input(|i| i.viewport().close_requested()) && !self.allow_close {
+            self.finish_inline_edits();
+            if self.is_dirty() {
+                ctx.send_viewport_cmd(ViewportCommand::CancelClose);
+                self.pending = Some(Pending::Quit);
+            }
         }
         if self.allow_close {
             ctx.send_viewport_cmd(ViewportCommand::Close);
@@ -515,29 +650,65 @@ impl BlueprintApp {
             self.title = title;
         }
     }
-}
 
-impl eframe::App for BlueprintApp {
-    fn ui(&mut self, ui: &mut egui::Ui, _frame: &mut eframe::Frame) {
+    /// Lays out one frame. Separate from [`eframe::App`] so tests can run it.
+    pub fn frame(&mut self, ui: &mut egui::Ui) {
         let ctx = ui.ctx().clone();
+        if !crate::theme::fonts_ready(&ctx) {
+            // Only possible on the very first frame when the app is created
+            // inside a running frame (tests, embedding).
+            ctx.request_repaint();
+            return;
+        }
         self.handle_window_events(&ctx);
-        if self.pending.is_none() && self.error.is_none() {
+        if matches!(self.page_choice, Some(PageChoice::Existing(_))) {
+            if self.page_kind().is_some() {
+                self.page_choice = None;
+            } else if self.pending.is_none() && self.error.is_none() {
+                let redo = ctx.input_mut(|input| {
+                    input.consume_shortcut(&crate::actions::shortcuts::REDO)
+                        || input.consume_shortcut(&crate::actions::shortcuts::REDO_ALT)
+                });
+                if redo {
+                    self.redo();
+                }
+            }
+        }
+        if self.page_choice.is_none() && self.page_kind().is_none() {
+            self.page_choice = Some(PageChoice::Existing(self.page));
+        }
+        if self.pending.is_none() && self.error.is_none() && self.page_choice.is_none() {
             self.handle_shortcuts(&ctx);
         }
+        self.refresh_scene();
 
         egui::Panel::top("menu_bar").show(ui, |ui| self.menu_bar(ui));
         egui::Panel::bottom("status_bar").show(ui, |ui| self.status_bar(ui));
-        egui::Panel::left("tools")
-            .resizable(false)
-            .exact_size(132.0)
-            .show(ui, |ui| self.tool_bar(ui));
+        egui::Panel::bottom("page_tabs")
+            .frame(
+                egui::Frame::side_top_panel(ui.style()).inner_margin(egui::Margin::symmetric(8, 4)),
+            )
+            .show(ui, |ui| self.page_tabs(ui));
+        egui::Panel::left("palette")
+            .default_size(236.0)
+            .size_range(180.0..=420.0)
+            .show(ui, |ui| self.palette(ui));
         egui::Panel::right("inspector")
-            .default_size(250.0)
+            .default_size(276.0)
+            .size_range(220.0..=480.0)
             .show(ui, |ui| self.inspector(ui));
         egui::CentralPanel::no_frame().show(ui, |ui| self.canvas(ui));
 
         self.text_editor(&ctx);
+        self.quick_insert_popup(&ctx);
+        self.palette_drag_preview(&ctx);
         self.dialogs(&ctx);
+    }
+}
+
+impl eframe::App for BlueprintApp {
+    fn ui(&mut self, ui: &mut egui::Ui, _frame: &mut eframe::Frame) {
+        self.frame(ui);
     }
 }
 
@@ -550,18 +721,155 @@ pub fn file_dialog() -> rfd::FileDialog {
 /// The page and layer to draw on, adding a layer if the page has none.
 fn first_page_and_layer(doc: &mut Document) -> (PageId, LayerId) {
     let page = doc.first_page().expect("validated documents have a page");
-    if let Some(layer) = doc.layers_of(page).last() {
+    if let Some(layer) = doc
+        .layers_of(page)
+        .iter()
+        .rev()
+        .find(|l| l.visible && !l.locked)
+        .or(doc.layers_of(page).last())
+    {
         return (page, layer.id);
     }
-    let layer = bp_model::Layer {
-        id: LayerId::new(),
-        page,
-        name: "Layer 1".into(),
-        order: OrderKey::first(),
-        visible: true,
-        locked: false,
-    };
+    let layer = Layer::new(page, "Layer 1", OrderKey::first());
     let id = layer.id;
     doc.layers.insert(id, layer);
     (page, id)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use bp_model::kurbo::{Rect, Vec2};
+    use bp_model::{Element, Endpoint, Parent};
+
+    fn saved_app() -> (BlueprintApp, ElementId) {
+        let mut app = BlueprintApp::new(&egui::Context::default(), None);
+        let id = app
+            .insert_shape(
+                ShapeRef::new("basic", "rectangle"),
+                Rect::new(100.0, 100.0, 200.0, 160.0),
+            )
+            .unwrap();
+        app.saved_state = app.history.state_id();
+        (app, id)
+    }
+
+    #[test]
+    fn requesting_new_preserves_unsaved_inline_text() {
+        let (mut app, id) = saved_app();
+        app.start_text_edit(id);
+        app.editing.as_mut().unwrap().text = "Unsaved text".into();
+        assert!(app.is_dirty());
+        app.request(Pending::New);
+        assert_eq!(app.pending, Some(Pending::New));
+        assert_eq!(app.doc.elements[&id].text(), Some("Unsaved text"));
+        assert!(app.editing.is_none());
+    }
+
+    #[test]
+    fn unchanged_inline_edits_do_not_prompt_to_save() {
+        let (mut app, id) = saved_app();
+        app.start_text_edit(id);
+        assert!(!app.is_dirty());
+        app.request(Pending::New);
+        assert!(app.pending.is_none());
+        assert!(app.doc.elements.is_empty());
+    }
+
+    #[test]
+    fn save_commits_inline_renames() {
+        for page_rename in [true, false] {
+            let (mut app, _) = saved_app();
+            app.renaming = Some(if page_rename {
+                Renaming::Page(app.page, "Renamed page".into())
+            } else {
+                Renaming::Layer(app.layer, "Renamed layer".into())
+            });
+            assert!(app.is_dirty());
+            let path = std::env::temp_dir()
+                .join(format!("blueprint-app-{}.blueprint.json", ElementId::new()));
+            assert!(app.save_to(path.clone()));
+            let loaded = bp_io::load(&path).unwrap();
+            if page_rename {
+                assert_eq!(loaded.pages[&app.page].name, "Renamed page");
+            } else {
+                assert_eq!(loaded.layers[&app.layer].name, "Renamed layer");
+            }
+            assert!(app.renaming.is_none());
+            assert!(!app.is_dirty());
+            std::fs::remove_file(path).unwrap();
+        }
+    }
+
+    #[test]
+    fn page_duplication_preserves_cross_layer_connectors() {
+        let (mut app, a) = saved_app();
+        let first_layer = app.layer;
+        app.add_layer();
+        let second_layer = app.layer;
+        let b = app
+            .insert_shape(
+                ShapeRef::new("basic", "ellipse"),
+                Rect::new(300.0, 100.0, 400.0, 160.0),
+            )
+            .unwrap();
+        app.insert_connector(Endpoint::glued(a, Some("e")), Endpoint::glued(b, Some("w")))
+            .unwrap();
+        // Page duplication must include hidden elements as well.
+        app.set_layer_flag(first_layer, bp_commands::LayerProp::Visible(false));
+        let source = app.page;
+        let original = app.doc.clone();
+        app.duplicate_page(source);
+        let duplicate = app.page;
+        assert_ne!(duplicate, source);
+        let layers = app.doc.layers_of(duplicate);
+        assert_eq!(layers.len(), 2);
+        assert_eq!(layers[0].visible, original.layers[&first_layer].visible);
+        assert_eq!(layers[1].name, original.layers[&second_layer].name);
+        let copied: Vec<&Element> = app
+            .doc
+            .elements
+            .values()
+            .filter(|e| app.doc.page_of(e.id) == Some(duplicate))
+            .collect();
+        assert_eq!(copied.len(), 3);
+        let connector = copied.iter().find_map(|e| e.as_connector()).unwrap();
+        for endpoint in [&connector.source, &connector.target] {
+            let target = endpoint.element().expect("endpoint stays glued");
+            assert_ne!(target, a);
+            assert_ne!(target, b);
+            assert_eq!(app.doc.page_of(target), Some(duplicate));
+        }
+        let new_a = connector.source.element().unwrap();
+        let new_b = connector.target.element().unwrap();
+        assert_eq!(
+            app.doc.elements[&new_a].as_shape().unwrap().bounds,
+            original.elements[&a].as_shape().unwrap().bounds
+        );
+        assert_ne!(app.doc.layer_of(new_a), app.doc.layer_of(new_b));
+        assert_eq!(app.doc.validate(), Ok(()));
+        app.undo();
+        assert_eq!(app.doc, original);
+        app.redo();
+        assert_eq!(app.doc.validate(), Ok(()));
+    }
+
+    #[test]
+    fn request_during_a_drag_detects_unsaved_changes() {
+        let (mut app, id) = saved_app();
+        let snapshot = app.doc.clone();
+        app.history.begin("Move");
+        app.drag = Drag::Move {
+            ids: vec![id],
+            start: Point::ZERO,
+            bounds: Some(snapshot.elements[&id].as_shape().unwrap().bounds),
+            snapshot: Box::new(snapshot),
+        };
+        let commands = bp_commands::edit::translate(&app.doc, &[id], Vec2::new(20.0, 0.0));
+        app.apply("Move", commands);
+        app.request(Pending::Quit);
+        assert_eq!(app.pending, Some(Pending::Quit));
+        assert!(!app.allow_close);
+        assert_eq!(app.doc.elements[&id].parent, Parent::Layer(app.layer));
+    }
 }

@@ -13,6 +13,8 @@ authors = ["Blueprint contributors"]
 # Internal crates
 bp-model = { path = "crates/bp-model" }
 bp-geom = { path = "crates/bp-geom" }
+bp-shapes = { path = "crates/bp-shapes" }
+bp-text = { path = "crates/bp-text" }
 bp-commands = { path = "crates/bp-commands" }
 bp-io = { path = "crates/bp-io" }
 bp-scene = { path = "crates/bp-scene" }
@@ -22,11 +24,20 @@ bp-render-egui = { path = "crates/bp-render-egui" }
 # External crates
 eframe = { version = "0.36", features = ["glow"] }
 egui = "0.36"
+egui-phosphor = "0.14"
+egui_kittest = "0.36"
+harfrust = "0.12"
 kurbo = { version = "0.13", features = ["serde"] }
+lyon_tessellation = "1.0"
+nucleo-matcher = "0.3"
+proptest = { version = "1.11", default-features = false, features = ["std"] }
 rfd = "0.17"
+rstar = "0.13"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
+skrifa = "0.44"
 thiserror = "2"
+toml = { version = "1.1", default-features = false, features = ["parse", "serde", "std"] }
 uuid = { version = "1.26", features = ["v7", "serde"] }
 zip = { version = "8.6", default-features = false, features = ["deflate-flate2-zlib-rs"] }
 

@@ -1,0 +1,43 @@
+# ERD shapes. Tables are drawn from their typed column data by bp-scene;
+# the declarative details provide the same silhouette in the palette.
+id = "erd"
+name = "ERD"
+
+[[shape]]
+id = "table"
+name = "Table"
+keywords = ["entity", "database", "schema", "columns", "primary key", "foreign key"]
+size = [280, 160]
+outline = "rect"
+details = "M 0 0.2125 L 1 0.2125 M 0 0.4 L 1 0.4"
+text_area = [0, 0, 1, 0.21]
+[shape.style]
+text_align = "left"
+corner_radius = 0
+font_size = 13
+
+[[shape]]
+id = "note"
+name = "Schema note"
+keywords = ["comment", "description", "annotation"]
+size = [180, 100]
+outline = "M 0 0 L 0.9 0 L 1 0.18 L 1 1 L 0 1 Z"
+details = "M 0.9 0 L 0.9 0.18 L 1 0.18"
+text_area = [0, 0.18, 1, 1]
+[shape.style]
+fill = "#fff7d6"
+text_align = "left"
+
+[[shape]]
+id = "schema"
+name = "Schema container"
+keywords = ["namespace", "database", "group", "container"]
+size = [480, 320]
+outline = "rect"
+details = "M 0 0.1 L 1 0.1"
+text_area = [0, 0, 1, 0.1]
+[shape.style]
+fill = "none"
+text_align = "left"
+vertical_align = "top"
+dash = "dashed"

@@ -1,136 +1,104 @@
-//! Shape outlines and hit-testing, shared by the canvas, the scene builder
-//! and the exporters so all of them agree on what a shape looks like.
+//! Pure geometry shared by the shape libraries, the scene builder and the
+//! editor: directions, ray and hit tests on paths, polylines, the spatial
+//! index, snapping, and orthogonal connector routing.
 
-use bp_model::{Document, Element, ElementId, PageId, ShapeKind};
-use kurbo::{BezPath, Ellipse, PathEl, Point, Rect, RoundedRect, Shape};
+mod index;
+mod path;
+mod route;
+mod snap;
 
-/// Corner radius of `ShapeKind::RoundedRectangle`, in page units.
-pub const CORNER_RADIUS: f64 = 10.0;
+pub use index::SpatialIndex;
+pub use path::{
+    distance_to_path, distance_to_polyline, polyline_length, polyline_point_at, ray_exit,
+    simplify_polyline,
+};
+pub use route::{Route, Terminal, route_orthogonal};
+pub use snap::{Axis, Features, Guide, SnapResult, snap_point, snap_rect};
 
-/// Accuracy when converting curves to Béziers, in page units.
-const CURVE_ACCURACY: f64 = 0.05;
+use kurbo::Vec2;
 
-/// The outline of a shape of `kind` filling `rect`. Always a closed path.
-pub fn outline(kind: ShapeKind, rect: Rect) -> BezPath {
-    let rect = rect.abs();
-    let mut path = match kind {
-        ShapeKind::Rectangle | ShapeKind::Text => rect.to_path(CURVE_ACCURACY),
-        ShapeKind::RoundedRectangle => {
-            let radius = CORNER_RADIUS
-                .min(rect.width() / 2.0)
-                .min(rect.height() / 2.0);
-            RoundedRect::from_rect(rect, radius).to_path(CURVE_ACCURACY)
+/// A compass direction on the page (y grows downwards).
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+pub enum Dir {
+    N,
+    E,
+    S,
+    W,
+}
+
+impl Dir {
+    pub const ALL: [Dir; 4] = [Dir::N, Dir::E, Dir::S, Dir::W];
+
+    /// Unit vector in page coordinates.
+    pub fn vec(self) -> Vec2 {
+        match self {
+            Dir::N => Vec2::new(0.0, -1.0),
+            Dir::E => Vec2::new(1.0, 0.0),
+            Dir::S => Vec2::new(0.0, 1.0),
+            Dir::W => Vec2::new(-1.0, 0.0),
         }
-        ShapeKind::Ellipse => Ellipse::from_rect(rect).to_path(CURVE_ACCURACY),
-        ShapeKind::Diamond => {
-            let c = rect.center();
-            let mut path = BezPath::new();
-            path.move_to((c.x, rect.y0));
-            path.line_to((rect.x1, c.y));
-            path.line_to((c.x, rect.y1));
-            path.line_to((rect.x0, c.y));
-            path
+    }
+
+    pub fn opposite(self) -> Dir {
+        match self {
+            Dir::N => Dir::S,
+            Dir::E => Dir::W,
+            Dir::S => Dir::N,
+            Dir::W => Dir::E,
         }
-    };
-    // kurbo's ellipse path ends without a ClosePath; renderers need one to
-    // fill the shape and to join the stroke cleanly.
-    if !matches!(path.elements().last(), Some(PathEl::ClosePath)) {
-        path.close_path();
     }
-    path
-}
 
-/// Whether `point` is on `element`, allowing `tolerance` page units of slack.
-pub fn hit_test(element: &Element, point: Point, tolerance: f64) -> bool {
-    let grown = element.bounds.abs().inflate(tolerance, tolerance);
-    if !grown.contains(point) {
-        return false;
+    pub fn is_horizontal(self) -> bool {
+        matches!(self, Dir::E | Dir::W)
     }
-    match element.kind {
-        ShapeKind::Rectangle | ShapeKind::RoundedRectangle | ShapeKind::Text => true,
-        ShapeKind::Ellipse | ShapeKind::Diamond => outline(element.kind, grown).contains(point),
+
+    /// The direction closest to `v`, or `None` for a zero vector.
+    pub fn from_vec(v: Vec2) -> Option<Dir> {
+        if v.x == 0.0 && v.y == 0.0 {
+            return None;
+        }
+        Some(if v.x.abs() >= v.y.abs() {
+            if v.x > 0.0 { Dir::E } else { Dir::W }
+        } else if v.y > 0.0 {
+            Dir::S
+        } else {
+            Dir::N
+        })
     }
-}
 
-/// The top-most element under `point` on unlocked, visible layers of `page`.
-pub fn topmost_at(doc: &Document, page: PageId, point: Point, tolerance: f64) -> Option<ElementId> {
-    doc.elements_on_page(page)
-        .into_iter()
-        .rev()
-        .filter(|e| doc.layers.get(&e.layer).is_some_and(|l| !l.locked))
-        .find(|e| hit_test(e, point, tolerance))
-        .map(|e| e.id)
-}
+    /// `n`, `e`, `s` or `w`: the names of the default ports.
+    pub fn name(self) -> &'static str {
+        match self {
+            Dir::N => "n",
+            Dir::E => "e",
+            Dir::S => "s",
+            Dir::W => "w",
+        }
+    }
 
-/// The union of the bounds of `elements`, or `None` if there are none.
-pub fn union_bounds<'a>(elements: impl IntoIterator<Item = &'a Element>) -> Option<Rect> {
-    elements
-        .into_iter()
-        .map(|e| e.bounds.abs())
-        .reduce(|a, b| a.union(b))
+    pub fn parse(s: &str) -> Option<Dir> {
+        match s {
+            "n" => Some(Dir::N),
+            "e" => Some(Dir::E),
+            "s" => Some(Dir::S),
+            "w" => Some(Dir::W),
+            _ => None,
+        }
+    }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use bp_model::OrderKey;
-
-    fn element(kind: ShapeKind) -> Element {
-        let layer = bp_model::LayerId::new();
-        Element::new(
-            kind,
-            layer,
-            OrderKey::first(),
-            Rect::new(0.0, 0.0, 100.0, 50.0),
-        )
-    }
 
     #[test]
-    fn every_outline_is_closed() {
-        for kind in ShapeKind::ALL {
-            let path = outline(kind, Rect::new(0.0, 0.0, 40.0, 20.0));
-            assert_eq!(path.elements().last(), Some(&PathEl::ClosePath), "{kind:?}");
+    fn directions() {
+        for d in Dir::ALL {
+            assert_eq!(d.opposite().opposite(), d);
+            assert_eq!(Dir::from_vec(d.vec()), Some(d));
+            assert_eq!(Dir::parse(d.name()), Some(d));
         }
-    }
-
-    #[test]
-    fn rectangle_hits_its_corners() {
-        let e = element(ShapeKind::Rectangle);
-        assert!(hit_test(&e, Point::new(1.0, 1.0), 0.0));
-        assert!(!hit_test(&e, Point::new(-5.0, 1.0), 0.0));
-        assert!(hit_test(&e, Point::new(-2.0, 1.0), 3.0));
-    }
-
-    #[test]
-    fn ellipse_and_diamond_miss_their_corners() {
-        for kind in [ShapeKind::Ellipse, ShapeKind::Diamond] {
-            let e = element(kind);
-            assert!(hit_test(&e, Point::new(50.0, 25.0), 0.0), "{kind:?} centre");
-            assert!(!hit_test(&e, Point::new(2.0, 2.0), 0.0), "{kind:?} corner");
-        }
-    }
-
-    #[test]
-    fn topmost_prefers_the_last_drawn() {
-        let mut doc = Document::new();
-        let page = doc.first_page().unwrap();
-        let layer = doc.layers_of(page)[0].id;
-        let mut ids = vec![];
-        for _ in 0..2 {
-            let order = doc.next_order_key(layer);
-            let e = Element::new(
-                ShapeKind::Rectangle,
-                layer,
-                order,
-                Rect::new(0.0, 0.0, 10.0, 10.0),
-            );
-            ids.push(e.id);
-            doc.elements.insert(e.id, e);
-        }
-        assert_eq!(
-            topmost_at(&doc, page, Point::new(5.0, 5.0), 0.0),
-            Some(ids[1])
-        );
-        assert_eq!(topmost_at(&doc, page, Point::new(50.0, 5.0), 0.0), None);
+        assert_eq!(Dir::from_vec(Vec2::new(3.0, -1.0)), Some(Dir::E));
+        assert_eq!(Dir::from_vec(Vec2::ZERO), None);
     }
 }

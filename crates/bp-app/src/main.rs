@@ -1,9 +1,5 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
-mod app;
-mod canvas;
-mod panels;
-
 use std::path::PathBuf;
 
 fn main() -> eframe::Result {
@@ -23,8 +19,8 @@ fn main() -> eframe::Result {
             viewport: egui::ViewportBuilder::default()
                 .with_title("Blueprint")
                 .with_app_id("blueprint")
-                .with_inner_size([1280.0, 800.0])
-                .with_min_inner_size([640.0, 400.0])
+                .with_inner_size([1360.0, 860.0])
+                .with_min_inner_size([760.0, 480.0])
                 .with_drag_and_drop(true),
             renderer,
             ..Default::default()
@@ -33,7 +29,7 @@ fn main() -> eframe::Result {
         result = eframe::run_native(
             "Blueprint",
             options,
-            Box::new(move |cc| Ok(Box::new(app::BlueprintApp::new(cc, file)))),
+            Box::new(move |cc| Ok(Box::new(bp_app::BlueprintApp::new(&cc.egui_ctx, file)))),
         );
         match &result {
             Ok(()) => return Ok(()),

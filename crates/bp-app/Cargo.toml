@@ -6,6 +6,9 @@ edition.workspace = true
 rust-version.workspace = true
 license.workspace = true
 
+[lib]
+path = "src/lib.rs"
+
 [[bin]]
 name = "blueprint"
 path = "src/main.rs"
@@ -18,10 +21,18 @@ bp-io.workspace = true
 bp-model.workspace = true
 bp-render-egui.workspace = true
 bp-scene.workspace = true
+bp-shapes.workspace = true
+bp-text.workspace = true
 eframe.workspace = true
 egui.workspace = true
+egui-phosphor.workspace = true
 kurbo.workspace = true
+nucleo-matcher.workspace = true
 rfd.workspace = true
+serde_json.workspace = true
+
+[dev-dependencies]
+egui_kittest = { workspace = true, features = ["wgpu"] }
 
 [lints]
 workspace = true
