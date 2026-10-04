@@ -237,6 +237,11 @@ impl BlueprintApp {
         let Some(original) = &connector.foreign_key else {
             return;
         };
+        ui.label(RichText::new("Foreign key mapping").strong());
+        for mapping in self.foreign_key_mapping(element.id) {
+            ui.label(mapping);
+        }
+        ui.add_space(4.0);
         let table = |endpoint: &bp_model::Endpoint| {
             self.doc
                 .elements

@@ -86,13 +86,19 @@ Set `BLUEPRINT_RENDERER=glow` or `=wgpu` to force one.
   warnings before saving a separate `.sql` file. Only PostgreSQL is currently
   implemented for SQL import/export; the other table dialects offer type
   suggestions. See [SQL schema interchange](docs/erd-sql.md) for coverage.
+- Readable ERDs: imports arrange related tables from left to right with all
+  columns visible. Use **Arrange → Auto-arrange ERD** to reorganize an existing
+  page in one undo step, then zoom to fit. Orthogonal relationships avoid
+  other tables and separate shared routing corridors. Select a table to trace
+  its direct relationships, or select a relationship to highlight its mapped
+  columns. Try the [dense retail schema](examples/retail.sql).
 
 ## Workspace
 
 | Crate | Owns |
 | --- | --- |
 | `bp-model` | Document, pages, layers, elements (shapes, connectors, groups), ERD columns, sparse styles, ids, fractional order keys |
-| `bp-sql` | SQL schema parsing, import previews, editable ERD conversion and dialect-specific DDL generation |
+| `bp-sql` | SQL schema parsing, import previews, editable ERD conversion, relationship-aware layout and dialect-specific DDL generation |
 | `bp-geom` | Ray and hit tests, the R-tree index, snapping and smart guides, orthogonal connector routing (A*) |
 | `bp-text` | Bundled Inter fonts, measurement (harfrust shaping) and line breaking |
 | `bp-shapes` | Shape definitions in TOML and the built-in libraries (basic, flowchart, ERD) |

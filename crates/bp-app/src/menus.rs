@@ -111,6 +111,10 @@ impl BlueprintApp {
             });
 
             ui.menu_button("Arrange", |ui| {
+                if item(ui, "Auto-arrange ERD", None, self.can_auto_arrange_erd()) {
+                    self.auto_arrange_erd();
+                }
+                ui.separator();
                 let selected = !self.selection.is_empty();
                 let several = self.selection.len() > 1;
                 if item(ui, "Group", Some(GROUP), several) {

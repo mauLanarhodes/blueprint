@@ -703,3 +703,230 @@ fn cloud_asset_changes_invalidate_scene_cache_without_shape_changes() {
         removed.list.items().collect::<Vec<_>>()
     );
 }
+
+fn crosses_table(points: &[Point], bounds: Rect) -> bool {
+    points.windows(2).any(|pair| {
+        let (a, b) = (pair[0], pair[1]);
+        if (a.y - b.y).abs() < 1e-6 {
+            a.y > bounds.y0 + 1e-6
+                && a.y < bounds.y1 - 1e-6
+                && a.x.min(b.x) < bounds.x1 - 1e-6
+                && a.x.max(b.x) > bounds.x0 + 1e-6
+        } else {
+            a.x > bounds.x0 + 1e-6
+                && a.x < bounds.x1 - 1e-6
+                && a.y.min(b.y) < bounds.y1 - 1e-6
+                && a.y.max(b.y) > bounds.y0 + 1e-6
+        }
+    })
+}
+
+fn erd_page() -> Page {
+    let mut p = Page::new();
+    p.doc.pages.get_mut(&p.page).unwrap().diagram_kind = Some(DiagramKind::Erd);
+    p
+}
+
+fn column_endpoint(p: &Page, id: ElementId, left: bool) -> Endpoint {
+    let column = p
+        .doc
+        .elements
+        .get(&id)
+        .unwrap()
+        .as_shape()
+        .unwrap()
+        .erd
+        .as_ref()
+        .unwrap()
+        .columns[0]
+        .id;
+    Endpoint::Glued {
+        element: id,
+        port: Some(PortId::column(column, left)),
+    }
+}
+
+#[test]
+fn erd_routes_around_every_visible_table_and_can_pick_facing_column_sides() {
+    let mut p = erd_page();
+    let a = p.shape(
+        "erd/table",
+        Rect::new(0.0, 100.0, 280.0, 180.0),
+        "customers",
+    );
+    let b = p.shape(
+        "erd/table",
+        Rect::new(900.0, 100.0, 1180.0, 180.0),
+        "orders",
+    );
+    let wall = p.shape(
+        "erd/table",
+        Rect::new(400.0, 0.0, 700.0, 300.0),
+        "inventory",
+    );
+    // Stored sides face away; derived geometry chooses the row's facing side.
+    let c = p.connect(column_endpoint(&p, a, true), column_endpoint(&p, b, false));
+    let original = p.connector_mut(c).clone();
+    let scene = p.build();
+    let points = &scene.connector(c).unwrap().points;
+    for id in [a, b, wall] {
+        assert!(
+            !crosses_table(points, scene.shape(id).unwrap().bounds),
+            "{points:?}"
+        );
+    }
+    assert_eq!(points[0].x, scene.shape(a).unwrap().bounds.x1);
+    assert_eq!(points.last().unwrap().x, scene.shape(b).unwrap().bounds.x0);
+    assert_eq!(
+        *p.connector_mut(c),
+        original,
+        "routing preserves permanent endpoints and markers"
+    );
+}
+
+#[test]
+fn erd_parallel_relationships_have_distinct_lanes_and_unchanged_builds_reuse_them() {
+    let mut p = erd_page();
+    let a = p.shape("erd/table", Rect::new(0.0, 0.0, 280.0, 90.0), "customers");
+    let b = p.shape("erd/table", Rect::new(800.0, 0.0, 1080.0, 90.0), "orders");
+    let first = p.connect(column_endpoint(&p, a, false), column_endpoint(&p, b, true));
+    let second = p.connect(column_endpoint(&p, a, false), column_endpoint(&p, b, true));
+    let mut cache = SceneCache::default();
+    let scene = cache.build(&p.doc, p.page, Libraries::builtin());
+    assert_ne!(
+        scene.connector(first).unwrap().points,
+        scene.connector(second).unwrap().points
+    );
+    let again = cache.build(&p.doc, p.page, Libraries::builtin());
+    assert_eq!(cache.rebuilt, 0);
+    assert!(Arc::ptr_eq(
+        &scene.geometry.get(&second).unwrap().1,
+        &again.geometry.get(&second).unwrap().1
+    ));
+    p.doc.elements.remove(&first);
+    let removed = cache.build(&p.doc, p.page, Libraries::builtin());
+    assert_eq!(
+        cache.rebuilt, 1,
+        "removing an earlier connector invalidates lane occupancy"
+    );
+    assert_eq!(
+        removed.connector(second).unwrap().points,
+        scene.connector(first).unwrap().points
+    );
+}
+
+#[test]
+fn erd_obstacle_moves_hides_removes_and_expands_invalidate_routes() {
+    let mut p = erd_page();
+    let a = p.shape("erd/table", Rect::new(0.0, 100.0, 280.0, 190.0), "A");
+    let b = p.shape("erd/table", Rect::new(1000.0, 100.0, 1280.0, 190.0), "B");
+    let wall = p.shape("erd/table", Rect::new(450.0, 0.0, 750.0, 300.0), "wall");
+    let c = p.connect(column_endpoint(&p, a, false), column_endpoint(&p, b, true));
+    let mut cache = SceneCache::default();
+    let scene = cache.build(&p.doc, p.page, Libraries::builtin());
+    let before = scene.connector(c).unwrap().points.clone();
+    drop(scene);
+    let shape = p
+        .doc
+        .elements
+        .get_mut(&wall)
+        .unwrap()
+        .as_shape_mut()
+        .unwrap();
+    shape.bounds = shape.bounds + Vec2::new(0.0, 500.0);
+    let moved = cache.build(&p.doc, p.page, Libraries::builtin());
+    assert_eq!(cache.rebuilt, 2);
+    assert_ne!(moved.connector(c).unwrap().points, before);
+    drop(moved);
+    let shape = p
+        .doc
+        .elements
+        .get_mut(&wall)
+        .unwrap()
+        .as_shape_mut()
+        .unwrap();
+    shape.bounds = shape.bounds + Vec2::new(0.0, -500.0);
+    let shown = cache.build(&p.doc, p.page, Libraries::builtin());
+    assert_eq!(shown.connector(c).unwrap().points, before);
+    drop(shown);
+    let mut layer = p.doc.layers_of(p.page)[0].clone();
+    layer.id = bp_model::LayerId::new();
+    layer.visible = false;
+    let hidden_layer = layer.id;
+    p.doc.layers.insert(layer.id, layer);
+    p.doc.elements.get_mut(&wall).unwrap().parent = Parent::Layer(hidden_layer);
+    let hidden = cache.build(&p.doc, p.page, Libraries::builtin());
+    assert_eq!(cache.rebuilt, 1);
+    assert_ne!(hidden.connector(c).unwrap().points, before);
+    assert!(hidden.shape(wall).is_none());
+    drop(hidden);
+    p.doc.elements.get_mut(&wall).unwrap().parent = p.layer;
+    let visible = cache.build(&p.doc, p.page, Libraries::builtin());
+    assert_eq!(visible.connector(c).unwrap().points, before);
+    drop(visible);
+    p.doc
+        .elements
+        .get_mut(&wall)
+        .unwrap()
+        .as_shape_mut()
+        .unwrap()
+        .style
+        .font_size = Some(36.0);
+    let expanded = cache.build(&p.doc, p.page, Libraries::builtin());
+    assert_eq!(
+        cache.rebuilt, 2,
+        "style-driven derived bounds are routing inputs"
+    );
+    assert!(!crosses_table(
+        &expanded.connector(c).unwrap().points,
+        expanded.shape(wall).unwrap().bounds
+    ));
+    drop(expanded);
+    p.doc.elements.remove(&wall);
+    let removed = cache.build(&p.doc, p.page, Libraries::builtin());
+    assert_eq!(cache.rebuilt, 1);
+    assert_ne!(removed.connector(c).unwrap().points, before);
+    assert_eq!(
+        removed.connector(c),
+        build_page(&p.doc, p.page).connector(c)
+    );
+}
+
+#[test]
+fn erd_self_reference_routes_are_visible_and_keep_column_rows() {
+    let mut p = erd_page();
+    let a = p.shape("erd/table", Rect::new(0.0, 0.0, 280.0, 150.0), "categories");
+    let endpoint = column_endpoint(&p, a, false);
+    let c = p.connect(endpoint.clone(), endpoint);
+    let scene = p.build();
+    let g = scene.connector(c).unwrap();
+    assert!(
+        g.points.len() >= 4,
+        "self-reference must form a loop: {:?}",
+        g.points
+    );
+    assert!(!crosses_table(&g.points, scene.shape(a).unwrap().bounds));
+    let row = &scene.shape(a).unwrap().erd.as_ref().unwrap().rows[0];
+    assert_eq!(g.points[0].y, row.bounds.center().y);
+    assert_eq!(g.points.last().unwrap().y, row.bounds.center().y);
+    assert_ne!(g.points.first(), g.points.last());
+}
+
+#[test]
+fn erd_waypoints_are_kept_but_intermediate_legs_avoid_tables() {
+    let mut p = erd_page();
+    let wall = p.shape("erd/table", Rect::new(350.0, 0.0, 650.0, 300.0), "wall");
+    let c = p.connect(
+        Endpoint::Free(Point::new(0.0, 100.0)),
+        Endpoint::Free(Point::new(1000.0, 100.0)),
+    );
+    let points = vec![Point::new(200.0, 100.0), Point::new(800.0, 100.0)];
+    p.connector_mut(c).waypoints = points.clone();
+    let scene = p.build();
+    let routed = &scene.connector(c).unwrap().points;
+    assert!(!crosses_table(routed, scene.shape(wall).unwrap().bounds));
+    for &point in &points {
+        assert!(bp_geom::distance_to_polyline(routed, point) < 1e-6);
+    }
+    assert_eq!(p.connector_mut(c).waypoints, points);
+}

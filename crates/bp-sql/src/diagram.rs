@@ -91,7 +91,6 @@ pub fn import_commands(
         shape.erd = Some(erd);
         tables.push(element);
     }
-    layout(doc, parent, &mut tables);
     let mut relationships = Vec::new();
     for key in &preview.schema.foreign_keys {
         let source = *names
@@ -200,20 +199,26 @@ pub fn import_commands(
         });
         relationships.push(connector);
     }
+    let table_ids = tables.iter().map(|element| element.id).collect();
     let elements: Vec<_> = tables.into_iter().chain(relationships).collect();
-    let ids = elements.iter().map(|element| element.id).collect();
+    let ids: Vec<_> = elements.iter().map(|element| element.id).collect();
     let mut candidate = doc.clone();
     for element in &elements {
         candidate.elements.insert(element.id, element.clone());
     }
+    if let Some(page) = ids.first().and_then(|id| candidate.page_of(*id)) {
+        for command in crate::layout::arrange_import(&candidate, page, &table_ids)? {
+            command
+                .apply(&mut candidate)
+                .map_err(|error| error.to_string())?;
+        }
+    }
     candidate.validate().map_err(|error| error.to_string())?;
-    Ok((
-        ids,
-        elements
-            .into_iter()
-            .map(|element| Command::Insert(Box::new(element)))
-            .collect(),
-    ))
+    let commands = ids
+        .iter()
+        .map(|id| Command::Insert(Box::new(candidate.elements[id].clone())))
+        .collect();
+    Ok((ids, commands))
 }
 
 fn bind_key(key: &Key, columns: &[ErdColumn]) -> Result<ErdKey, String> {
@@ -245,56 +250,6 @@ fn resolve_columns(names: &[String], table: &ErdTable) -> Result<Vec<ColumnId>, 
                 .ok_or_else(|| format!("Foreign key references missing column {name}"))
         })
         .collect()
-}
-
-fn layout(doc: &Document, parent: Parent, tables: &mut [Element]) {
-    let grid_columns = (tables.len() as f64).sqrt().ceil().clamp(1.0, 4.0) as usize;
-    let mut widths = vec![0.0_f64; grid_columns];
-    let mut heights = vec![0.0_f64; tables.len().div_ceil(grid_columns)];
-    for (i, element) in tables.iter_mut().enumerate() {
-        let shape = element.as_shape_mut().unwrap();
-        let table = shape.erd.as_ref().unwrap();
-        let width = table.columns.iter().fold(
-            (shape.text.chars().count() as f64 * 9.0 + 30.0).max(280.0),
-            |width, column| {
-                width.max(
-                    (column.name.chars().count()
-                        + column.data_type.chars().count()
-                        + column
-                            .default_value
-                            .as_ref()
-                            .map_or(0, |value| value.chars().count())) as f64
-                        * 9.0
-                        + 180.0,
-                )
-            },
-        );
-        let height = 34.0 + table.columns.len() as f64 * 30.0;
-        shape.bounds = Rect::new(0.0, 0.0, width, height);
-        widths[i % grid_columns] = widths[i % grid_columns].max(width);
-        heights[i / grid_columns] = heights[i / grid_columns].max(height);
-    }
-    let origin_x = doc
-        .elements
-        .values()
-        .filter(|element| element.parent == parent)
-        .filter_map(Element::as_shape)
-        .map(|shape| shape.bounds.x1 + 100.0)
-        .fold(40.0_f64, f64::max);
-    for (i, element) in tables.iter_mut().enumerate() {
-        let x = origin_x
-            + widths[..i % grid_columns]
-                .iter()
-                .map(|width| width + 100.0)
-                .sum::<f64>();
-        let y = 40.0
-            + heights[..i / grid_columns]
-                .iter()
-                .map(|height| height + 100.0)
-                .sum::<f64>();
-        let bounds = &mut element.as_shape_mut().unwrap().bounds;
-        *bounds = Rect::new(x, y, x + bounds.width(), y + bounds.height());
-    }
 }
 
 /// Bind identifier occurrences to stable columns. Literals, function names,

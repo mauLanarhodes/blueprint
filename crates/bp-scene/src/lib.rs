@@ -5,7 +5,8 @@
 //!
 //! [`SceneCache`] keeps each element's display items between builds and
 //! rebuilds only elements whose data changed (and connectors whose shapes
-//! changed), so dragging one shape in a large diagram stays cheap.
+//! changed). ERD pages also invalidate routes when visible obstacles or
+//! shared connector lanes change, while unchanged builds reuse them.
 
 mod cloud;
 mod connector;
@@ -19,8 +20,8 @@ pub use text::{PADDING_X, PADDING_Y, TextStyle, place as place_text};
 use bp_geom::{SpatialIndex, distance_to_path, distance_to_polyline};
 use bp_model::kurbo::{Affine, BezPath, Point, Rect, Shape as _};
 use bp_model::{
-    Color, Connector, Document, Element, ElementId, ElementKind, IdMap, PageId, Parent, Shape,
-    StyleValues, TextAlign, VerticalAlign,
+    Color, Connector, DiagramKind, Document, Element, ElementId, ElementKind, IdMap, PageId,
+    Parent, Shape, StyleValues, TextAlign, VerticalAlign,
 };
 use bp_shapes::{Libraries, Port};
 use bp_text::Face;
@@ -281,9 +282,10 @@ fn connector_items(
     source: &End,
     target: &End,
     background: Color,
+    context: Option<connector::RoutingContext<'_>>,
 ) -> (Vec<DisplayItem>, ConnectorGeometry) {
     let style = c.style.resolve(&connector_defaults());
-    let route = connector::route(c, source, target);
+    let route = connector::route(c, source, target, context);
     let stroke = stroke_of(&style);
     let mut items = Vec::new();
     let mut trims = [0.0, 0.0];
@@ -497,7 +499,11 @@ pub fn connector_preview(
     connector: &Connector,
 ) -> Vec<DisplayItem> {
     let background = doc.pages.get(&page).map_or(Color::WHITE, |p| p.background);
-    let shapes: IdMap<ElementId, ShapeGeometry> = connector
+    let erd = doc
+        .pages
+        .get(&page)
+        .is_some_and(|p| p.diagram_kind == Some(DiagramKind::Erd));
+    let mut shapes: IdMap<ElementId, ShapeGeometry> = connector
         .endpoints()
         .iter()
         .filter_map(|end| {
@@ -506,10 +512,42 @@ pub fn connector_preview(
             Some((id, shape_geometry(libraries, shape)))
         })
         .collect();
+    let mut obstacles = Vec::new();
+    if erd {
+        for element in doc.paint_order(page) {
+            if let Some(shape) = element.as_shape() {
+                let geometry = shapes
+                    .entry(element.id)
+                    .or_insert_with(|| shape_geometry(libraries, shape));
+                obstacles.push(geometry.bounds);
+            }
+        }
+    }
     let shape_of = |id: ElementId| shapes.get(&id);
-    let source = End::resolve(&connector.source, shape_of);
-    let target = End::resolve(&connector.target, shape_of);
-    connector_items(ElementId::new(), connector, &source, &target, background).0
+    let (source, target) = if erd && connector.routing == bp_model::Routing::Orthogonal {
+        (
+            End::resolve_erd(&connector.source, shape_of),
+            End::resolve_erd(&connector.target, shape_of),
+        )
+    } else {
+        (
+            End::resolve(&connector.source, shape_of),
+            End::resolve(&connector.target, shape_of),
+        )
+    };
+    let context = erd.then_some(connector::RoutingContext {
+        obstacles: &obstacles,
+        earlier_routes: &[],
+    });
+    connector_items(
+        ElementId::new(),
+        connector,
+        &source,
+        &target,
+        background,
+        context,
+    )
+    .0
 }
 
 /// Builds the scene for `page` from scratch with the built-in libraries.
@@ -527,16 +565,28 @@ struct ConnectorKey {
     connector: Connector,
     ends: [EndKey; 2],
     background: Color,
+    routing_revision: u64,
 }
 
 /// What a connector end depended on when it was built.
-#[derive(PartialEq)]
+#[derive(Clone, PartialEq)]
 enum EndKey {
     Free,
     /// A shape built in the same scene, at this version of its entry.
     Shape(ElementId, u64),
     /// A shape outside the scene (hidden layer, other page), by its data.
     Elsewhere(ElementId, Option<Box<Shape>>),
+}
+
+/// ERD routes share all visible obstacles and earlier connector lanes.
+/// Any change to these inputs invalidates every ERD route; unchanged
+/// builds reuse their cached geometry. Non-ERD pages keep endpoint-only
+/// invalidation.
+#[derive(PartialEq)]
+struct ErdRoutingKey {
+    page: PageId,
+    obstacles: Vec<(ElementId, Rect)>,
+    connectors: Vec<(ElementId, Connector, [EndKey; 2])>,
 }
 
 struct Entry {
@@ -555,6 +605,8 @@ pub struct SceneCache {
     entries: IdMap<ElementId, Entry>,
     generation: u64,
     next_version: u64,
+    erd_routing_key: Option<ErdRoutingKey>,
+    routing_revision: u64,
     /// The spatial index of the last build, and what it holds, so the next
     /// build can update just the elements that moved.
     index: Arc<SpatialIndex<ElementId>>,
@@ -638,6 +690,48 @@ impl SceneCache {
             changed.push(id);
         }
 
+        let erd = doc
+            .pages
+            .get(&page)
+            .is_some_and(|p| p.diagram_kind == Some(DiagramKind::Erd));
+        let obstacles: Vec<(ElementId, Rect)> = if erd {
+            order
+                .iter()
+                .filter_map(
+                    |element| match geometry.get(&element.id).map(|(_, g)| g.as_ref()) {
+                        Some(Geometry::Shape(g)) => Some((element.id, g.bounds)),
+                        _ => None,
+                    },
+                )
+                .collect()
+        } else {
+            Vec::new()
+        };
+        let routing_key = erd.then(|| ErdRoutingKey {
+            page,
+            obstacles: obstacles.clone(),
+            connectors: connectors
+                .iter()
+                .map(|(_, element)| {
+                    let c = element.as_connector().expect("a connector");
+                    (
+                        element.id,
+                        c.clone(),
+                        [
+                            self.end_key(doc, generation, &c.source),
+                            self.end_key(doc, generation, &c.target),
+                        ],
+                    )
+                })
+                .collect(),
+        });
+        if self.erd_routing_key != routing_key {
+            self.routing_revision += 1;
+            self.erd_routing_key = routing_key;
+        }
+        let routing_revision = if erd { self.routing_revision } else { 0 };
+        let obstacle_bounds: Vec<Rect> = obstacles.iter().map(|(_, bounds)| *bounds).collect();
+
         // Pass 2: connectors, reusing the shapes' geometry from pass 1.
         let mut built = Vec::new();
         {
@@ -652,7 +746,7 @@ impl SceneCache {
                 ];
                 let fresh = self.entries.get(&element.id).is_some_and(|e| {
                     matches!(&e.key, Key::Connector(k)
-                        if k.connector == *c && k.background == background && k.ends == ends)
+                        if k.connector == *c && k.background == background && k.ends == ends && k.routing_revision == routing_revision)
                 });
                 if fresh {
                     let entry = self.entries.get_mut(&element.id).expect("checked");
@@ -676,11 +770,29 @@ impl SceneCache {
                     _ => elsewhere.get(&id),
                 }
             };
+            let mut earlier_routes = Vec::new();
             for (rank, element, ends) in stale {
                 let c = element.as_connector().expect("a connector");
-                let source = End::resolve(&c.source, shape_of);
-                let target = End::resolve(&c.target, shape_of);
-                let (items, g) = connector_items(element.id, c, &source, &target, background);
+                let (source, target) = if erd && c.routing == bp_model::Routing::Orthogonal {
+                    (
+                        End::resolve_erd(&c.source, shape_of),
+                        End::resolve_erd(&c.target, shape_of),
+                    )
+                } else {
+                    (
+                        End::resolve(&c.source, shape_of),
+                        End::resolve(&c.target, shape_of),
+                    )
+                };
+                let context = erd.then_some(connector::RoutingContext {
+                    obstacles: &obstacle_bounds,
+                    earlier_routes: &earlier_routes,
+                });
+                let (items, g) =
+                    connector_items(element.id, c, &source, &target, background, context);
+                if erd {
+                    earlier_routes.push(g.points.clone());
+                }
                 built.push((rank, element.id, c.clone(), ends, items, g));
             }
         }
@@ -691,6 +803,7 @@ impl SceneCache {
                 connector,
                 ends,
                 background,
+                routing_revision,
             }));
             self.store(id, key, items.clone(), g.clone(), generation);
             slots[rank] = Some(items);

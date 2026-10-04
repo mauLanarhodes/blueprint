@@ -17,3 +17,5 @@ workspace = true
 
 [dev-dependencies]
 bp-shapes.workspace = true
+bp-commands.workspace = true
+bp-sql.workspace = true
