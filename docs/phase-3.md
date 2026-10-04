@@ -14,7 +14,9 @@ the remaining ERD and editor work is still tracked in phase-2.md and phase-1.md.
   Importing runs in the background. No vendor artwork is bundled in this repo.
 - The importer derives names, categories and service/resource/group metadata
   from vendor filenames. It prefers the largest SVG size variant and keeps
-  the SVG bytes unchanged. Search includes familiar aliases such as VM,
+  the SVG bytes unchanged. Azure icons that share a service name retain their
+  separate numeric vendor identities, so the full V24 ZIP can be installed.
+  Search includes familiar aliases such as VM,
   bucket and serverless; hover shows a larger preview and the full name.
 - Click or drag an icon onto the canvas, or use `/` to search. Four connection
   ports work with the existing connector tool (`C`) and routing inspector.

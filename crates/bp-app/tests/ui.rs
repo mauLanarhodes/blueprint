@@ -153,6 +153,40 @@ fn cloud_palette_inserts_asset_and_service_label_in_one_undo_step() {
 }
 
 #[test]
+fn azure_same_named_icons_are_selectable_after_catalog_reload() {
+    let mut pack = cloud_pack(CloudProvider::Azure);
+    pack.icons[0].name = "Workspaces".into();
+    pack.icons[0].reference = ShapeRef::new("azure", "compute-service-workspaces--00330@test-v1");
+    pack.icons[0].source_path = "Icons/compute/00330-icon-service-Workspaces.svg".into();
+    let mut other = pack.icons[0].clone();
+    other.reference = ShapeRef::new("azure", "compute-service-workspaces--00400@test-v1");
+    other.source_path = "Icons/compute/00400-icon-service-Workspaces.svg".into();
+    other.svg = std::sync::Arc::from(
+        r##"<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64"><circle cx="32" cy="32" r="28" fill="#d75718"/></svg>"##,
+    );
+    pack.icons.push(other);
+    let directory = std::env::temp_dir().join(format!("bp-ui-azure-packs-{}", std::process::id()));
+    bp_icons::install_pack(&directory, &pack).unwrap();
+    let mut h = harness_for(DiagramKind::Cloud);
+    app(&mut h).cloud.packs = bp_icons::load_packs(&directory).unwrap();
+    app(&mut h).cloud.provider = CloudProvider::Azure;
+    h.run();
+    assert_eq!(h.get_all_by_label("Workspaces").count(), 2);
+    h.get_all_by_label("Workspaces").next().unwrap().click();
+    h.run();
+    h.get_all_by_label("Workspaces").nth(1).unwrap().click();
+    h.run();
+    assert_eq!(shapes(&mut h).len(), 2);
+    for icon in &pack.icons {
+        assert_eq!(app(&mut h).doc.icons[&icon.reference], *icon);
+    }
+    let doc = app(&mut h).doc.clone();
+    let bytes = bp_io::to_zip_bytes(&doc).unwrap();
+    assert_eq!(bp_io::from_bytes(&bytes).unwrap(), doc);
+    std::fs::remove_dir_all(directory).unwrap();
+}
+
+#[test]
 fn cloud_palette_drag_and_alias_quick_insert_include_the_original_assets() {
     let mut h = cloud_harness();
     let from = h.get_by_label("Amazon EC2").rect().center();

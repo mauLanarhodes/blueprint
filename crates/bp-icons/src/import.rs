@@ -91,14 +91,21 @@ pub fn import_zip(
             reason,
         })?;
         let (category, name, kind, size) = metadata(&source_path, provider)?;
-        let id = format!(
+        let base_id = format!(
             "{}-{}-{}@{version}",
             slug(&category),
             kind_slug(kind),
             slug(&name)
         );
+        // Azure assigns numeric asset IDs to distinct artwork with the same
+        // service name. Keep those candidates separate before resolving sizes.
+        let id = if provider == CloudProvider::Azure {
+            azure_asset_id(&base_id, &source_path).unwrap_or_else(|| base_id.clone())
+        } else {
+            base_id.clone()
+        };
         let icon = CloudIcon {
-            reference: ShapeRef::new(provider.id(), &id),
+            reference: ShapeRef::new(provider.id(), &base_id),
             name,
             provider,
             category,
@@ -131,17 +138,47 @@ pub fn import_zip(
     if candidates.is_empty() {
         return Err(IconError::Empty(provider.label().into()));
     }
+    let mut name_counts = BTreeMap::new();
+    for candidate in candidates.values() {
+        *name_counts
+            .entry(candidate.icon.reference.clone())
+            .or_insert(0) += 1;
+    }
+    let mut icons: Vec<_> = candidates
+        .into_iter()
+        .map(|(id, mut candidate)| {
+            // Preserve existing IDs for unambiguous names. Every member of an
+            // ambiguous name gets its vendor ID, independently of ZIP order.
+            if name_counts[&candidate.icon.reference] > 1 {
+                candidate.icon.reference = ShapeRef::new(provider.id(), &id);
+            }
+            candidate.icon
+        })
+        .collect();
+    icons.sort_by(|a, b| a.reference.cmp(&b.reference));
     warnings.sort();
     warnings.dedup();
     Ok(IconPack {
         provider,
         version: version.into(),
-        icons: candidates
-            .into_values()
-            .map(|candidate| candidate.icon)
-            .collect(),
+        icons,
         warnings,
     })
+}
+
+/// Disambiguate official Azure filenames using their numeric asset identity.
+/// A double hyphen cannot occur in a name slug, avoiding collisions with names
+/// that happen to end in the same number. Existing unambiguous IDs stay valid.
+pub(crate) fn azure_asset_id(base_id: &str, source_path: &str) -> Option<String> {
+    let filename = source_path.rsplit('/').next()?;
+    let (number, _) = filename
+        .split_once("-icon-service-")
+        .or_else(|| filename.split_once("-icon-resource-"))?;
+    if number.is_empty() || !number.bytes().all(|byte| byte.is_ascii_digit()) {
+        return None;
+    }
+    let (name, version) = base_id.rsplit_once('@')?;
+    Some(format!("{name}--{number}@{version}"))
 }
 
 pub(crate) fn safe_path(path: &str) -> Result<(), IconError> {

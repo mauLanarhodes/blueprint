@@ -94,6 +94,104 @@ fn azure_names_categories_and_common_aliases() {
 }
 
 #[test]
+fn azure_same_name_assets_survive_import_install_and_reload_in_any_zip_order() {
+    // V24 contains these two pairs of filenames. Artwork here is authored for
+    // this regression test; preserve different vendor assets even if their
+    // names or SVG bytes match.
+    let entries = [
+        (
+            "Azure_Public_Service_Icons/Icons/compute/00330-icon-service-Workspaces.svg",
+            SVG,
+        ),
+        (
+            "Azure_Public_Service_Icons/Icons/compute/00400-icon-service-Workspaces.svg",
+            SVG_ALT,
+        ),
+        (
+            "Azure_Public_Service_Icons/Icons/networking/02302-icon-service-Load-Balancer-Hub.svg",
+            SVG,
+        ),
+        (
+            "Azure_Public_Service_Icons/Icons/networking/029029174-icon-service-Load-Balancer-Hub.svg",
+            SVG,
+        ),
+        (
+            "Azure_Public_Service_Icons/Icons/compute/00999-icon-service-Workspaces-00330.svg",
+            SVG,
+        ),
+    ];
+    let pack = import_zip(&archive(&entries), CloudProvider::Azure, "v24").unwrap();
+    let reversed: Vec<_> = entries.iter().copied().rev().collect();
+    assert_eq!(
+        pack,
+        import_zip(&archive(&reversed), CloudProvider::Azure, "v24").unwrap()
+    );
+    assert_eq!(pack.icons.len(), entries.len());
+    assert!(pack.warnings.is_empty(), "distinct assets are not skipped");
+    let expected_ids = [
+        "compute-service-workspaces--00330@v24",
+        "compute-service-workspaces--00400@v24",
+        "networking-service-load-balancer-hub--02302@v24",
+        "networking-service-load-balancer-hub--029029174@v24",
+        "compute-service-workspaces-00330@v24",
+    ];
+    for ((path, svg), id) in entries.iter().zip(expected_ids) {
+        let icon = pack
+            .icons
+            .iter()
+            .find(|icon| icon.source_path == *path)
+            .unwrap();
+        assert_eq!(icon.reference, bp_model::ShapeRef::new("azure", id));
+        assert_eq!(icon.svg.as_ref(), *svg);
+    }
+    assert_eq!(search(&pack, "load balancer hub").len(), 2);
+    assert_eq!(
+        pack.icons
+            .iter()
+            .filter(|icon| icon.name == "Workspaces")
+            .count(),
+        2
+    );
+    let root = scratch();
+    install_pack(&root, &pack).unwrap();
+    install_pack(&root, &pack).unwrap();
+    assert_eq!(load_packs(&root).unwrap(), vec![pack]);
+    fs::remove_dir_all(root).unwrap();
+}
+
+#[test]
+fn azure_conflicting_artwork_with_the_same_vendor_identity_still_fails() {
+    let entries = [
+        ("a/Icons/compute/00330-icon-service-Workspaces.svg", SVG),
+        ("b/Icons/compute/00330-icon-service-Workspaces.svg", SVG_ALT),
+    ];
+    assert!(matches!(
+        import_zip(&archive(&entries), CloudProvider::Azure, "v24"),
+        Err(IconError::Collision { .. })
+    ));
+}
+
+#[test]
+fn azure_unambiguous_ids_stay_compatible_and_vendor_ids_are_validated() {
+    let entries = [("Icons/compute/10021-icon-service-Virtual-Machines.svg", SVG)];
+    let mut pack = import_zip(&archive(&entries), CloudProvider::Azure, "v24").unwrap();
+    assert_eq!(
+        pack.icons[0].reference.as_str(),
+        "azure/compute-service-virtual-machines@v24"
+    );
+    let root = scratch();
+    install_pack(&root, &pack).unwrap();
+    assert_eq!(load_packs(&root).unwrap(), vec![pack.clone()]);
+    pack.icons[0].reference =
+        bp_model::ShapeRef::new("azure", "compute-service-virtual-machines--99999@v24");
+    assert!(matches!(
+        install_pack(&root, &pack),
+        Err(IconError::Catalog(_))
+    ));
+    fs::remove_dir_all(root).unwrap();
+}
+
+#[test]
 fn service_names_do_not_turn_services_into_groups_or_resources() {
     let aws = import_zip(&archive(&[
         ("Architecture-Service-Icons/Arch_Management-Governance/64/Arch_AWS-Resource-Groups_64.svg", SVG),

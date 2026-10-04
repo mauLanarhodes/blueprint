@@ -1,4 +1,4 @@
-use crate::import::{kind_slug, safe_path, slug};
+use crate::import::{azure_asset_id, kind_slug, safe_path, slug};
 use crate::{
     IconError, IconPack, MAX_CATALOG_BYTES, MAX_TOTAL_SVG_BYTES, validate_svg, validate_version,
 };
@@ -87,19 +87,21 @@ fn validate_pack(pack: &IconPack) -> Result<(), IconError> {
     let mut ids = BTreeSet::new();
     let mut total = 0usize;
     for icon in &pack.icons {
-        let expected = ShapeRef::new(
-            pack.provider.id(),
-            &format!(
-                "{}-{}-{}@{}",
-                slug(&icon.category),
-                kind_slug(icon.kind),
-                slug(&icon.name),
-                pack.version
-            ),
+        let base_id = format!(
+            "{}-{}-{}@{}",
+            slug(&icon.category),
+            kind_slug(icon.kind),
+            slug(&icon.name),
+            pack.version
         );
+        let expected = ShapeRef::new(pack.provider.id(), &base_id);
+        let azure_expected = (pack.provider == CloudProvider::Azure)
+            .then(|| azure_asset_id(&base_id, &icon.source_path))
+            .flatten()
+            .map(|id| ShapeRef::new(pack.provider.id(), &id));
         if icon.provider != pack.provider
             || icon.pack_version != pack.version
-            || icon.reference != expected
+            || (icon.reference != expected && Some(&icon.reference) != azure_expected.as_ref())
             || icon.name.trim().is_empty()
             || icon.category.trim().is_empty()
         {
