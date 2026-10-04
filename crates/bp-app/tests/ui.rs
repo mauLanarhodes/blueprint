@@ -311,6 +311,82 @@ fn cloud_import_requires_terms_and_version_and_blocks_canvas_shortcuts() {
 }
 
 #[test]
+fn pack_calendar_fills_release_date_and_closes_after_selection() {
+    let mut h = cloud_harness();
+    app(&mut h).cloud.version = "2026-07-01".into();
+    app(&mut h).open_cloud_manager();
+    h.run();
+    h.get_by_label("Choose pack release date").click();
+    h.run();
+    assert!(h.query_by_label("July 31, 2026").is_some());
+    assert_eq!(
+        app(&mut h).cloud.version,
+        "2026-07-01",
+        "opening never overwrites a version"
+    );
+    h.get_by_label("July 31, 2026").click();
+    h.run();
+    assert_eq!(app(&mut h).cloud.version, "2026-07-31");
+    assert!(app(&mut h).cloud.manager_open);
+    assert!(
+        h.query_by_label("July 31, 2026").is_none(),
+        "selection closes the calendar"
+    );
+    assert!(
+        h.get_by_label("Import ZIP…").accesskit_node().is_disabled(),
+        "date selection preserves the terms requirement"
+    );
+    h.get_by_label("I have read and accept this provider’s icon usage terms")
+        .click();
+    h.run();
+    assert!(!h.get_by_label("Import ZIP…").accesskit_node().is_disabled());
+}
+
+#[test]
+fn pack_calendar_supports_leap_days_and_keeps_typed_version_tags() {
+    let mut h = cloud_harness();
+    app(&mut h).cloud.version = "2024-02-01".into();
+    app(&mut h).open_cloud_manager();
+    h.run();
+    h.get_by_label("Choose pack release date").click();
+    h.run();
+    assert!(h.query_by_label("February 30, 2024").is_none());
+    h.get_by_label("February 29, 2024").click();
+    h.run();
+    assert_eq!(app(&mut h).cloud.version, "2024-02-29");
+    h.get_by_label("Choose pack release date").click();
+    h.run();
+    h.get_by_label("Next month").click();
+    h.run();
+    assert!(h.query_by_label("March 31, 2024").is_some());
+    assert_eq!(
+        app(&mut h).cloud.version,
+        "2024-02-29",
+        "navigation never changes the chosen date"
+    );
+    h.get_by_label("Previous month").click();
+    h.run();
+    assert!(h.query_by_label("February 29, 2024").is_some());
+    h.key_press(Key::Escape);
+    h.run();
+    assert!(
+        app(&mut h).cloud.manager_open,
+        "Escape closes only the calendar"
+    );
+    app(&mut h).cloud.version = "v24".into();
+    h.get_by_label("Choose pack release date").click();
+    h.run();
+    assert_eq!(app(&mut h).cloud.version, "v24");
+    h.key_press(Key::Escape);
+    h.run();
+    assert_eq!(
+        app(&mut h).cloud.version,
+        "v24",
+        "cancel preserves a typed release tag"
+    );
+}
+
+#[test]
 fn resizing_a_group_of_cloud_icons_keeps_each_icon_uniform() {
     let mut h = cloud_harness();
     app(&mut h).settings.snap_to_grid = false;

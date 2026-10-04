@@ -3,6 +3,7 @@
 
 mod actions;
 mod app;
+mod calendar;
 mod canvas;
 mod cloud;
 mod connections;

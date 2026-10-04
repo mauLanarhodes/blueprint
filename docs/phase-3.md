@@ -9,7 +9,8 @@ the remaining ERD and editor work is still tracked in phase-2.md and phase-1.md.
   Azure provider tabs, categories, service-name labels and basic shapes.
 - **Manage icon packs…** in the palette or **File → Cloud icon packs…**
   links to each vendor's official download and usage terms. Accept the terms,
-  enter the downloaded release's version, and import its original ZIP.
+  choose the release date with the calendar or enter the downloaded release's
+  version, and import its original ZIP.
   Importing runs in the background. No vendor artwork is bundled in this repo.
 - The importer derives names, categories and service/resource/group metadata
   from vendor filenames. It prefers the largest SVG size variant and keeps

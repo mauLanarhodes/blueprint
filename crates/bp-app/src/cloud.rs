@@ -21,6 +21,7 @@ pub struct CloudState {
     pub pack_root: Option<PathBuf>,
     pub message: Option<String>,
     importing: Option<mpsc::Receiver<Result<IconPack, String>>>,
+    calendar: crate::calendar::Calendar,
 }
 
 impl Default for CloudState {
@@ -35,6 +36,7 @@ impl Default for CloudState {
             pack_root: default_pack_root(),
             message: None,
             importing: None,
+            calendar: crate::calendar::Calendar::default(),
         }
     }
 }
@@ -302,8 +304,9 @@ impl BlueprintApp {
                     let label = ui.label("Pack version (required)");
                     ui.add(egui::TextEdit::singleline(&mut self.cloud.version).hint_text("e.g. 2026-07-31").desired_width(150.0))
                         .labelled_by(label.id);
+                    self.cloud.calendar.version_picker(ui, &mut self.cloud.version);
                 });
-                ui.label(RichText::new("Use a distinct version for each release. Existing diagrams keep their original icons.").small().weak());
+                ui.label(RichText::new("Choose the pack’s release date with the calendar, or type a version such as v24. Existing diagrams keep their original icons.").small().weak());
                 let reason = self.cloud.import_disabled_reason();
                 let button = ui.add_enabled(reason.is_none(), egui::Button::new("Import ZIP…"));
                 if let Some(reason) = reason {
