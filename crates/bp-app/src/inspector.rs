@@ -71,7 +71,7 @@ impl BlueprintApp {
             egui::ComboBox::from_id_salt("page-diagram-kind")
                 .selected_text(current_kind.map_or("Choose type…", DiagramKind::label))
                 .show_ui(ui, |ui| {
-                    for kind in [DiagramKind::Erd, DiagramKind::Flowchart] {
+                    for kind in [DiagramKind::Erd, DiagramKind::Flowchart, DiagramKind::Cloud] {
                         ui.selectable_value(&mut chosen_kind, Some(kind), kind.label());
                     }
                 });
@@ -116,10 +116,10 @@ impl BlueprintApp {
         ui.add_space(10.0);
         section(ui, "Shortcuts");
         let erd = self.page_kind() == Some(DiagramKind::Erd);
-        let shape_shortcuts = if erd {
-            ("R O N", "Rectangle, ellipse, note")
-        } else {
+        let shape_shortcuts = if self.page_kind() == Some(DiagramKind::Flowchart) {
             ("R O D N", "Rectangle, ellipse, decision, note")
+        } else {
+            ("R O N", "Rectangle, ellipse, note")
         };
         egui::Grid::new("shortcuts")
             .num_columns(2)
@@ -156,7 +156,8 @@ impl BlueprintApp {
     fn shape_inspector(&mut self, ui: &mut Ui, el: &Element) {
         let Some(shape) = el.as_shape() else { return };
         let def = self.libraries.resolve(&shape.shape);
-        ui.heading(&def.name);
+        let cloud_icon = self.doc.icons.get(&shape.shape);
+        ui.heading(cloud_icon.map_or(def.name.as_str(), |icon| &icon.name));
         ui.label(RichText::new(shape.shape.as_str()).small().weak());
         if el.locked {
             ui.horizontal(|ui| {
@@ -192,6 +193,8 @@ impl BlueprintApp {
         let b = shape.bounds;
         let (mut x, mut y, mut w, mut h) = (b.x0, b.y0, b.width(), b.height());
         let mut moved = false;
+        let cloud = shape.shape.is_cloud();
+        let aspect = b.width() / b.height().max(1.0);
         egui::Grid::new("geometry").num_columns(4).show(ui, |ui| {
             ui.label("X");
             moved |= ui.add(DragValue::new(&mut x).speed(1.0)).changed();
@@ -199,13 +202,21 @@ impl BlueprintApp {
             moved |= ui.add(DragValue::new(&mut y).speed(1.0)).changed();
             ui.end_row();
             ui.label("W");
-            moved |= ui
+            let width_changed = ui
                 .add(DragValue::new(&mut w).range(1.0..=100_000.0))
                 .changed();
+            moved |= width_changed;
+            if cloud && width_changed {
+                h = w / aspect;
+            }
             ui.label("H");
-            moved |= ui
+            let height_changed = ui
                 .add(DragValue::new(&mut h).range(1.0..=100_000.0))
                 .changed();
+            moved |= height_changed;
+            if cloud && height_changed {
+                w = h * aspect;
+            }
             ui.end_row();
         });
         if moved {
@@ -222,8 +233,21 @@ impl BlueprintApp {
         }
         ui.add_space(6.0);
 
-        let has_corners = def.outline == Outline::Rect;
-        self.style_section(ui, el, true, has_corners);
+        if cloud {
+            ui.label(
+                RichText::new("Icons scale uniformly and keep their original appearance.")
+                    .small()
+                    .weak(),
+            );
+            self.text_style_section(
+                ui,
+                &shape.style,
+                &bp_scene::shape_geometry(self.libraries, shape).style,
+            );
+        } else {
+            let has_corners = def.outline == Outline::Rect;
+            self.style_section(ui, el, true, has_corners);
+        }
     }
 
     fn connector_inspector(&mut self, ui: &mut Ui, el: &Element) {

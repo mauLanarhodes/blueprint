@@ -1,5 +1,5 @@
 //! Renders the real app to a PNG, for checking the UI by eye:
-//! `cargo run -p bp-app --example screenshot -- out.png [diagram.blueprint | erd | flowchart] [mode]`
+//! `cargo run -p bp-app --example screenshot -- out.png [diagram.blueprint | erd | flowchart | cloud] [mode]`
 //!
 //! Modes: `shape` (select the first shape), `connector` (the first
 //! connector), `all` (everything), `drag` (mid-way through moving the
@@ -12,6 +12,7 @@ use bp_model::DiagramKind;
 use bp_model::kurbo::{Point, Vec2};
 use egui::{Event, Modifiers, PointerButton, Pos2};
 use egui_kittest::Harness;
+use egui_kittest::kittest::Queryable;
 use std::path::PathBuf;
 
 fn main() {
@@ -21,6 +22,7 @@ fn main() {
     let kind = match source.as_deref() {
         Some("erd") => Some(DiagramKind::Erd),
         Some("flowchart") => Some(DiagramKind::Flowchart),
+        Some("cloud") => Some(DiagramKind::Cloud),
         _ => None,
     };
     let file = source.filter(|_| kind.is_none()).map(PathBuf::from);
@@ -69,6 +71,11 @@ fn main() {
         "shape" => app.selection = first_shape.into_iter().collect(),
         "connector" => app.selection = first_connector.into_iter().collect(),
         "all" => app.select_all(),
+        "packs" => app.open_cloud_manager(),
+        "calendar" => {
+            app.cloud.version = "2026-07-31".into();
+            app.open_cloud_manager();
+        }
         "drag" => {
             if let Some(id) = first_shape {
                 let b = app.doc.elements[&id].as_shape().unwrap().bounds;
@@ -92,6 +99,10 @@ fn main() {
         _ => {}
     }
     h.run_steps(2);
+    if mode == "calendar" {
+        h.get_by_label("Choose pack release date").click();
+        h.run_steps(2);
+    }
     let image = h.render().expect("render");
     image.save(&out).expect("save png");
     println!("Wrote {out}");

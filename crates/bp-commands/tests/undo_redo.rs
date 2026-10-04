@@ -6,8 +6,8 @@ use bp_commands::edit::{self, Reorder};
 use bp_commands::{ColumnProp, Command, History, LayerProp, Prop};
 use bp_model::kurbo::{Point, Rect, Vec2};
 use bp_model::{
-    Color, Document, Element, ElementId, Endpoint, ErdColumn, Layer, OrderKey, Page, Paint, Parent,
-    PortId, ShapeRef, SqlDialect, TableDisplay,
+    CloudIcon, CloudProvider, Color, Document, Element, ElementId, Endpoint, ErdColumn, IconKind,
+    Layer, OrderKey, Page, Paint, Parent, PortId, ShapeRef, SqlDialect, TableDisplay,
 };
 use proptest::prelude::*;
 
@@ -22,7 +22,7 @@ struct Op {
 
 fn ops() -> impl Strategy<Value = Vec<Op>> {
     prop::collection::vec(
-        (0u8..22, any::<u16>(), any::<u16>()).prop_map(|(kind, a, b)| Op { kind, a, b }),
+        (0u8..25, any::<u16>(), any::<u16>()).prop_map(|(kind, a, b)| Op { kind, a, b }),
         1..40,
     )
 }
@@ -276,6 +276,44 @@ fn commands_for(doc: &Document, op: &Op) -> Vec<Command> {
                         },
                     )),
                 }]
+            })
+            .unwrap_or_default(),
+        22 => {
+            let reference = ShapeRef::new("aws", &format!("sample-{}@v1", op.a % 5));
+            let icon = CloudIcon {
+                reference: reference.clone(),
+                name: "Sample".into(),
+                provider: CloudProvider::Aws,
+                category: "Compute".into(),
+                kind: IconKind::Service,
+                pack_version: "v1".into(),
+                source_path: "sample.svg".into(),
+                svg: std::sync::Arc::from("<svg xmlns=\"http://www.w3.org/2000/svg\"/>"),
+            };
+            vec![
+                Command::InsertIcon(Box::new(icon)),
+                Command::Insert(Box::new(Element::shape(
+                    reference,
+                    layer,
+                    doc.next_order_key(layer),
+                    Rect::new(x, x, x + 64.0, x + 64.0),
+                ))),
+            ]
+        }
+        23 => doc
+            .icons
+            .keys()
+            .nth(usize::from(op.a) % doc.icons.len().max(1))
+            .map(|reference| Command::RemoveIcon {
+                reference: reference.clone(),
+            })
+            .into_iter()
+            .collect(),
+        24 => pick(&shapes, op.a)
+            .map(|id| {
+                edit::Clip::copy(doc, &[id], |_, _| None)
+                    .paste(doc, layer, Vec2::new(x, -x))
+                    .1
             })
             .unwrap_or_default(),
         _ => vec![],

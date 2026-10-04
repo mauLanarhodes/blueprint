@@ -19,6 +19,12 @@ pub fn migrate(mut value: Value) -> Result<Value, IoError> {
     if version < 3 {
         value = v2_to_v3(value)?;
     }
+    if version < 4 {
+        // Cloud assets and Cloud page kinds need a new format identifier:
+        // earlier readers must refuse to overwrite artwork they cannot keep.
+        // Both fields have defaults, so existing diagrams retain their data.
+        value["schema_version"] = 4.into();
+    }
     Ok(value)
 }
 

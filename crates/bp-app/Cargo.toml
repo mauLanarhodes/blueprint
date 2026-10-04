@@ -18,6 +18,7 @@ bp-commands.workspace = true
 bp-export.workspace = true
 bp-geom.workspace = true
 bp-io.workspace = true
+bp-icons.workspace = true
 bp-model.workspace = true
 bp-render-egui.workspace = true
 bp-scene.workspace = true

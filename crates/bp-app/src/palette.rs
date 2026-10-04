@@ -3,7 +3,7 @@
 use crate::app::BlueprintApp;
 use crate::theme::ACCENT;
 use bp_model::kurbo::{Point, Rect};
-use bp_model::{DiagramKind, ShapeRef, StyleValues};
+use bp_model::{CloudIcon, DiagramKind, ShapeRef, StyleValues};
 use bp_render_egui::{Viewport, paint};
 use bp_scene::{DisplayItem, DisplayList, Primitive, Stroke as SceneStroke};
 use bp_shapes::{Libraries, ShapeDef};
@@ -46,6 +46,26 @@ pub struct QuickInsert {
     pub focused: bool,
 }
 
+enum QuickChoice<'a> {
+    Shape(&'a ShapeDef),
+    Icon(&'a CloudIcon),
+}
+
+impl QuickChoice<'_> {
+    fn name(&self) -> &str {
+        match self {
+            Self::Shape(def) => &def.name,
+            Self::Icon(icon) => &icon.name,
+        }
+    }
+    fn reference(&self) -> &ShapeRef {
+        match self {
+            Self::Shape(def) => &def.reference,
+            Self::Icon(icon) => &icon.reference,
+        }
+    }
+}
+
 /// Shapes matching `query` (names, keywords and library names), best
 /// match first.
 pub fn search<'a>(libraries: &'a Libraries, query: &str) -> Vec<&'a ShapeDef> {
@@ -78,6 +98,7 @@ fn library_visible(kind: Option<DiagramKind>, library: &str) -> bool {
     match kind {
         Some(DiagramKind::Erd) => matches!(library, "basic" | "erd"),
         Some(DiagramKind::Flowchart) => matches!(library, "basic" | "flowchart"),
+        Some(DiagramKind::Cloud) => library == "basic",
         None => false,
     }
 }
@@ -149,7 +170,11 @@ impl BlueprintApp {
             ui.label(crate::theme::icon(icon::MAGNIFYING_GLASS).color(Color32::from_gray(120)));
             ui.add(
                 egui::TextEdit::singleline(&mut self.palette.query)
-                    .hint_text("Search shapes")
+                    .hint_text(if kind == DiagramKind::Cloud {
+                        "Search shapes and services"
+                    } else {
+                        "Search shapes"
+                    })
                     .desired_width(f32::INFINITY),
             );
         });
@@ -158,9 +183,12 @@ impl BlueprintApp {
         egui::ScrollArea::vertical()
             .auto_shrink(false)
             .show(ui, |ui| {
+                if kind == DiagramKind::Cloud {
+                    self.cloud_palette(ui);
+                }
                 if !self.palette.query.trim().is_empty() {
                     let results = search_for_kind(libraries, &self.palette.query, Some(kind));
-                    if results.is_empty() {
+                    if results.is_empty() && kind != DiagramKind::Cloud {
                         ui.label(RichText::new("No shapes match").weak());
                     }
                     self.shape_grid(ui, &results);
@@ -181,6 +209,7 @@ impl BlueprintApp {
                 let specialized = match kind {
                     DiagramKind::Erd => "erd",
                     DiagramKind::Flowchart => "flowchart",
+                    DiagramKind::Cloud => "basic",
                 };
                 let mut available: Vec<_> = libraries
                     .libraries()
@@ -266,8 +295,13 @@ impl BlueprintApp {
         let Some(pos) = ctx.pointer_interact_pos() else {
             return;
         };
+        let asset = self.cloud_icon(shape);
         let def = self.libraries.resolve(shape);
-        let (w, h) = def.default_size;
+        let (w, h) = if asset.is_some() {
+            (64.0, 64.0)
+        } else {
+            def.default_size
+        };
         let zoom = self.view.zoom;
         let size = Vec2::new(w as f32 * zoom, h as f32 * zoom);
         let rect = egui::Rect::from_center_size(pos, size);
@@ -275,7 +309,11 @@ impl BlueprintApp {
             egui::Order::Tooltip,
             egui::Id::new("palette-drag"),
         ));
-        paint_thumbnail(&painter, def, rect, 0.6);
+        if let Some(asset) = asset {
+            crate::cloud::paint_icon(&painter, asset, rect, 0.6);
+        } else {
+            paint_thumbnail(&painter, def, rect, 0.6);
+        }
         ctx.set_cursor_icon(egui::CursorIcon::Grabbing);
     }
 
@@ -294,12 +332,23 @@ impl BlueprintApp {
 
     pub fn quick_insert_popup(&mut self, ctx: &egui::Context) {
         let kind = self.page_kind();
+        let cloud: Vec<CloudIcon> = if kind == Some(DiagramKind::Cloud) {
+            self.cloud_candidates(None, self.quick_insert.as_ref().map_or("", |qi| &qi.query))
+        } else {
+            Vec::new()
+        };
         let Some(qi) = &mut self.quick_insert else {
             return;
         };
         let screen = self.view.to_screen(self.canvas_rect.min, qi.at);
-        let results: Vec<&ShapeDef> = search_for_kind(self.libraries, &qi.query, kind)
-            .into_iter()
+        let results: Vec<QuickChoice<'_>> = cloud
+            .iter()
+            .map(QuickChoice::Icon)
+            .chain(
+                search_for_kind(self.libraries, &qi.query, kind)
+                    .into_iter()
+                    .map(QuickChoice::Shape),
+            )
             .take(8)
             .collect();
         let (up, down, enter, escape) = ctx.input(|i| {
@@ -350,23 +399,30 @@ impl BlueprintApp {
                             rect.min + Vec2::new(4.0, 3.0),
                             Vec2::new(30.0, 22.0),
                         );
-                        paint_thumbnail(ui.painter(), def, thumb, 1.0);
+                        match def {
+                            QuickChoice::Shape(def) => {
+                                paint_thumbnail(ui.painter(), def, thumb, 1.0)
+                            }
+                            QuickChoice::Icon(icon) => {
+                                crate::cloud::paint_icon(ui.painter(), icon, thumb, 1.0)
+                            }
+                        }
                         ui.painter().text(
                             Pos2::new(thumb.max.x + 8.0, rect.center().y),
                             egui::Align2::LEFT_CENTER,
-                            &def.name,
+                            def.name(),
                             egui::FontId::proportional(13.0),
                             ui.visuals().text_color(),
                         );
                         if response.clicked() {
-                            chosen = Some(def.reference.clone());
+                            chosen = Some(def.reference().clone());
                         }
                     }
                     if results.is_empty() {
                         ui.label(RichText::new("No shapes match").weak());
                     }
                     if enter && let Some(def) = results.get(qi.selected) {
-                        chosen = Some(def.reference.clone());
+                        chosen = Some(def.reference().clone());
                     }
                     ui.painter().rect_stroke(
                         ui.min_rect().expand(2.0),

@@ -7,6 +7,7 @@
 //! rebuilds only elements whose data changed (and connectors whose shapes
 //! changed), so dragging one shape in a large diagram stays cheap.
 
+mod cloud;
 mod connector;
 mod erd;
 mod text;
@@ -67,6 +68,12 @@ pub enum Primitive {
         stroke: Option<Stroke>,
     },
     Text(TextRun),
+    /// Original provider SVG, fitted into `bounds` without changing its colours.
+    Icon {
+        svg: Arc<str>,
+        bounds: Rect,
+        opacity: f64,
+    },
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -106,6 +113,8 @@ pub struct ShapeGeometry {
     pub closed: bool,
     pub ports: Vec<Port>,
     pub text_box: Rect,
+    /// A cloud service's clickable label below its resize bounds.
+    pub label: Option<Rect>,
     /// Header and visible column rows of a smart ERD table.
     pub erd: Option<ErdGeometry>,
     pub style: StyleValues,
@@ -167,6 +176,9 @@ pub fn connector_defaults() -> StyleValues {
 
 /// A shape's resolved geometry, from its data alone.
 pub fn shape_geometry(libraries: &Libraries, shape: &Shape) -> ShapeGeometry {
+    if shape.shape.is_cloud() {
+        return cloud::geometry(shape);
+    }
     let def = libraries.resolve(&shape.shape);
     let style = shape.style.resolve(&def.default_style());
     if let Some(table) = &shape.erd {
@@ -179,6 +191,7 @@ pub fn shape_geometry(libraries: &Libraries, shape: &Shape) -> ShapeGeometry {
         closed: def.is_closed(),
         ports: def.ports(bounds, style.corner_radius),
         text_box: def.text_box(bounds),
+        label: None,
         erd: None,
         bounds,
         style,
@@ -212,10 +225,14 @@ fn path_item(
 
 fn shape_items(
     id: ElementId,
+    doc: &Document,
     libraries: &Libraries,
     shape: &Shape,
     g: &ShapeGeometry,
 ) -> Vec<DisplayItem> {
+    if shape.shape.is_cloud() {
+        return cloud::items(id, doc.icons.get(&shape.shape), shape, g);
+    }
     let def = libraries.resolve(&shape.shape);
     let s = &g.style;
     let fill = s.fill.map(|c| c.faded(s.opacity)).filter(|_| g.closed);
@@ -413,6 +430,7 @@ impl Scene {
                 let edge = tolerance + g.style.stroke_width / 2.0;
                 if g.closed {
                     g.outline.contains(p)
+                        || g.label.is_some_and(|label| label.contains(p))
                         || g.back.iter().any(|b| b.contains(p))
                         || distance_to_path(&g.outline, p) <= edge
                 } else {
@@ -501,7 +519,7 @@ pub fn build_page(doc: &Document, page: PageId) -> Scene {
 
 /// What a cached element was built from.
 enum Key {
-    Shape(Shape),
+    Shape(Box<Shape>, Option<Arc<str>>),
     Connector(Box<ConnectorKey>),
 }
 
@@ -556,7 +574,7 @@ impl SceneCache {
         match end.element() {
             None => EndKey::Free,
             Some(id) => match self.entries.get(&id) {
-                Some(e) if e.generation == generation && matches!(e.key, Key::Shape(_)) => {
+                Some(e) if e.generation == generation && matches!(e.key, Key::Shape(..)) => {
                     EndKey::Shape(id, e.version)
                 }
                 _ => EndKey::Elsewhere(
@@ -592,8 +610,9 @@ impl SceneCache {
                 }
                 continue;
             };
+            let svg = doc.icons.get(&shape.shape).map(|icon| icon.svg.clone());
             if let Some(entry) = self.entries.get_mut(&id)
-                && matches!(&entry.key, Key::Shape(old) if old == shape)
+                && matches!(&entry.key, Key::Shape(old, old_svg) if old.as_ref() == shape && *old_svg == svg)
             {
                 entry.generation = generation;
                 slots[rank] = Some(entry.items.clone());
@@ -601,11 +620,11 @@ impl SceneCache {
                 continue;
             }
             let g = shape_geometry(libraries, shape);
-            let items: Arc<[DisplayItem]> = shape_items(id, libraries, shape, &g).into();
+            let items: Arc<[DisplayItem]> = shape_items(id, doc, libraries, shape, &g).into();
             let g = Arc::new(Geometry::Shape(g));
             self.store(
                 id,
-                Key::Shape(shape.clone()),
+                Key::Shape(Box::new(shape.clone()), svg),
                 items.clone(),
                 g.clone(),
                 generation,
@@ -756,7 +775,8 @@ impl SceneCache {
                     unreachable!()
                 };
                 let half = shape.style.stroke_width / 2.0;
-                Some(shape.bounds.inflate(half, half))
+                let bounds = shape.bounds.inflate(half, half);
+                Some(shape.label.map_or(bounds, |label| bounds.union(label)))
             }
             Some((_, g)) if !matches!(**g, Geometry::Group { .. }) => Some(g.bounds()),
             _ => None,

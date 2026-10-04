@@ -8,6 +8,7 @@
 //! - only values the user set are stored (styles are sparse overrides);
 //!   connector routes, text layout and group bounds are recomputed.
 
+mod cloud;
 mod document;
 mod element;
 mod erd;
@@ -15,6 +16,7 @@ mod ids;
 mod order;
 mod style;
 
+pub use cloud::{CloudIcon, CloudProvider, IconKind};
 pub use document::{DiagramKind, Document, Layer, ModelError, Page, SCHEMA_VERSION, Tree};
 pub use element::{
     Connector, Element, ElementKind, Endpoint, Marker, Parent, PortId, Routing, Shape, ShapeRef,

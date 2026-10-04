@@ -1,11 +1,12 @@
 use crate::{
-    Color, ColumnId, Element, ElementId, ElementKind, Endpoint, LayerId, OrderKey, PageId, Parent,
+    CloudIcon, Color, ColumnId, Element, ElementId, ElementKind, Endpoint, LayerId, OrderKey,
+    PageId, Parent, ShapeRef,
 };
 use serde::{Deserialize, Serialize};
 use std::collections::{BTreeMap, HashMap, HashSet};
 
 /// Bumped for incompatible format changes; `bp-io` migrates older files.
-pub const SCHEMA_VERSION: u32 = 3;
+pub const SCHEMA_VERSION: u32 = 4;
 
 /// The tools and shape libraries a page presents in the editor.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
@@ -13,6 +14,7 @@ pub const SCHEMA_VERSION: u32 = 3;
 pub enum DiagramKind {
     Flowchart,
     Erd,
+    Cloud,
 }
 
 impl DiagramKind {
@@ -20,6 +22,7 @@ impl DiagramKind {
         match self {
             Self::Flowchart => "Flowchart",
             Self::Erd => "ERD",
+            Self::Cloud => "Cloud architecture",
         }
     }
 }
@@ -89,6 +92,10 @@ pub struct Document {
     pub pages: BTreeMap<PageId, Page>,
     pub layers: BTreeMap<LayerId, Layer>,
     pub elements: BTreeMap<ElementId, Element>,
+    /// Only icons used by this document are embedded; installed packs stay
+    /// outside the document. JSON stores SVG inline and ZIP stores it separately.
+    #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
+    pub icons: BTreeMap<ShapeRef, CloudIcon>,
 }
 
 #[derive(Debug, thiserror::Error, PartialEq)]
@@ -135,6 +142,16 @@ pub enum ModelError {
         target: ElementId,
         port: String,
     },
+    #[error("cloud shape {element} needs missing icon {reference}")]
+    MissingIcon {
+        element: ElementId,
+        reference: ShapeRef,
+    },
+    #[error("icon {reference} is invalid: {message}")]
+    InvalidIcon {
+        reference: ShapeRef,
+        message: String,
+    },
 }
 
 impl Default for Document {
@@ -174,6 +191,7 @@ impl Document {
             pages: BTreeMap::from([(page.id, page)]),
             layers: BTreeMap::from([(layer.id, layer)]),
             elements: BTreeMap::new(),
+            icons: BTreeMap::new(),
         }
     }
 
@@ -343,6 +361,15 @@ impl Document {
             return Err(ModelError::NoPages);
         }
         let bad_key = |k: &OrderKey| ModelError::InvalidOrderKey(k.as_str().to_owned());
+        for (reference, icon) in &self.icons {
+            if reference != &icon.reference {
+                return Err(ModelError::InvalidIcon {
+                    reference: reference.clone(),
+                    message: "the map key does not match the stored reference".into(),
+                });
+            }
+            icon.validate()?;
+        }
         for (id, page) in &self.pages {
             if *id != page.id {
                 return Err(ModelError::IdMismatch(page.id.to_string()));
@@ -401,6 +428,12 @@ impl Document {
         let finite = |p: kurbo::Point| p.x.is_finite() && p.y.is_finite();
         match &element.kind {
             ElementKind::Shape(s) => {
+                if s.shape.is_cloud() && !self.icons.contains_key(&s.shape) {
+                    return Err(ModelError::MissingIcon {
+                        element: element.id,
+                        reference: s.shape.clone(),
+                    });
+                }
                 let b = s.bounds;
                 if ![b.x0, b.y0, b.x1, b.y1].iter().all(|v| v.is_finite()) {
                     return Err(ModelError::NotFinite(element.id));

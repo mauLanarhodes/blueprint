@@ -28,6 +28,9 @@ impl BlueprintApp {
                 if item(ui, "Export page as SVG…", Some(EXPORT_SVG), true) {
                     self.export_svg();
                 }
+                if item(ui, "Cloud icon packs…", None, true) {
+                    self.open_cloud_manager();
+                }
                 ui.separator();
                 if item(ui, "Quit", Some(QUIT), true) {
                     ui.ctx().send_viewport_cmd(ViewportCommand::Close);
