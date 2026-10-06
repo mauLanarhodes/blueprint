@@ -35,6 +35,60 @@ sudo apt-get install libxcb-render0-dev libxcb-shape0-dev libxcb-xfixes0-dev lib
 The app renders with wgpu and falls back to OpenGL if wgpu cannot start.
 Set `BLUEPRINT_RENDERER=glow` or `=wgpu` to force one.
 
+### Windows (PowerShell)
+
+1. Install [Git for Windows](https://git-scm.com/downloads/win).
+2. Install the [Visual Studio C++ Build Tools](https://visualstudio.microsoft.com/visual-cpp-build-tools/).
+   In the installer, select **Desktop development with C++** and include the
+   MSVC C++ toolset and a Windows 10 or Windows 11 SDK.
+3. Install Rust using [rustup](https://rust-lang.org/tools/install/) and accept
+   the default MSVC toolchain. This project uses stable Rust and requires
+   **Rust 1.95 or newer**.
+
+Open a new PowerShell window after installation so the tools are on `PATH`,
+then clone the repository and launch the desktop app:
+
+```powershell
+git clone https://github.com/mauLanarhodes/blueprint.git
+cd blueprint
+rustup update stable
+rustc --version
+cargo --version
+cargo run -p bp-app --release --locked
+```
+
+The first build downloads dependencies and can take several minutes. Run all
+Cargo commands from the repository root (the folder containing `Cargo.toml`).
+To open the bundled sample ERD, close the app and run:
+
+```powershell
+cargo run -p bp-app --release --locked -- .\examples\orders.blueprint.json
+```
+
+To build once and launch the executable directly:
+
+```powershell
+cargo build -p bp-app --release --locked
+.\target\release\blueprint.exe
+# Or open an existing diagram (quote paths that contain spaces):
+.\target\release\blueprint.exe "C:\Users\YourName\Documents\plan.blueprint"
+```
+
+If `cargo` or `rustc` is not recognized, reopen PowerShell and check that
+`%USERPROFILE%\.cargo\bin` is on your user `PATH`. If the build reports that
+`link.exe` is missing, check that the C++ workload and Windows SDK above are
+installed.
+
+If the app cannot initialize its graphics renderer, try forcing OpenGL in
+PowerShell:
+
+```powershell
+$env:BLUEPRINT_RENDERER = "glow"
+cargo run -p bp-app --release --locked
+# After closing the app, restore automatic renderer selection:
+Remove-Item Env:\BLUEPRINT_RENDERER
+```
+
 ## Using the editor
 
 - Choose **ERD**, **Flowchart** or **Cloud architecture** when starting a document or adding a page.
