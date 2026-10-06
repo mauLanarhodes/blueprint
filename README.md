@@ -18,6 +18,10 @@ cargo run -p bp-app --release -- plan.blueprint
 cargo run -p bp-app --release -- examples/orders.blueprint.json # sample ERD
 cargo run -p bp-cli -- export plan.blueprint plan.svg [--page 2] [--embed-fonts]
 cargo run -p bp-cli -- info plan.blueprint
+cargo run -p bp-cli -- import-sql schema.sql --preview
+cargo run -p bp-cli -- import-sql schema.sql schema.blueprint
+cargo run -p bp-cli -- export-sql schema.blueprint --dialect postgres --preview
+cargo run -p bp-cli -- export-sql schema.blueprint schema-export.sql --page 1
 cargo test --workspace
 cargo test --release -p bp-scene --test bench -- --nocapture   # performance budgets
 ```
@@ -75,12 +79,20 @@ Set `BLUEPRINT_RENDERER=glow` or `=wgpu` to force one.
   connector attachments when rows are hidden. Self-referencing tables are
   supported. A foreign key that is also a primary key gets a solid
   identifying relationship by default.
+- SQL schemas: on an ERD page use **File → Open SQL script…** or
+  **Paste SQL schema…**, review the table counts and line-specific warnings,
+  then apply. Tables and relationships are ordinary editable elements, added
+  in one undo step. **Export page as SQL…** previews PostgreSQL DDL and its
+  warnings before saving a separate `.sql` file. Only PostgreSQL is currently
+  implemented for SQL import/export; the other table dialects offer type
+  suggestions. See [SQL schema interchange](docs/erd-sql.md) for coverage.
 
 ## Workspace
 
 | Crate | Owns |
 | --- | --- |
 | `bp-model` | Document, pages, layers, elements (shapes, connectors, groups), ERD columns, sparse styles, ids, fractional order keys |
+| `bp-sql` | SQL schema parsing, import previews, editable ERD conversion and dialect-specific DDL generation |
 | `bp-geom` | Ray and hit tests, the R-tree index, snapping and smart guides, orthogonal connector routing (A*) |
 | `bp-text` | Bundled Inter fonts, measurement (harfrust shaping) and line breaking |
 | `bp-shapes` | Shape definitions in TOML and the built-in libraries (basic, flowchart, ERD) |
@@ -91,7 +103,7 @@ Set `BLUEPRINT_RENDERER=glow` or `=wgpu` to force one.
 | `bp-export` | Display list → SVG |
 | `bp-render-egui` | Display list → egui painter (with lyon for concave fills), pan/zoom viewport |
 | `bp-app` | The desktop app (`blueprint` binary) |
-| `bp-cli` | Headless export (`blueprint-cli` binary) |
+| `bp-cli` | Headless SVG/SQL export, SQL schema import and file checks (`blueprint-cli` binary) |
 
 Only `bp-app` and `bp-render-egui` depend on egui. The screen, hit-testing
 and every export draw from the same scene, so exports match the screen.
@@ -100,7 +112,7 @@ and every export draw from the same scene, so exports match the screen.
 
 A `.blueprint` file is a zip holding `document.json` and used cloud SVGs in `icons/`. Save as
 `name.blueprint.json` to get plain JSON for readable Git diffs. Every file
-carries a `schema_version` (currently 4); `bp-io` migrates older files on
+carries a `schema_version` (currently 5); `bp-io` migrates older files on
 open. Files store only what the user set: styles are sparse overrides of the
 shape's defaults, and connector routes, text layout and group bounds are
 recomputed on load. ERD column ids remain stable when rows are renamed or

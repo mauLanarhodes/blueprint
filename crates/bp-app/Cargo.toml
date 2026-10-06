@@ -20,6 +20,7 @@ bp-geom.workspace = true
 bp-io.workspace = true
 bp-icons.workspace = true
 bp-model.workspace = true
+bp-sql.workspace = true
 bp-render-egui.workspace = true
 bp-scene.workspace = true
 bp-shapes.workspace = true

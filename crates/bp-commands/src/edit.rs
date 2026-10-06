@@ -517,6 +517,12 @@ impl Clip {
                         *end = Endpoint::Free(at);
                     }
                 }
+                if c.endpoints()
+                    .iter()
+                    .any(|endpoint| endpoint.element().is_none())
+                {
+                    c.foreign_key = None;
+                }
             }
             elements.push(element);
         }

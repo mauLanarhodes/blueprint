@@ -6,7 +6,7 @@ use serde::{Deserialize, Serialize};
 use std::collections::{BTreeMap, HashMap, HashSet};
 
 /// Bumped for incompatible format changes; `bp-io` migrates older files.
-pub const SCHEMA_VERSION: u32 = 4;
+pub const SCHEMA_VERSION: u32 = 5;
 
 /// The tools and shape libraries a page presents in the editor.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
@@ -126,6 +126,8 @@ pub enum ModelError {
         element: ElementId,
         column: ColumnId,
     },
+    #[error("element {element} has invalid SQL metadata: {message}")]
+    InvalidSqlMetadata { element: ElementId, message: String },
     #[error("table {0} has no structured ERD data")]
     MissingErdData(ElementId),
     #[error("shape {0} has ERD data but is not an ERD table")]
@@ -314,6 +316,13 @@ impl Document {
                     connector.endpoints().iter().any(|endpoint| {
                         matches!(endpoint, Endpoint::Glued { element, port: Some(port) }
                         if *element == id && port.column_id() == Some(column))
+                    }) || connector.foreign_key.as_ref().is_some_and(|key| {
+                        let (owner, referenced) = connector
+                            .foreign_key_endpoints()
+                            .expect("a foreign key exists");
+                        (owner.element() == Some(id) && key.columns.contains(&column))
+                            || (referenced.element() == Some(id)
+                                && key.referenced_columns.contains(&column))
                     })
                 })
             })
@@ -458,6 +467,40 @@ impl Document {
                             ));
                         }
                     }
+                    let invalid = |message: &str| ModelError::InvalidSqlMetadata {
+                        element: element.id,
+                        message: message.into(),
+                    };
+                    for key in table.primary_key.iter().chain(&table.unique_keys) {
+                        if key.columns.is_empty()
+                            || key.columns.iter().any(|id| !ids.contains(id))
+                            || key.columns.iter().collect::<HashSet<_>>().len() != key.columns.len()
+                        {
+                            return Err(invalid("a key must refer to distinct existing columns"));
+                        }
+                    }
+                    for index in &table.indexes {
+                        if index.columns.is_empty() {
+                            return Err(invalid("an index must contain an expression"));
+                        }
+                        for expression in index.columns.iter().chain(index.predicate.iter()) {
+                            let mut end = 0;
+                            for reference in &expression.references {
+                                if !ids.contains(&reference.column)
+                                    || reference.start < end
+                                    || reference.start >= reference.end
+                                    || !expression.sql.is_char_boundary(reference.start)
+                                    || !expression.sql.is_char_boundary(reference.end)
+                                    || reference.end > expression.sql.len()
+                                {
+                                    return Err(invalid(
+                                        "an index expression has an invalid column reference",
+                                    ));
+                                }
+                                end = reference.end;
+                            }
+                        }
+                    }
                 }
             }
             ElementKind::Connector(c) => {
@@ -472,6 +515,36 @@ impl Document {
                 }
                 if !c.waypoints.iter().copied().all(finite) {
                     return Err(ModelError::NotFinite(element.id));
+                }
+                if let Some(key) = &c.foreign_key {
+                    let invalid = |message: &str| ModelError::InvalidSqlMetadata {
+                        element: element.id,
+                        message: message.into(),
+                    };
+                    if key.columns.is_empty() || key.columns.len() != key.referenced_columns.len() {
+                        return Err(invalid("a foreign key must map equally many columns"));
+                    }
+                    let (owner, referenced) =
+                        c.foreign_key_endpoints().expect("a foreign key exists");
+                    for (endpoint, columns) in
+                        [(owner, &key.columns), (referenced, &key.referenced_columns)]
+                    {
+                        let Some(table) = endpoint
+                            .element()
+                            .and_then(|id| self.elements.get(&id))
+                            .and_then(Element::as_shape)
+                            .and_then(|shape| shape.erd.as_ref())
+                        else {
+                            return Err(invalid("a foreign key must connect two ERD tables"));
+                        };
+                        if columns.iter().any(|id| table.column(*id).is_none())
+                            || columns.iter().collect::<HashSet<_>>().len() != columns.len()
+                        {
+                            return Err(invalid(
+                                "a foreign key must refer to distinct existing columns",
+                            ));
+                        }
+                    }
                 }
             }
             ElementKind::Group => {}

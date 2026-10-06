@@ -17,6 +17,13 @@ impl BlueprintApp {
                 if item(ui, "Open…", Some(OPEN), true) {
                     self.request(Pending::Open(None));
                 }
+                let erd = self.page_kind() == Some(bp_model::DiagramKind::Erd);
+                if item(ui, "Open SQL script…", None, erd) {
+                    self.open_sql_file();
+                }
+                if item(ui, "Paste SQL schema…", None, erd) {
+                    self.paste_sql_schema();
+                }
                 ui.separator();
                 if item(ui, "Save", Some(SAVE), true) {
                     self.save();
@@ -27,6 +34,9 @@ impl BlueprintApp {
                 ui.separator();
                 if item(ui, "Export page as SVG…", Some(EXPORT_SVG), true) {
                     self.export_svg();
+                }
+                if item(ui, "Export page as SQL…", None, erd) {
+                    self.open_sql_export();
                 }
                 if item(ui, "Cloud icon packs…", None, true) {
                     self.open_cloud_manager();

@@ -25,6 +25,11 @@ pub fn migrate(mut value: Value) -> Result<Value, IoError> {
         // Both fields have defaults, so existing diagrams retain their data.
         value["schema_version"] = 4.into();
     }
+    if version < 5 {
+        // Named/composite SQL constraints and indexes use defaulted fields.
+        // Earlier readers must refuse to resave and discard that metadata.
+        value["schema_version"] = 5.into();
+    }
     Ok(value)
 }
 

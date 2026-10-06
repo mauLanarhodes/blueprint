@@ -9,6 +9,8 @@
 use std::path::PathBuf;
 use std::process::ExitCode;
 
+mod sql;
+
 const USAGE: &str = "\
 Usage:
   blueprint-cli export <input.blueprint> [output.svg] [--page <n|name>] [--embed-fonts]
@@ -16,6 +18,10 @@ Usage:
       --embed-fonts makes the SVG look the same on machines without Inter.
   blueprint-cli info <input.blueprint>
       Show pages, layers and element counts.
+  blueprint-cli import-sql <input.sql> [output.blueprint] [--dialect postgres] [--preview]
+      Preview a PostgreSQL schema or import it into a new editable ERD project.
+  blueprint-cli export-sql <input.blueprint> [output.sql] [--page <n|name>] [--dialect postgres] [--preview]
+      Preview or export one ERD page as PostgreSQL DDL.
 ";
 
 fn main() -> ExitCode {
@@ -23,6 +29,8 @@ fn main() -> ExitCode {
     let result = match args.first().map(String::as_str) {
         Some("export") => parse_export(&args[1..]).and_then(|e| export(&e)),
         Some("info") if args.len() == 2 => info(args[1].clone().into()),
+        Some("import-sql") => sql::run(&args[1..], true),
+        Some("export-sql") => sql::run(&args[1..], false),
         Some("--version" | "-V") => {
             println!("blueprint-cli {}", env!("CARGO_PKG_VERSION"));
             Ok(())

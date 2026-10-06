@@ -1,0 +1,20 @@
+[package]
+name = "bp-sql"
+description = "Recoverable SQL schema import and dialect-specific DDL generation"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+
+[dependencies]
+bp-commands.workspace = true
+bp-model.workspace = true
+serde.workspace = true
+sqlparser = { version = "0.62", features = ["visitor"] }
+
+[dev-dependencies]
+bp-io.workspace = true
+serde_json.workspace = true
+
+[lints]
+workspace = true

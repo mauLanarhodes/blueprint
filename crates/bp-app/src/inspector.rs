@@ -255,6 +255,7 @@ impl BlueprintApp {
         let id = el.id;
         ui.heading("Connector");
         ui.add_space(6.0);
+        self.erd_foreign_key_inspector(ui, el);
 
         section(ui, "Routing");
         ui.horizontal(|ui| {
@@ -336,23 +337,40 @@ impl BlueprintApp {
             .button(labelled(icon::ARROWS_LEFT_RIGHT, "Swap ends"))
             .clicked()
         {
-            self.apply(
-                "Swap ends",
-                [
-                    Command::Set {
-                        id,
-                        prop: Prop::Source(c.target.clone()),
-                    },
-                    Command::Set {
-                        id,
-                        prop: Prop::Target(c.source.clone()),
-                    },
-                    Command::Set {
-                        id,
-                        prop: Prop::Waypoints(c.waypoints.iter().rev().copied().collect()),
-                    },
-                ],
-            );
+            let commands = vec![
+                Command::Set {
+                    id,
+                    prop: Prop::ForeignKey(None),
+                },
+                Command::Set {
+                    id,
+                    prop: Prop::Source(c.target.clone()),
+                },
+                Command::Set {
+                    id,
+                    prop: Prop::Target(c.source.clone()),
+                },
+                Command::Set {
+                    id,
+                    prop: Prop::ForeignKey(c.foreign_key.clone().map(|mut key| {
+                        key.owner_at_target = !key.owner_at_target;
+                        key
+                    })),
+                },
+                Command::Set {
+                    id,
+                    prop: Prop::StartMarker(c.end_marker),
+                },
+                Command::Set {
+                    id,
+                    prop: Prop::EndMarker(c.start_marker),
+                },
+                Command::Set {
+                    id,
+                    prop: Prop::Waypoints(c.waypoints.iter().rev().copied().collect()),
+                },
+            ];
+            self.apply("Swap ends", commands);
         }
         ui.add_space(6.0);
 

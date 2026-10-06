@@ -12,6 +12,7 @@ authors = ["Blueprint contributors"]
 [workspace.dependencies]
 # Internal crates
 bp-model = { path = "crates/bp-model" }
+bp-sql = { path = "crates/bp-sql" }
 bp-geom = { path = "crates/bp-geom" }
 bp-shapes = { path = "crates/bp-shapes" }
 bp-icons = { path = "crates/bp-icons" }

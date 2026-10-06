@@ -47,6 +47,61 @@ pub enum IoError {
     Migration(String),
     #[error("the embedded icon assets are invalid: {0}")]
     IconAsset(String),
+    #[error("unsafe SQL output: {0}")]
+    SqlOutput(String),
+}
+
+/// Saves SQL separately from native projects, including projects renamed to `.sql`.
+/// Atomic replacement also preserves files reached through a hard link.
+pub fn write_sql(path: &Path, sql: &str, project: Option<&Path>) -> Result<(), IoError> {
+    if !path
+        .extension()
+        .is_some_and(|extension| extension.eq_ignore_ascii_case("sql"))
+    {
+        return Err(IoError::SqlOutput("choose a separate .sql file".into()));
+    }
+    if let Some(project) = project {
+        let same_path = path == project
+            || path
+                .canonicalize()
+                .ok()
+                .zip(project.canonicalize().ok())
+                .is_some_and(|(output, input)| output == input);
+        #[cfg(unix)]
+        let same_file = {
+            use std::os::unix::fs::MetadataExt;
+            fs::metadata(path)
+                .ok()
+                .zip(fs::metadata(project).ok())
+                .is_some_and(|(output, input)| {
+                    output.dev() == input.dev() && output.ino() == input.ino()
+                })
+        };
+        #[cfg(not(unix))]
+        let same_file = false;
+        if same_path || same_file {
+            return Err(IoError::SqlOutput(
+                "the SQL output must be different from the input project".into(),
+            ));
+        }
+    }
+    match fs::read(path) {
+        Ok(bytes) => {
+            // Protect newer or damaged projects too; requiring a successful
+            // load would allow export to destroy a project we cannot open.
+            let project_json = serde_json::from_slice::<Value>(&bytes)
+                .ok()
+                .is_some_and(|value| value.get("schema_version").is_some());
+            if bytes.starts_with(ZIP_MAGIC) || project_json {
+                return Err(IoError::SqlOutput(
+                    "the destination contains a Blueprint project".into(),
+                ));
+            }
+        }
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => {}
+        Err(error) => return Err(error.into()),
+    }
+    atomic_write(path, sql.as_bytes())
 }
 
 /// Saves `doc` to `path` atomically: the old file stays intact until the new
@@ -441,5 +496,53 @@ mod tests {
         assert_eq!(p("a"), PathBuf::from("a.blueprint"));
         assert_eq!(p("a.blueprint"), PathBuf::from("a.blueprint"));
         assert_eq!(p("a.JSON"), PathBuf::from("a.JSON"));
+    }
+
+    #[test]
+    fn sql_output_preserves_projects_even_with_sql_extensions() {
+        let dir = scratch_dir("sql-output");
+        let source = dir.join("project.sql");
+        let doc = sample();
+        save(&doc, &source).unwrap();
+        let original = fs::read(&source).unwrap();
+        let ddl = "CREATE TABLE example (id INTEGER);\n";
+        for output in [
+            source.clone(),
+            dir.join(".").join("project.sql"),
+            dir.join("project.blueprint"),
+            dir.join("project.json"),
+        ] {
+            assert!(write_sql(&output, ddl, Some(&source)).is_err());
+            assert_eq!(fs::read(&source).unwrap(), original);
+        }
+        let renamed_project = dir.join("other.sql");
+        save(&doc, &renamed_project).unwrap();
+        assert!(write_sql(&renamed_project, ddl, Some(&source)).is_err());
+        assert_eq!(load(&renamed_project).unwrap(), doc);
+        let newer_project = dir.join("newer.sql");
+        fs::write(&newer_project, br#"{"schema_version":999,"pages":{}}"#).unwrap();
+        assert!(write_sql(&newer_project, ddl, None).is_err());
+        let output = dir.join("schema.sql");
+        write_sql(&output, ddl, Some(&source)).unwrap();
+        assert_eq!(fs::read_to_string(output).unwrap(), ddl);
+        fs::remove_dir_all(dir).unwrap();
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn sql_output_rejects_project_symlinks_and_hardlinks() {
+        let dir = scratch_dir("sql-links");
+        let source = dir.join("project.blueprint");
+        let doc = sample();
+        save(&doc, &source).unwrap();
+        let hard = dir.join("hard.sql");
+        let symbolic = dir.join("symbolic.sql");
+        fs::hard_link(&source, &hard).unwrap();
+        std::os::unix::fs::symlink(&source, &symbolic).unwrap();
+        for alias in [hard, symbolic] {
+            assert!(write_sql(&alias, "SELECT 1;", Some(&source)).is_err());
+            assert_eq!(load(&source).unwrap(), doc);
+        }
+        fs::remove_dir_all(dir).unwrap();
     }
 }

@@ -141,6 +141,7 @@ pub struct BlueprintApp {
     pub settings: Settings,
     pub palette: PaletteState,
     pub cloud: crate::cloud::CloudState,
+    pub sql: crate::sql::SqlState,
     pub quick_insert: Option<QuickInsert>,
     /// The last copied clip, for duplicate and when the system clipboard
     /// is unavailable.
@@ -187,6 +188,7 @@ impl BlueprintApp {
             settings: Settings::default(),
             palette: PaletteState::default(),
             cloud: crate::cloud::CloudState::load(),
+            sql: crate::sql::SqlState::default(),
             quick_insert: None,
             clip: None,
             renaming: None,
@@ -521,6 +523,8 @@ impl BlueprintApp {
         self.quick_insert = None;
         self.palette.query.clear();
         self.palette.dragging = None;
+        self.sql.import = None;
+        self.sql.export = None;
         self.tool = Tool::Select;
         self.erd_connection = ErdConnection::default();
         self.connections_by_page.clear();
@@ -690,6 +694,7 @@ impl BlueprintApp {
             && self.error.is_none()
             && self.page_choice.is_none()
             && !self.cloud.manager_open
+            && !self.sql.is_open()
         {
             self.handle_shortcuts(&ctx);
         }
@@ -717,6 +722,7 @@ impl BlueprintApp {
         self.palette_drag_preview(&ctx);
         self.dialogs(&ctx);
         self.cloud_pack_dialog(&ctx);
+        self.sql_dialogs(&ctx);
     }
 }
 
