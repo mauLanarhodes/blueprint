@@ -10,7 +10,7 @@ use bp_model::kurbo::{Affine, Point, Rect};
 use bp_model::{
     Connector, Document, ElementId, Endpoint, Paint, PortId, Routing, ShapeRef, TextAlign,
 };
-use bp_render_egui::{color32, paint, paint_grid, text_font};
+use bp_render_egui::{color32, paint, paint_grid, paint_with_presentation, text_font};
 use bp_scene::{DisplayItem, DisplayList, Geometry};
 use egui::{
     Color32, CursorIcon, Key, PointerButton, Pos2, Response, Sense, Shape, Stroke, StrokeKind,
@@ -229,13 +229,27 @@ impl BlueprintApp {
         if self.settings.show_grid {
             paint_grid(&painter, origin, &self.view, self.settings.grid * 2.0, GRID);
         }
-        paint(
+        let erd_focus = self.erd_focus();
+        paint_with_presentation(
             &painter,
             origin,
             &self.view,
             &self.scene.list,
             self.editing.as_ref().map(|e| e.id),
+            &self.erd_presentation(&erd_focus),
         );
+        for id in &erd_focus.tables {
+            if !self.is_selected(*id)
+                && let Some(shape) = self.scene.shape(*id)
+            {
+                painter.rect_stroke(
+                    self.view.rect_to_screen(origin, shape.bounds).expand(2.0),
+                    0.0,
+                    Stroke::new(1.5, ACCENT.gamma_multiply(0.75)),
+                    StrokeKind::Outside,
+                );
+            }
+        }
         self.paint_overlays(&painter, origin, &response);
         self.update_cursor(&ctx, &response, origin);
     }

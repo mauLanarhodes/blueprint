@@ -537,9 +537,11 @@ dependencies = [
 name = "bp-export"
 version = "0.1.0"
 dependencies = [
+ "bp-commands",
  "bp-model",
  "bp-scene",
  "bp-shapes",
+ "bp-sql",
  "bp-text",
  "kurbo",
 ]
@@ -628,6 +630,8 @@ dependencies = [
  "bp-commands",
  "bp-io",
  "bp-model",
+ "bp-scene",
+ "bp-shapes",
  "serde",
  "serde_json",
  "sqlparser",

@@ -1,7 +1,10 @@
 //! Connector routes, end markers and labels.
 
 use crate::{ShapeGeometry, Stroke};
-use bp_geom::{Dir, Terminal, polyline_point_at, ray_exit, route_orthogonal, simplify_polyline};
+use bp_geom::{
+    Dir, Terminal, polyline_point_at, ray_exit, route_orthogonal, route_orthogonal_with_routes,
+    simplify_polyline,
+};
 use bp_model::kurbo::{
     BezPath, ParamCurve, ParamCurveArclen, ParamCurveDeriv, PathEl, PathSeg, Point, Shape, Vec2,
 };
@@ -20,6 +23,7 @@ pub(crate) enum End<'a> {
         at: Point,
         dir: Dir,
         bounds: bp_model::kurbo::Rect,
+        other_side: Option<Terminal>,
     },
     /// Floating on a shape's outline: the route picks the point.
     Floating {
@@ -48,11 +52,43 @@ impl<'a> End<'a> {
                         at: p.at,
                         dir: p.dir,
                         bounds: g.bounds,
+                        other_side: None,
                     },
                     None => End::Floating { shape: g },
                 }
             }
         }
+    }
+
+    /// Column identity stays fixed, while ERD routing may choose either
+    /// edge of that same row. The document's endpoint and FK ownership
+    /// are never changed by the scene builder.
+    pub(crate) fn resolve_erd(
+        end: &Endpoint,
+        shape: impl Fn(ElementId) -> Option<&'a ShapeGeometry>,
+    ) -> End<'a> {
+        let mut resolved = Self::resolve(end, &shape);
+        if let Endpoint::Glued {
+            element,
+            port: Some(port),
+        } = end
+            && let Some(column) = port.column_id()
+            && let Some(g) = shape(*element).filter(|g| g.erd.is_some())
+            && let End::Port {
+                dir, other_side, ..
+            } = &mut resolved
+            && let Some(p) = g
+                .ports
+                .iter()
+                .find(|p| p.id.column_id() == Some(column) && p.dir != *dir)
+        {
+            *other_side = Some(Terminal {
+                point: p.at,
+                dir: Some(p.dir),
+                obstacle: Some(g.bounds),
+            });
+        }
+        resolved
     }
 
     /// A point that stands for this end when aiming the other end at it.
@@ -68,11 +104,20 @@ impl<'a> End<'a> {
     fn terminals(&self) -> Vec<Terminal> {
         match self {
             End::Free(p) => vec![Terminal::free(*p)],
-            End::Port { at, dir, bounds } => vec![Terminal {
-                point: *at,
-                dir: Some(*dir),
-                obstacle: Some(*bounds),
-            }],
+            End::Port {
+                at,
+                dir,
+                bounds,
+                other_side,
+            } => {
+                let mut terminals = vec![Terminal {
+                    point: *at,
+                    dir: Some(*dir),
+                    obstacle: Some(*bounds),
+                }];
+                terminals.extend(*other_side);
+                terminals
+            }
             End::Floating { shape } => shape
                 .ports
                 .iter()
@@ -126,10 +171,25 @@ pub(crate) struct Route {
     pub points: Vec<Point>,
 }
 
-pub(crate) fn route(c: &Connector, source: &End, target: &End) -> Route {
+/// Inputs shared by all connectors on an ERD page.
+#[derive(Clone, Copy)]
+pub(crate) struct RoutingContext<'a> {
+    pub obstacles: &'a [bp_model::kurbo::Rect],
+    pub earlier_routes: &'a [Vec<Point>],
+}
+
+pub(crate) fn route(
+    c: &Connector,
+    source: &End,
+    target: &End,
+    context: Option<RoutingContext<'_>>,
+) -> Route {
     match c.routing {
         Routing::Orthogonal => {
-            let points = orthogonal(source, target, &c.waypoints);
+            let points = match context {
+                Some(context) => erd_orthogonal(source, target, &c.waypoints, context),
+                None => orthogonal(source, target, &c.waypoints),
+            };
             Route {
                 path: polyline_path(&points),
                 points,
@@ -144,6 +204,59 @@ pub(crate) fn route(c: &Connector, source: &End, target: &End) -> Route {
         }
         Routing::Curved => curved(source, target, &c.waypoints),
     }
+}
+
+fn erd_orthogonal(
+    source: &End,
+    target: &End,
+    waypoints: &[Point],
+    context: RoutingContext<'_>,
+) -> Vec<Point> {
+    let mut sources = source.terminals();
+    let mut targets = target.terminals();
+    // A self-reference to the same row must form a visible loop instead
+    // of choosing the same candidate terminal twice and disappearing.
+    if waypoints.is_empty()
+        && sources.len() == 2
+        && targets.len() == 2
+        && sources.iter().all(|s| targets.iter().any(|t| s == t))
+    {
+        sources.retain(|t| t.dir == Some(Dir::E));
+        targets.retain(|t| t.dir == Some(Dir::W));
+    }
+    let segment = |sources: &[Terminal], targets: &[Terminal]| {
+        route_orthogonal_with_routes(
+            sources,
+            targets,
+            context.obstacles,
+            ROUTE_MARGIN,
+            context.earlier_routes,
+        )
+        .points
+    };
+    let mut points = if let Some(&first) = waypoints.first() {
+        let mut points = segment(&sources, &[Terminal::free(first)]);
+        for pair in waypoints.windows(2) {
+            points.extend(
+                segment(&[Terminal::free(pair[0])], &[Terminal::free(pair[1])])
+                    .into_iter()
+                    .skip(1),
+            );
+        }
+        points.extend(
+            segment(
+                &[Terminal::free(*waypoints.last().expect("nonempty"))],
+                &targets,
+            )
+            .into_iter()
+            .skip(1),
+        );
+        points
+    } else {
+        segment(&sources, &targets)
+    };
+    simplify_polyline(&mut points);
+    points
 }
 
 fn orthogonal(source: &End, target: &End, waypoints: &[Point]) -> Vec<Point> {

@@ -55,6 +55,12 @@ SQL file. See [SQL schema interchange](erd-sql.md) for dialect coverage,
 supported definitions and CLI examples. Type suggestions for other dialects
 do not imply SQL interchange support.
 
+ERD imports now use relationship-aware layout with all columns visible.
+**Arrange → Auto-arrange ERD** also organizes existing pages in one undo step,
+keeping locked tables fixed. Orthogonal connections avoid other tables, and
+selection highlights related tables and column mappings. The
+[retail SQL example](../examples/retail.sql) exercises a dense 30-table diagram.
+
 ## Remaining Phase 2 gates
 
 - [ ] Edit column cells directly on the canvas, with Enter adding a row,

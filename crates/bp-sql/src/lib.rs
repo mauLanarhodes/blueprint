@@ -5,10 +5,12 @@
 
 mod diagram;
 mod export;
+mod layout;
 mod postgres;
 
 pub use diagram::{bind_index_expression, current_index_expression, import_commands};
 pub use export::{ExportPreview, export_page, export_schema};
+pub use layout::arrange_page;
 
 pub use bp_model::SqlDialect;
 use serde::{Deserialize, Serialize};

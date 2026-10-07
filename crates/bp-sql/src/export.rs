@@ -879,7 +879,7 @@ pub(crate) fn simple_index_column(sql: &str) -> Option<String> {
     })
 }
 
-fn infer_foreign_key(
+pub(crate) fn infer_foreign_key(
     doc: &Document,
     source: &Endpoint,
     target: &Endpoint,

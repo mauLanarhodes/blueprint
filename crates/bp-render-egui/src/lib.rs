@@ -21,6 +21,7 @@ use lyon_tessellation::path::Path as LyonPath;
 use lyon_tessellation::{
     BuffersBuilder, FillOptions, FillRule, FillTessellator, FillVertex, VertexBuffers,
 };
+use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
 
 pub const MIN_ZOOM: f32 = 0.05;
@@ -93,6 +94,46 @@ pub fn color32(c: Color) -> Color32 {
     Color32::from_rgba_unmultiplied(c.r, c.g, c.b, c.a)
 }
 
+/// Temporary canvas emphasis. It never changes the shared display list or exports.
+#[derive(Clone, Debug, PartialEq)]
+pub struct ElementPresentation {
+    pub opacity: f64,
+    pub accent: Option<Color>,
+    /// Backgrounds painted after the element's fills and before its first text run.
+    pub text_backgrounds: Vec<(kurbo::Rect, Color)>,
+}
+
+impl Default for ElementPresentation {
+    fn default() -> Self {
+        Self {
+            opacity: 1.0,
+            accent: None,
+            text_backgrounds: Vec::new(),
+        }
+    }
+}
+
+impl ElementPresentation {
+    fn color(&self, color: Color, accented: bool) -> Color32 {
+        color32(
+            if accented {
+                self.accent.map_or(color, |accent| {
+                    Color {
+                        r: accent.r,
+                        g: accent.g,
+                        b: accent.b,
+                        a: color.a,
+                    }
+                    .faded(accent.opacity())
+                })
+            } else {
+                color
+            }
+            .faded(self.opacity),
+        )
+    }
+}
+
 /// The egui font family that draws `face`.
 pub fn font_family(face: Face) -> FontFamily {
     FontFamily::Name(face.name().into())
@@ -145,25 +186,73 @@ pub fn paint(
     list: &DisplayList,
     hide_text_of: Option<ElementId>,
 ) {
+    paint_with_presentation(painter, origin, view, list, hide_text_of, &HashMap::new());
+}
+
+/// Paints with editor-only emphasis while retaining the scene's geometry and styles.
+pub fn paint_with_presentation(
+    painter: &Painter,
+    origin: Pos2,
+    view: &Viewport,
+    list: &DisplayList,
+    hide_text_of: Option<ElementId>,
+    presentation: &HashMap<ElementId, ElementPresentation>,
+) {
     let clip = painter.clip_rect();
     let tolerance = 0.25 / f64::from(view.zoom);
     let bundled = bundled_fonts_ready(painter.ctx());
+    let normal = ElementPresentation::default();
+    let mut backgrounds_painted = HashSet::new();
     for item in list.items() {
         if !clip.intersects(view.rect_to_screen(origin, item.bbox)) {
             continue;
         }
+        let emphasis = presentation.get(&item.element).unwrap_or(&normal);
         match &item.primitive {
             Primitive::Path { path, fill, stroke } => {
                 if let Some(fill) = fill {
-                    paint_fill(painter, origin, view, path, color32(*fill), tolerance);
+                    let accented = stroke.as_ref().is_some_and(|stroke| stroke.color == *fill);
+                    paint_fill(
+                        painter,
+                        origin,
+                        view,
+                        path,
+                        emphasis.color(*fill, accented),
+                        tolerance,
+                    );
                 }
                 if let Some(stroke) = stroke {
-                    paint_stroke(painter, origin, view, path, stroke, tolerance);
+                    paint_stroke(
+                        painter,
+                        origin,
+                        view,
+                        path,
+                        stroke,
+                        emphasis.color(stroke.color, true),
+                        tolerance,
+                    );
                 }
             }
             Primitive::Text(run) => {
+                if !emphasis.text_backgrounds.is_empty() && backgrounds_painted.insert(item.element)
+                {
+                    for (bounds, color) in &emphasis.text_backgrounds {
+                        painter.rect_filled(
+                            view.rect_to_screen(origin, *bounds),
+                            0.0,
+                            color32(*color),
+                        );
+                    }
+                }
                 if hide_text_of != Some(item.element) {
-                    paint_text(painter, origin, view, run, bundled);
+                    paint_text(
+                        painter,
+                        origin,
+                        view,
+                        run,
+                        bundled,
+                        emphasis.color(run.color, true),
+                    );
                 }
             }
             Primitive::Icon {
@@ -171,13 +260,25 @@ pub fn paint(
                 bounds,
                 opacity,
             } => {
-                icons::paint(painter, view.rect_to_screen(origin, *bounds), svg, *opacity);
+                icons::paint(
+                    painter,
+                    view.rect_to_screen(origin, *bounds),
+                    svg,
+                    *opacity * emphasis.opacity,
+                );
             }
         }
     }
 }
 
-fn paint_text(painter: &Painter, origin: Pos2, view: &Viewport, run: &TextRun, bundled: bool) {
+fn paint_text(
+    painter: &Painter,
+    origin: Pos2,
+    view: &Viewport,
+    run: &TextRun,
+    bundled: bool,
+    color: Color32,
+) {
     let size = run.size as f32 * view.zoom;
     if size < 2.0 {
         return; // unreadable at this zoom; skip the work
@@ -199,7 +300,7 @@ fn paint_text(painter: &Painter, origin: Pos2, view: &Viewport, run: &TextRun, b
             continue;
         }
         let top = view.to_screen(origin, Point::new(line.x, line.baseline - ascent));
-        painter.text(top, align, &line.text, font.clone(), color32(run.color));
+        painter.text(top, align, &line.text, font.clone(), color);
     }
 }
 
@@ -337,12 +438,10 @@ fn paint_stroke(
     view: &Viewport,
     path: &BezPath,
     stroke: &SceneStroke,
+    color: Color32,
     tolerance: f64,
 ) {
-    let egui_stroke = Stroke::new(
-        (stroke.width as f32 * view.zoom).max(0.5),
-        color32(stroke.color),
-    );
+    let egui_stroke = Stroke::new((stroke.width as f32 * view.zoom).max(0.5), color);
     let dashed;
     let path = match stroke.dash {
         Some([on, off]) => {
@@ -388,6 +487,162 @@ pub fn paint_grid(painter: &Painter, origin: Pos2, view: &Viewport, spacing: f64
 #[cfg(test)]
 mod tests {
     use super::*;
+    use bp_scene::{DisplayItem, PlacedLine};
+
+    fn emphasis_fixture() -> (ElementId, DisplayList) {
+        let id = ElementId::new();
+        let mut path = BezPath::new();
+        path.move_to((10.0, 10.0));
+        path.line_to((100.0, 10.0));
+        let bounds = kurbo::Rect::new(0.0, 0.0, 120.0, 50.0);
+        (
+            id,
+            DisplayList {
+                groups: vec![Arc::from(vec![
+                    DisplayItem {
+                        element: id,
+                        bbox: bounds,
+                        primitive: Primitive::Path {
+                            path,
+                            fill: None,
+                            stroke: Some(SceneStroke {
+                                color: Color::BLACK,
+                                width: 1.0,
+                                dash: None,
+                            }),
+                        },
+                    },
+                    DisplayItem {
+                        element: id,
+                        bbox: bounds,
+                        primitive: Primitive::Text(TextRun {
+                            lines: vec![PlacedLine {
+                                text: "parent_id".into(),
+                                x: 10.0,
+                                baseline: 35.0,
+                                width: 80.0,
+                            }],
+                            face: Face::Regular,
+                            size: 13.0,
+                            color: Color::BLACK,
+                            align: TextAlign::Left,
+                        }),
+                    },
+                ])],
+                background: None,
+            },
+        )
+    }
+
+    fn painted(
+        list: &DisplayList,
+        presentation: &HashMap<ElementId, ElementPresentation>,
+    ) -> Vec<egui::epaint::ClippedShape> {
+        let ctx = egui::Context::default();
+        ctx.begin_pass(egui::RawInput::default());
+        let painter = ctx.layer_painter(egui::LayerId::new(
+            egui::Order::Middle,
+            egui::Id::new("erd-emphasis-test"),
+        ));
+        paint_with_presentation(
+            &painter,
+            Pos2::ZERO,
+            &Viewport::default(),
+            list,
+            None,
+            presentation,
+        );
+        let mut output = ctx.end_pass();
+        output.textures_delta.clear();
+        output.shapes
+    }
+
+    #[test]
+    fn temporary_emphasis_changes_stroke_and_label_colors_without_changing_scene_items() {
+        let (id, list) = emphasis_fixture();
+        let items: Vec<_> = list.items().cloned().collect();
+        let normal = painted(&list, &HashMap::new());
+        let faded = painted(
+            &list,
+            &HashMap::from([(
+                id,
+                ElementPresentation {
+                    opacity: 0.25,
+                    ..ElementPresentation::default()
+                },
+            )]),
+        );
+        let accent = Color::rgb(37, 99, 235);
+        let focused = painted(
+            &list,
+            &HashMap::from([(
+                id,
+                ElementPresentation {
+                    accent: Some(accent),
+                    ..ElementPresentation::default()
+                },
+            )]),
+        );
+        for (shapes, expected) in [
+            (&normal, Color32::BLACK),
+            (&faded, color32(Color::BLACK.faded(0.25))),
+            (&focused, color32(accent)),
+        ] {
+            let path = shapes
+                .iter()
+                .find_map(|shape| match &shape.shape {
+                    Shape::Path(path) => Some(path),
+                    _ => None,
+                })
+                .unwrap();
+            assert_eq!(path.stroke.color, egui::epaint::ColorMode::Solid(expected));
+            let text = shapes
+                .iter()
+                .find_map(|shape| match &shape.shape {
+                    Shape::Text(text) => Some(text),
+                    _ => None,
+                })
+                .unwrap();
+            assert_eq!(text.galley.job.sections[0].format.color, expected);
+            assert_eq!(
+                path.points.len(),
+                2,
+                "emphasis does not add or reroute line segments"
+            );
+        }
+        assert_eq!(list.items().cloned().collect::<Vec<_>>(), items);
+    }
+
+    #[test]
+    fn row_background_is_painted_before_unchanged_text() {
+        let (id, list) = emphasis_fixture();
+        let shapes = painted(
+            &list,
+            &HashMap::from([(
+                id,
+                ElementPresentation {
+                    text_backgrounds: vec![(
+                        kurbo::Rect::new(0.0, 16.0, 120.0, 45.0),
+                        Color::rgba(37, 99, 235, 33),
+                    )],
+                    ..ElementPresentation::default()
+                },
+            )]),
+        );
+        let background = shapes
+            .iter()
+            .position(|shape| matches!(&shape.shape, Shape::Rect(_)))
+            .unwrap();
+        let text = shapes
+            .iter()
+            .position(|shape| matches!(&shape.shape, Shape::Text(_)))
+            .unwrap();
+        assert!(background < text);
+        let Shape::Text(text) = &shapes[text].shape else {
+            unreachable!()
+        };
+        assert_eq!(text.galley.job.sections[0].format.color, Color32::BLACK);
+    }
 
     #[test]
     fn screen_and_page_round_trip() {

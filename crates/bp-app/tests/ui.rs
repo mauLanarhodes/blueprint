@@ -1829,3 +1829,89 @@ fn sql_foreign_key_swap_preserves_schema_and_mapping_editor_follows_owner() {
     app(&mut h).undo();
     assert_eq!(app(&mut h).doc, swapped);
 }
+
+#[test]
+fn auto_arrange_erd_menu_fits_all_tables_and_undoes_once() {
+    let mut h = harness_for(DiagramKind::Erd);
+    h.get_by_label("Arrange").click();
+    h.run();
+    assert!(
+        h.get_by_label("Auto-arrange ERD")
+            .accesskit_node()
+            .is_disabled()
+    );
+    h.key_press(Key::Escape);
+    h.run();
+    let a = add_shape(
+        &mut h,
+        "erd/table",
+        Rect::new(1600.0, 1600.0, 1880.0, 1730.0),
+    );
+    let b = add_shape(
+        &mut h,
+        "erd/table",
+        Rect::new(1630.0, 1620.0, 1910.0, 1750.0),
+    );
+    let before = app(&mut h).doc.clone();
+    h.get_by_label("Arrange").click();
+    h.run();
+    assert!(
+        !h.get_by_label("Auto-arrange ERD")
+            .accesskit_node()
+            .is_disabled()
+    );
+    h.get_by_label("Auto-arrange ERD").click();
+    h.run();
+    assert_eq!(app(&mut h).history.undo_label(), Some("Auto-arrange ERD"));
+    let after = app(&mut h).doc.clone();
+    assert_ne!(after, before);
+    let left = bounds(&mut h, a);
+    let right = bounds(&mut h, b);
+    assert!(
+        left.x1 <= right.x0 || right.x1 <= left.x0 || left.y1 <= right.y0 || right.y1 <= left.y0
+    );
+    let blueprint = app(&mut h);
+    let scene_bounds = blueprint.scene.bounds().unwrap();
+    let screen = blueprint
+        .view
+        .rect_to_screen(blueprint.canvas_rect.min, scene_bounds);
+    assert!(blueprint.canvas_rect.shrink(35.0).contains_rect(screen));
+    blueprint.undo();
+    h.run();
+    assert_eq!(app(&mut h).doc, before);
+    app(&mut h).redo();
+    h.run();
+    assert_eq!(app(&mut h).doc, after);
+}
+
+#[test]
+fn selecting_composite_relationship_shows_all_mapping_rows_without_document_changes() {
+    let mut h = harness_for(DiagramKind::Erd);
+    app(&mut h).paste_sql_schema();
+    app(&mut h).sql.import.as_mut().unwrap().source = "CREATE TABLE parent (tenant integer, id integer, PRIMARY KEY (tenant,id)); CREATE TABLE child (tenant integer, parent_id integer, FOREIGN KEY (tenant,parent_id) REFERENCES parent(tenant,id));".into();
+    app(&mut h).preview_sql_import();
+    assert!(app(&mut h).apply_sql_import());
+    let id = app(&mut h)
+        .doc
+        .elements
+        .values()
+        .find(|element| element.as_connector().is_some())
+        .unwrap()
+        .id;
+    let before = app(&mut h).doc.clone();
+    app(&mut h).selection = vec![id];
+    h.run();
+    assert!(h.query_by_label("Foreign key mapping").is_some());
+    assert!(h.query_by_label("child.tenant → parent.tenant").is_some());
+    assert!(h.query_by_label("child.parent_id → parent.id").is_some());
+    assert_eq!(
+        app(&mut h)
+            .erd_focus()
+            .columns
+            .values()
+            .map(|columns| columns.len())
+            .sum::<usize>(),
+        4
+    );
+    assert_eq!(app(&mut h).doc, before);
+}

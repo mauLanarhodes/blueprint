@@ -19,6 +19,29 @@ same element and column IDs.
 
 Try the [orders SQL example](../examples/orders.sql) for schema-qualified
 tables, composite keys, a late foreign key and a partial ordered index.
+The [retail SQL example](../examples/retail.sql) provides a larger diagram
+with 30 tables and 44 foreign keys, including a self-reference and a composite
+reference.
+
+Imports arrange tables by their relationships rather than script order.
+Referenced tables appear to the left of dependent tables, cycles stay
+together, and disconnected groups are placed separately. All columns remain
+visible. Import into an existing page places the new diagram beside existing
+tables without moving them.
+
+Use **Arrange → Auto-arrange ERD** to reorganize the visible editable tables
+of an existing ERD page. Locked tables stay fixed and hidden layers stay
+hidden. The command resets affected editable connection routes and fits the
+complete diagram; undo restores the previous positions and routes together.
+Orthogonal connections avoid visible shapes and use separate corridors where
+possible. Layout uses the same measured table sizes as the canvas and SVG
+export, so large defaults and long column names do not overlap nearby tables.
+
+Select a table to emphasize its direct relationships and neighboring tables.
+Unrelated connections fade while table text stays readable. Selecting a
+relationship highlights every mapped foreign-key column, including composite
+keys, and the inspector shows its mapping. These selection effects are only
+editor overlays; SVG exports retain the ordinary diagram styling.
 
 The source script is read without modification. Import does not change the
 project's save path. Table names, columns, types, flags, nullability and

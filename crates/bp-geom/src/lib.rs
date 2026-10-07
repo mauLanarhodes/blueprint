@@ -12,7 +12,7 @@ pub use path::{
     distance_to_path, distance_to_polyline, polyline_length, polyline_point_at, ray_exit,
     simplify_polyline,
 };
-pub use route::{Route, Terminal, route_orthogonal};
+pub use route::{ROUTE_LANE_GAP, Route, Terminal, route_orthogonal, route_orthogonal_with_routes};
 pub use snap::{Axis, Features, Guide, SnapResult, snap_point, snap_rect};
 
 use kurbo::Vec2;

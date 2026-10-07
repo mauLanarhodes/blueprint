@@ -9,6 +9,8 @@ license.workspace = true
 [dependencies]
 bp-commands.workspace = true
 bp-model.workspace = true
+bp-scene.workspace = true
+bp-shapes.workspace = true
 serde.workspace = true
 sqlparser = { version = "0.62", features = ["visitor"] }
 
