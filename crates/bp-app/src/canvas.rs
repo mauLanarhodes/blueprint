@@ -184,18 +184,27 @@ impl BlueprintApp {
         let ctx = ui.ctx().clone();
         let origin = response.rect.min;
         self.canvas_rect = response.rect;
+        self.floating_toolbar(&ctx);
 
         if self.fit_requested {
             self.fit_requested = false;
             self.refresh_scene();
+            let mut fit_rect = response.rect;
+            if response.rect.contains_rect(self.workspace.tool_rect) {
+                fit_rect.max.y =
+                    (self.workspace.tool_rect.top() - 12.0).max(response.rect.top() + 100.0);
+            }
             match self.scene.bounds() {
-                Some(bounds) => self.view.fit(response.rect, bounds, 48.0),
+                Some(bounds) => self.view.fit(fit_rect, bounds, 48.0),
                 None => self.view = bp_render_egui::Viewport::default(),
             }
         }
 
         // Scrolling pans; Ctrl/Cmd + scroll or a pinch zooms.
-        if response.hovered() {
+        let owns_pointer = ctx
+            .input(|input| input.pointer.interact_pos())
+            .is_some_and(|pos| ctx.layer_id_at(pos) == Some(response.layer_id));
+        if response.hovered() && owns_pointer {
             let (zoom, scroll, hover) = ctx.input(|i| {
                 (
                     i.zoom_delta(),
@@ -215,7 +224,9 @@ impl BlueprintApp {
             .or(response.interact_pointer_pos())
             .map(|p| self.view.to_page(origin, p));
 
-        self.pointer_input(&ctx, &response, origin);
+        if owns_pointer || self.drag.is_active() {
+            self.pointer_input(&ctx, &response, origin);
+        }
         self.palette_drop(&ctx, &response, origin);
         self.refresh_scene();
 

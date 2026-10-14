@@ -589,8 +589,83 @@ fn shapes(h: &mut Ui) -> Vec<ElementId> {
         .collect()
 }
 
-fn tool_strip_rect(h: &Ui) -> egui::Rect {
+fn floating_toolbar_rect(h: &Ui) -> egui::Rect {
     h.state().as_ref().unwrap().workspace.tool_rect
+}
+
+fn floating_control(h: &Ui, label: &str) -> egui::Rect {
+    let toolbar = floating_toolbar_rect(h);
+    h.get_all_by_label(label)
+        .find(|node| {
+            toolbar.contains_rect(node.rect())
+                && node.accesskit_node().role() == egui::accesskit::Role::Button
+        })
+        .unwrap_or_else(|| panic!("floating toolbar offers {label}"))
+        .rect()
+}
+
+#[test]
+fn floating_toolbar_actions_and_compact_menu_use_real_editor_state() {
+    let mut h = harness();
+    let before = app(&mut h).doc.clone();
+    let a = add_shape(
+        &mut h,
+        "basic/rectangle",
+        Rect::new(80.0, 80.0, 200.0, 140.0),
+    );
+    let inserted = app(&mut h).doc.clone();
+    let at = floating_control(&h, "Undo").center();
+    click(&mut h, at);
+    assert_eq!(app(&mut h).doc, before);
+    let at = floating_control(&h, "Redo").center();
+    click(&mut h, at);
+    assert_eq!(app(&mut h).doc, inserted);
+    let zoom = app(&mut h).view.zoom;
+    let at = floating_control(&h, "Zoom out").center();
+    click(&mut h, at);
+    assert!(app(&mut h).view.zoom < zoom);
+    let at = floating_control(&h, "Actual size").center();
+    click(&mut h, at);
+    assert_eq!(app(&mut h).view.zoom, 1.0);
+    let b = add_shape(
+        &mut h,
+        "basic/ellipse",
+        Rect::new(320.0, 80.0, 440.0, 140.0),
+    );
+    app(&mut h).selection = vec![a, b];
+    app(&mut h).group_selection();
+    let group = app(&mut h).selection[0];
+    app(&mut h).scope = Some(group);
+    app(&mut h).selection = vec![a];
+    h.run();
+    let document = app(&mut h).doc.clone();
+    let at = floating_control(&h, "Leave group").center();
+    click(&mut h, at);
+    assert_eq!(app(&mut h).scope, None);
+    assert_eq!(app(&mut h).selection, vec![group]);
+    h.set_size(egui::vec2(760.0, 480.0));
+    h.run();
+    let toolbar = floating_toolbar_rect(&h);
+    h.get_all_by_label_contains("More")
+        .find(|node| toolbar.contains_rect(node.rect()))
+        .unwrap()
+        .click();
+    h.run();
+    let snap = app(&mut h).settings.snap_to_grid;
+    h.get_all_by_label("Snap to grid")
+        .find(|node| node.accesskit_node().role() == egui::accesskit::Role::Button)
+        .unwrap()
+        .click();
+    h.run();
+    assert_eq!(app(&mut h).settings.snap_to_grid, !snap);
+    assert_eq!(app(&mut h).doc, document);
+    h.key_press(Key::Escape);
+    h.run();
+    let at = floating_control(&h, "Zoom to fit (Shift+1)").center();
+    click(&mut h, at);
+    let canvas = app(&mut h).canvas_rect;
+    assert!(canvas.contains_rect(floating_toolbar_rect(&h)));
+    assert_eq!(app(&mut h).doc, document);
 }
 
 fn library_has(h: &Ui, label: &str) -> bool {
@@ -661,11 +736,10 @@ fn drawing_tools_and_docks_stay_inside_the_window_after_resize() {
                 "docks preserve a useful canvas: {canvas:?}"
             );
             assert!(canvas.height() >= 239.0);
-            assert!(!canvas.shrink(1.0).intersects(app.workspace.tool_rect));
+            assert!(canvas.contains_rect(app.workspace.tool_rect));
             assert!(!canvas.shrink(1.0).intersects(app.workspace.left_rect));
             assert!(!canvas.shrink(1.0).intersects(app.workspace.right_rect));
-            // build_ui_state adds an eight-point test-only outer margin.
-            assert!((app.workspace.tool_rect.left() - screen.left() - 8.0).abs() <= 1.0);
+            assert!((app.workspace.tool_rect.center().x - canvas.center().x).abs() <= 1.0);
         }
     }
 }
@@ -673,7 +747,7 @@ fn drawing_tools_and_docks_stay_inside_the_window_after_resize() {
 #[test]
 fn drawing_tool_places_a_shape_on_the_canvas() {
     let mut h = harness();
-    let strip = tool_strip_rect(&h);
+    let strip = floating_toolbar_rect(&h);
     h.get_all_by_label("Rectangle")
         .into_iter()
         .find(|node| strip.contains_rect(node.rect()))
@@ -817,12 +891,12 @@ fn canvas_pan_and_zoom_keep_the_anchor_after_dock_changes() {
 fn docks_reject_palette_drops_but_canvas_accepts_them() {
     let mut h = harness();
     let source = library_rect(&mut h, "Rectangle").center();
-    let dock = tool_strip_rect(&h);
+    let dock = floating_toolbar_rect(&h);
     let padding = dock.min + egui::vec2(3.0, 3.0);
     drag(&mut h, source, padding);
     assert!(
         shapes(&mut h).is_empty(),
-        "tool strip is not a shape drop target: dock={dock:?}, padding={padding:?}, layer={:?}",
+        "floating toolbar is not a shape drop target: dock={dock:?}, padding={padding:?}, layer={:?}",
         h.ctx.layer_id_at(padding)
     );
     assert!(app(&mut h).palette.dragging.is_none());
@@ -1591,7 +1665,11 @@ fn erd_palette_presets_draw_the_chosen_markers_and_update_the_action_bar() {
             "choosing a preset does not draw on the canvas"
         );
         let indicator_label = format!("ERD connection: {label}");
-        let indicator = h.get_by_label(indicator_label.as_str());
+        let top = h.state().as_ref().unwrap().canvas_rect.top();
+        let indicator = h
+            .get_all_by_label(indicator_label.as_str())
+            .find(|node| node.rect().bottom() <= top)
+            .unwrap();
         assert!(h.ctx.content_rect().contains_rect(indicator.rect()));
         assert!(
             indicator.rect().bottom() <= app(&mut h).canvas_rect.top(),
@@ -1644,7 +1722,8 @@ fn connection_shortcuts_cycle_erd_presets_without_changing_existing_lines() {
         assert_eq!(app(&mut h).erd_connection, preset);
         assert_eq!(app(&mut h).tool, Tool::Connector);
         assert!(
-            h.query_by_label(format!("ERD connection: {label}").as_str())
+            h.query_all_by_label(format!("ERD connection: {label}").as_str())
+                .next()
                 .is_some()
         );
         assert_eq!(app(&mut h).doc, before);
@@ -1676,7 +1755,11 @@ fn connection_shortcuts_cycle_erd_presets_without_changing_existing_lines() {
     app(&mut h).set_page(erd);
     h.run();
     assert_eq!(app(&mut h).erd_connection, ErdConnection::OneOrMany);
-    assert!(h.query_by_label("ERD connection: One or many").is_some());
+    assert!(
+        h.query_all_by_label("ERD connection: One or many")
+            .next()
+            .is_some()
+    );
 }
 
 #[test]
@@ -1718,7 +1801,11 @@ fn erd_connection_symbols_explain_cardinality_and_the_toolbar_can_choose_a_type(
         "hovering a symbol explains its cardinality"
     );
     let before = app(&mut h).doc.clone();
-    h.get_by_label("ERD connection: Exactly one").click();
+    let top = h.state().as_ref().unwrap().canvas_rect.top();
+    h.get_all_by_label("ERD connection: Exactly one")
+        .find(|node| node.rect().bottom() <= top)
+        .unwrap()
+        .click();
     h.run();
     let library = app(&mut h).workspace.left_rect;
     h.get_all_by_label("Zero or one")
@@ -1730,7 +1817,11 @@ fn erd_connection_symbols_explain_cardinality_and_the_toolbar_can_choose_a_type(
     assert_eq!(app(&mut h).erd_connection, ErdConnection::ZeroOrOne);
     assert_eq!(app(&mut h).tool, Tool::Connector);
     assert_eq!(app(&mut h).doc, before);
-    assert!(h.query_by_label("ERD connection: Zero or one").is_some());
+    assert!(
+        h.query_all_by_label("ERD connection: Zero or one")
+            .next()
+            .is_some()
+    );
 }
 
 #[test]

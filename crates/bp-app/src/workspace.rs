@@ -98,13 +98,6 @@ impl BlueprintApp {
             .resizable(false)
             .frame(Frame::side_top_panel(ui.style()).inner_margin(Margin::symmetric(8, 0)))
             .show(ui, |ui| self.status_bar(ui));
-        let tools = Panel::left("tool_strip")
-            .exact_size(56.0)
-            .resizable(false)
-            .frame(Frame::side_top_panel(ui.style()).inner_margin(Margin::symmetric(8, 8)))
-            .show(ui, |ui| self.tool_strip(ui));
-        self.workspace.tool_rect = tools.response.rect;
-
         let available = ui.available_width();
         let mut left = self.preferences.left_open;
         let mut right = self.preferences.right_open;

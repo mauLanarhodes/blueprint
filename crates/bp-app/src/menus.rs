@@ -245,6 +245,13 @@ impl BlueprintApp {
                         ui.label(RichText::new("/").weak());
                         ui.add(egui::Label::new(RichText::new(&page.name).weak()).truncate());
                     }
+                    if crate::widgets::icon_button(ui, icon::PLUS, "New page").clicked() {
+                        if let Some(kind) = self.page_kind() {
+                            self.add_page_with_kind(kind);
+                        } else {
+                            self.request_add_page();
+                        }
+                    }
                 },
             );
             ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
@@ -340,40 +347,161 @@ impl BlueprintApp {
         }
     }
 
-    pub(crate) fn tool_strip(&mut self, ui: &mut Ui) {
-        egui::ScrollArea::vertical()
-            .id_salt("drawing_tools")
-            .show(ui, |ui| {
-                ui.spacing_mut().item_spacing.y = 4.0;
-                for (tool, glyph, label, key) in self.available_tools() {
-                    let response = ui.add(
-                        Button::new(crate::theme::icon(glyph).size(20.0))
-                            .selected(self.tool == tool)
-                            .min_size(egui::vec2(40.0, 40.0)),
-                    );
-                    response.widget_info(|| {
-                        egui::WidgetInfo::labeled(egui::WidgetType::Button, true, label)
-                    });
-                    crate::widgets::focus_outline(ui, &response);
-                    crate::widgets::command_focus(ui, &response);
-                    if response
-                        .on_hover_text(format!("{label} ({})", key.name()))
-                        .clicked()
-                    {
-                        self.finish_inline_edits();
-                        self.cancel_drag();
-                        self.tool = tool;
-                    }
-                }
-                ui.separator();
-                if let Some(scope) = self.scope
-                    && crate::widgets::icon_button(ui, icon::ARROW_BEND_UP_LEFT, "Leave group")
-                        .clicked()
+    pub(crate) fn floating_toolbar(&mut self, ctx: &egui::Context) {
+        self.workspace.tool_rect = egui::Rect::NOTHING;
+        if self.page_kind().is_none()
+            || self.pending.is_some()
+            || self.error.is_some()
+            || self.page_choice.is_some()
+            || self.cloud.manager_open
+            || self.deployment.open
+            || self.sql.is_open()
+        {
+            return;
+        }
+        let id = egui::Id::new("floating_toolbar");
+        let previous = ctx.memory(|memory| memory.area_rect(id).map(|rect| rect.size()));
+        let width = (self.canvas_rect.width() - 24.0).max(0.0);
+        let size = previous.unwrap_or(egui::vec2(width, 48.0));
+        let position = egui::pos2(
+            self.canvas_rect.center().x - size.x.min(width) * 0.5,
+            self.canvas_rect.bottom() - 32.0 - size.y,
+        );
+        let response = egui::Area::new(id)
+            .order(egui::Order::Foreground)
+            .sense(egui::Sense::click_and_drag())
+            .movable(false)
+            .fixed_pos(position)
+            .constrain_to(self.canvas_rect.shrink2(egui::vec2(12.0, 0.0)))
+            .default_width(width)
+            .show(ctx, |ui| {
+                ui.set_max_width(width);
+                egui::Frame::new()
+                    .fill(ui.visuals().panel_fill)
+                    .stroke(ui.visuals().window_stroke)
+                    .corner_radius(12)
+                    .inner_margin(8)
+                    .shadow(egui::Shadow {
+                        offset: [0, 4],
+                        blur: 12,
+                        spread: 0,
+                        color: egui::Color32::from_black_alpha(72),
+                    })
+                    .show(ui, |ui| self.floating_toolbar_controls(ui));
+            });
+        self.workspace.tool_rect = response.response.rect;
+        if previous != Some(response.response.rect.size()) {
+            ctx.request_repaint();
+        }
+    }
+
+    fn floating_toolbar_controls(&mut self, ui: &mut Ui) {
+        let compact = self.canvas_rect.width() < 680.0;
+        ui.horizontal_wrapped(|ui| {
+            ui.spacing_mut().item_spacing.x = 2.0;
+            for (tool, glyph, label, key) in self.available_tools() {
+                let response = ui.add(
+                    Button::new(crate::theme::icon(glyph).size(18.0))
+                        .selected(self.tool == tool)
+                        .min_size(egui::vec2(28.0, 28.0)),
+                );
+                response.widget_info(|| {
+                    egui::WidgetInfo::labeled(egui::WidgetType::Button, true, label)
+                });
+                crate::widgets::focus_outline(ui, &response);
+                crate::widgets::command_focus(ui, &response);
+                if response
+                    .on_hover_text(format!("{label} ({})", key.name()))
+                    .clicked()
                 {
-                    self.scope = None;
-                    self.select_only(scope);
+                    self.finish_inline_edits();
+                    self.cancel_drag();
+                    self.tool = tool;
+                }
+            }
+            ui.separator();
+            ui.add_enabled_ui(self.history.can_undo(), |ui| {
+                if crate::widgets::icon_button(ui, icon::ARROW_U_UP_LEFT, "Undo").clicked() {
+                    self.undo();
                 }
             });
+            ui.add_enabled_ui(self.history.can_redo(), |ui| {
+                if crate::widgets::icon_button(ui, icon::ARROW_U_UP_RIGHT, "Redo").clicked() {
+                    self.redo();
+                }
+            });
+            ui.separator();
+            if crate::widgets::icon_button(ui, icon::MAGNIFYING_GLASS_MINUS, "Zoom out").clicked() {
+                self.zoom_by(0.8);
+            }
+            let actual = ui.button(format!("{:.0}%", self.view.zoom * 100.0));
+            actual.widget_info(|| {
+                egui::WidgetInfo::labeled(egui::WidgetType::Button, true, "Actual size")
+            });
+            crate::widgets::command_focus(ui, &actual);
+            crate::widgets::focus_outline(ui, &actual);
+            if actual.on_hover_text("Actual size").clicked() {
+                self.zoom_by(1.0 / self.view.zoom);
+            }
+            if crate::widgets::icon_button(ui, icon::MAGNIFYING_GLASS_PLUS, "Zoom in").clicked() {
+                self.zoom_by(1.25);
+            }
+            if crate::widgets::icon_button(ui, icon::CORNERS_OUT, "Zoom to fit (Shift+1)").clicked()
+            {
+                self.fit_requested = true;
+            }
+            ui.separator();
+            if compact {
+                let menu = ui.menu_button("More", |ui| self.floating_toolbar_secondary(ui));
+                crate::widgets::command_focus(ui, &menu.response);
+                crate::widgets::focus_outline(ui, &menu.response);
+            } else {
+                self.floating_toolbar_secondary(ui);
+            }
+        });
+    }
+
+    fn floating_toolbar_secondary(&mut self, ui: &mut Ui) {
+        if self.page_kind() == Some(bp_model::DiagramKind::Erd) {
+            self.erd_connection_toolbar(ui);
+        }
+        for (glyph, label, selected, grid) in [
+            (
+                icon::GRID_FOUR,
+                "Snap to grid",
+                self.settings.snap_to_grid,
+                true,
+            ),
+            (
+                icon::MAGNET,
+                "Smart guides",
+                self.settings.snap_to_shapes,
+                false,
+            ),
+        ] {
+            let response =
+                ui.add(Button::new(crate::theme::icon(glyph).size(18.0)).selected(selected));
+            response.widget_info(|| {
+                egui::WidgetInfo::selected(egui::WidgetType::Button, true, selected, label)
+            });
+            crate::widgets::command_focus(ui, &response);
+            crate::widgets::focus_outline(ui, &response);
+            if response.on_hover_text(label).clicked() {
+                if grid {
+                    self.settings.snap_to_grid = !selected;
+                } else {
+                    self.settings.snap_to_shapes = !selected;
+                }
+            }
+        }
+        if let Some(scope) = self.scope
+            && crate::widgets::icon_button(ui, icon::ARROW_BEND_UP_LEFT, "Leave group").clicked()
+        {
+            self.finish_inline_edits();
+            self.cancel_drag();
+            self.scope = None;
+            self.select_only(scope);
+        }
     }
 
     pub fn status_bar(&mut self, ui: &mut Ui) {

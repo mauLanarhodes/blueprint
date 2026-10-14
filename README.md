@@ -99,7 +99,7 @@ Set `BLUEPRINT_RENDERER=glow` or `=wgpu` to force one.
 ## Desktop workspace
 
 Blueprint opens with a dark, docked workspace; **View → Theme** also offers Light.
-The vertical strip keeps the drawing tools and their existing shortcuts. The
+The floating toolbar keeps drawing tools, undo/redo, zoom/fit and snapping controls. The
 status bar holds zoom/fit, saved/modified state, and editing feedback.
 
 The left dock switches between **Library** and **Navigator**. Library provides
