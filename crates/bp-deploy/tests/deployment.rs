@@ -1,10 +1,13 @@
-use bp_deploy::{Configuration, Terraform, configuration};
+#[cfg(unix)]
+use bp_deploy::Terraform;
+use bp_deploy::{Configuration, configuration};
 use bp_model::kurbo::Rect;
 use bp_model::{
     AwsDeployment, AwsResource, DiagramKind, Document, Element, ElementId, OrderKey, Parent,
     ShapeRef,
 };
 use serde_json::{Value, json};
+#[cfg(unix)]
 use std::path::PathBuf;
 
 fn network() -> (Document, ElementId, ElementId) {
@@ -182,7 +185,9 @@ fn labels_and_profiles_are_literals_and_configuration_survives_both_formats() {
     }
 }
 
+#[cfg(unix)]
 struct Scratch(PathBuf);
+#[cfg(unix)]
 impl Scratch {
     fn new() -> Self {
         let path = std::env::temp_dir().join(format!("blueprint-deploy-test-{}", ElementId::new()));
@@ -190,6 +195,7 @@ impl Scratch {
         Self(path)
     }
 }
+#[cfg(unix)]
 impl Drop for Scratch {
     fn drop(&mut self) {
         let _ = std::fs::remove_dir_all(&self.0);
