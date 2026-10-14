@@ -121,6 +121,20 @@ impl BlueprintApp {
                 }
             }
         }
+        if let Some((table, column)) = self.workspace.selected_column
+            && table_ids.contains(&table)
+            && selected.contains(&table)
+            && self
+                .doc
+                .elements
+                .get(&table)
+                .and_then(|element| element.as_shape())
+                .and_then(|shape| shape.erd.as_ref())
+                .is_some_and(|data| data.column(column).is_some())
+        {
+            focus.active = true;
+            focus.columns.entry(table).or_default().insert(column);
+        }
         focus
     }
 
@@ -244,6 +258,36 @@ mod tests {
         assert_eq!(app.doc, before);
         app.selection.clear();
         assert!(app.erd_presentation(&app.erd_focus()).is_empty());
+    }
+
+    #[test]
+    fn selected_column_highlights_its_stable_row_without_editing_the_document() {
+        let mut app = imported();
+        let element = app
+            .doc
+            .elements
+            .values()
+            .find(|element| element.text() == Some("child"))
+            .unwrap();
+        let table = element.id;
+        let column = element.as_shape().unwrap().erd.as_ref().unwrap().columns[0].id;
+        app.selection = vec![table];
+        app.workspace.selected_column = Some((table, column));
+        let before = app.doc.clone();
+        let revision = app.history.revision();
+        let focus = app.erd_focus();
+        assert_eq!(focus.columns[&table], BTreeSet::from([column]));
+        assert_eq!(
+            app.erd_presentation(&focus)[&table].text_backgrounds.len(),
+            1
+        );
+        assert_eq!(app.doc, before);
+        assert_eq!(app.history.revision(), revision);
+        app.selection.clear();
+        assert!(
+            !app.erd_focus().active,
+            "a stale row target must not highlight an unselected table"
+        );
     }
 
     #[test]

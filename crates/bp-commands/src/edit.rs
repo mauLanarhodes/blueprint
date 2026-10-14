@@ -578,7 +578,12 @@ impl Clip {
                 }
             }
             match &mut element.kind {
-                ElementKind::Shape(s) => s.bounds = shift.transform_rect_bbox(s.bounds),
+                ElementKind::Shape(s) => {
+                    s.bounds = shift.transform_rect_bbox(s.bounds);
+                    if let Some(resource) = &mut s.infrastructure {
+                        resource.remap(&fresh);
+                    }
+                }
                 ElementKind::Connector(c) => {
                     for end in [&mut c.source, &mut c.target] {
                         match end {

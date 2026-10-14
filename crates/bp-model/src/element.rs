@@ -251,6 +251,8 @@ pub struct Shape {
     pub style: Style,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub erd: Option<ErdTable>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub infrastructure: Option<crate::AwsResource>,
 }
 
 /// A line between two endpoints. Its route is derived on every load, so
@@ -362,6 +364,7 @@ impl Element {
                 text,
                 style: Style::default(),
                 erd,
+                infrastructure: None,
             }),
         )
     }

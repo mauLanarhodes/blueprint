@@ -6,7 +6,7 @@ use serde::{Deserialize, Serialize};
 use std::collections::{BTreeMap, HashMap, HashSet};
 
 /// Bumped for incompatible format changes; `bp-io` migrates older files.
-pub const SCHEMA_VERSION: u32 = 5;
+pub const SCHEMA_VERSION: u32 = 6;
 
 /// The tools and shape libraries a page presents in the editor.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
@@ -37,6 +37,8 @@ pub struct Page {
     /// `None` keeps legacy pages unclassified until their kind is chosen.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub diagram_kind: Option<DiagramKind>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub deployment: Option<crate::AwsDeployment>,
 }
 
 impl Page {
@@ -47,6 +49,7 @@ impl Page {
             order,
             background: Color::WHITE,
             diagram_kind: None,
+            deployment: None,
         }
     }
 }

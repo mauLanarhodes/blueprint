@@ -29,7 +29,11 @@ fn main() -> eframe::Result {
         result = eframe::run_native(
             "Blueprint",
             options,
-            Box::new(move |cc| Ok(Box::new(bp_app::BlueprintApp::new(&cc.egui_ctx, file)))),
+            Box::new(move |cc| {
+                Ok(Box::new(bp_app::BlueprintApp::from_creation_context(
+                    cc, file,
+                )))
+            }),
         );
         match &result {
             Ok(()) => return Ok(()),

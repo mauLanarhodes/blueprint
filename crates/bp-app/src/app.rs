@@ -15,6 +15,7 @@ use bp_shapes::Libraries;
 use egui::{Key, ViewportCommand};
 use egui_phosphor::regular as icon;
 use std::collections::HashMap;
+use std::collections::HashSet;
 use std::path::{Path, PathBuf};
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -139,8 +140,12 @@ pub struct BlueprintApp {
     pub pointer: Option<Point>,
     pub fit_requested: bool,
     pub settings: Settings,
+    pub preferences: crate::preferences::WorkspacePreferences,
+    pub workspace: crate::workspace::WorkspaceState,
+    fresh_pages: HashSet<PageId>,
     pub palette: PaletteState,
     pub cloud: crate::cloud::CloudState,
+    pub deployment: crate::deployment::DeploymentState,
     pub sql: crate::sql::SqlState,
     pub quick_insert: Option<QuickInsert>,
     /// The last copied clip, for duplicate and when the system clipboard
@@ -155,10 +160,46 @@ pub struct BlueprintApp {
 }
 
 impl BlueprintApp {
+    pub fn from_creation_context(cc: &eframe::CreationContext<'_>, file: Option<PathBuf>) -> Self {
+        let cloud = crate::cloud::CloudState::load();
+        let mut app = Self::new_with_workspace(
+            &cc.egui_ctx,
+            file,
+            crate::preferences::WorkspacePreferences::load(cc.storage),
+            cloud.packs,
+        );
+        app.cloud.message = cloud.message;
+        app
+    }
+
     pub fn new(ctx: &egui::Context, file: Option<PathBuf>) -> Self {
+        let cloud = crate::cloud::CloudState::load();
+        let mut app = Self::new_with_workspace(ctx, file, Default::default(), cloud.packs);
+        app.cloud.message = cloud.message;
+        app
+    }
+
+    /// Explicit startup inputs for embedding, tests and reproducible screenshots.
+    pub fn new_with_workspace(
+        ctx: &egui::Context,
+        file: Option<PathBuf>,
+        mut preferences: crate::preferences::WorkspacePreferences,
+        catalogs: Vec<bp_icons::IconPack>,
+    ) -> Self {
+        preferences.sanitize();
         crate::theme::install(ctx);
+        crate::theme::apply(ctx, preferences.theme);
+        for id in ["workspace_left", "workspace_right", "relationship_drawer"] {
+            ctx.data_mut(|data| {
+                data.remove::<egui::containers::panel::PanelState>(egui::Id::new(id))
+            });
+        }
         let mut doc = Document::new();
         let (page, layer) = first_page_and_layer(&mut doc);
+        let mut cloud = crate::cloud::CloudState::default();
+        cloud.packs = catalogs;
+        cloud.provider = preferences.cloud_provider;
+        cloud.selected_version = preferences.cloud_version.clone();
         let mut app = Self {
             doc,
             history: History::new(),
@@ -185,9 +226,22 @@ impl BlueprintApp {
             canvas_rect: egui::Rect::NOTHING,
             pointer: None,
             fit_requested: false,
-            settings: Settings::default(),
-            palette: PaletteState::default(),
-            cloud: crate::cloud::CloudState::load(),
+            settings: Settings {
+                show_grid: preferences.show_grid,
+                snap_to_grid: preferences.snap_to_grid,
+                snap_to_shapes: preferences.snap_to_shapes,
+                grid: preferences.grid,
+            },
+            palette: PaletteState {
+                recent: preferences.recent.clone(),
+                collapsed: preferences.collapsed_libraries.iter().cloned().collect(),
+                ..Default::default()
+            },
+            cloud,
+            preferences,
+            workspace: Default::default(),
+            fresh_pages: HashSet::from([page]),
+            deployment: crate::deployment::DeploymentState::default(),
             sql: crate::sql::SqlState::default(),
             quick_insert: None,
             clip: None,
@@ -231,6 +285,21 @@ impl BlueprintApp {
                             .is_some_and(|l| l.name != name.trim())
                 }
             })
+    }
+
+    pub fn workspace_preferences(&self) -> crate::preferences::WorkspacePreferences {
+        let mut prefs = self.preferences.clone();
+        prefs.show_grid = self.settings.show_grid;
+        prefs.snap_to_grid = self.settings.snap_to_grid;
+        prefs.snap_to_shapes = self.settings.snap_to_shapes;
+        prefs.grid = self.settings.grid;
+        prefs.recent = self.palette.recent.clone();
+        prefs.collapsed_libraries = self.palette.collapsed.iter().cloned().collect();
+        prefs.collapsed_libraries.sort();
+        prefs.cloud_provider = self.cloud.provider;
+        prefs.cloud_version = self.cloud.selected_version.clone();
+        prefs.sanitize();
+        prefs
     }
 
     pub fn file_name(&self) -> String {
@@ -418,13 +487,20 @@ impl BlueprintApp {
         }
         self.finish_inline_edits();
         self.cancel_drag();
-        if self.apply(
-            "Change diagram type",
-            [Command::SetPage {
+        let mut commands = vec![Command::SetPage {
+            id: self.page,
+            prop: bp_commands::PageProp::DiagramKind(Some(kind)),
+        }];
+        if self.fresh_pages.contains(&self.page)
+            && self.doc.pages[&self.page].diagram_kind.is_none()
+            && self.doc.pages[&self.page].background == bp_model::Color::WHITE
+        {
+            commands.push(Command::SetPage {
                 id: self.page,
-                prop: bp_commands::PageProp::DiagramKind(Some(kind)),
-            }],
-        ) {
+                prop: bp_commands::PageProp::Background(crate::presets::DARK_CANVAS),
+            });
+        }
+        if self.apply("Change diagram type", commands) {
             self.tool = Tool::Select;
             self.quick_insert = None;
             self.palette.query.clear();
@@ -461,6 +537,7 @@ impl BlueprintApp {
         self.page = page;
         self.layer = self.default_layer(page);
         self.selection.clear();
+        self.workspace.selected_column = None;
         self.scope = None;
         self.tool = Tool::Select;
         self.erd_connection = self
@@ -495,7 +572,10 @@ impl BlueprintApp {
 
     pub fn perform(&mut self, action: Pending) {
         match action {
-            Pending::New => self.reset(Document::new(), None),
+            Pending::New => {
+                self.reset(Document::new(), None);
+                self.fresh_pages.insert(self.page);
+            }
             Pending::Open(Some(path)) => self.open_path(&path),
             Pending::Open(None) => {
                 if let Some(path) = file_dialog().pick_file() {
@@ -509,6 +589,8 @@ impl BlueprintApp {
     fn reset(&mut self, mut doc: Document, path: Option<PathBuf>) {
         let (page, layer) = first_page_and_layer(&mut doc);
         self.doc = doc;
+        self.fresh_pages.clear();
+        self.workspace = Default::default();
         self.page = page;
         self.layer = layer;
         self.path = path;
@@ -525,6 +607,7 @@ impl BlueprintApp {
         self.palette.dragging = None;
         self.sql.import = None;
         self.sql.export = None;
+        self.deployment = crate::deployment::DeploymentState::default();
         self.tool = Tool::Select;
         self.erd_connection = ErdConnection::default();
         self.connections_by_page.clear();
@@ -632,6 +715,14 @@ impl BlueprintApp {
     // ----- Frame -----------------------------------------------------------
 
     fn handle_window_events(&mut self, ctx: &egui::Context) {
+        if self.deployment.busy() {
+            if ctx.input(|i| i.viewport().close_requested()) {
+                ctx.send_viewport_cmd(ViewportCommand::CancelClose);
+                self.status =
+                    "Wait for the infrastructure operation to finish before closing".into();
+            }
+            return;
+        }
         if ctx.input(|i| i.viewport().close_requested()) && !self.allow_close {
             self.finish_inline_edits();
             if self.is_dirty() {
@@ -674,6 +765,7 @@ impl BlueprintApp {
         }
         self.handle_window_events(&ctx);
         self.poll_cloud_import();
+        self.poll_deployment();
         if matches!(self.page_choice, Some(PageChoice::Existing(_))) {
             if self.page_kind().is_some() {
                 self.page_choice = None;
@@ -694,28 +786,16 @@ impl BlueprintApp {
             && self.error.is_none()
             && self.page_choice.is_none()
             && !self.cloud.manager_open
+            && !self.deployment.open
             && !self.sql.is_open()
         {
+            self.handle_navigation_keys(&ctx);
             self.handle_shortcuts(&ctx);
         }
         self.refresh_scene();
 
-        egui::Panel::top("menu_bar").show(ui, |ui| self.menu_bar(ui));
-        egui::Panel::bottom("status_bar").show(ui, |ui| self.status_bar(ui));
-        egui::Panel::bottom("page_tabs")
-            .frame(
-                egui::Frame::side_top_panel(ui.style()).inner_margin(egui::Margin::symmetric(8, 4)),
-            )
-            .show(ui, |ui| self.page_tabs(ui));
-        egui::Panel::left("palette")
-            .default_size(236.0)
-            .size_range(180.0..=420.0)
-            .show(ui, |ui| self.palette(ui));
-        egui::Panel::right("inspector")
-            .default_size(276.0)
-            .size_range(220.0..=480.0)
-            .show(ui, |ui| self.inspector(ui));
-        egui::CentralPanel::no_frame().show(ui, |ui| self.canvas(ui));
+        self.prune_selection();
+        self.workspace_ui(ui);
 
         self.text_editor(&ctx);
         self.quick_insert_popup(&ctx);
@@ -723,12 +803,16 @@ impl BlueprintApp {
         self.dialogs(&ctx);
         self.cloud_pack_dialog(&ctx);
         self.sql_dialogs(&ctx);
+        self.deployment_dialog(&ctx);
     }
 }
 
 impl eframe::App for BlueprintApp {
     fn ui(&mut self, ui: &mut egui::Ui, _frame: &mut eframe::Frame) {
         self.frame(ui);
+    }
+    fn save(&mut self, storage: &mut dyn eframe::Storage) {
+        self.workspace_preferences().store(storage);
     }
 }
 

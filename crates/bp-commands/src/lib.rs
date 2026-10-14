@@ -23,6 +23,7 @@ use std::time::{Duration, Instant};
 /// `None` returns the property to the shape's default.
 #[derive(Clone, Debug, PartialEq)]
 pub enum Prop {
+    Infrastructure(Option<bp_model::AwsResource>),
     Locked(bool),
     Order(OrderKey),
     Parent(Parent),
@@ -68,11 +69,13 @@ impl Prop {
                 | Prop::Shape(_)
                 | Prop::ErdTable(_)
                 | Prop::ForeignKey(_)
+                | Prop::Infrastructure(_)
         )
     }
 
     pub fn name(&self) -> &'static str {
         match self {
+            Prop::Infrastructure(_) => "infrastructure",
             Prop::Locked(_) => "locked",
             Prop::Order(_) => "order",
             Prop::Parent(_) => "parent",
@@ -109,6 +112,7 @@ impl Prop {
 
 #[derive(Clone, Debug, PartialEq)]
 pub enum PageProp {
+    Deployment(Option<bp_model::AwsDeployment>),
     Name(String),
     Order(OrderKey),
     Background(Color),
@@ -346,6 +350,9 @@ impl Command {
                     .get_mut(&id)
                     .ok_or(CommandError::MissingPage(id))?;
                 let old = match prop {
+                    PageProp::Deployment(v) => {
+                        PageProp::Deployment(replace(&mut page.deployment, v))
+                    }
                     PageProp::Name(v) => PageProp::Name(replace(&mut page.name, v)),
                     PageProp::Order(v) => PageProp::Order(replace(&mut page.order, v)),
                     PageProp::Background(v) => {
@@ -721,6 +728,10 @@ fn set_prop(element: &mut Element, prop: Prop) -> Result<Prop, CommandError> {
         }};
     }
     Ok(match prop {
+        Prop::Infrastructure(v) => match element.as_shape_mut() {
+            Some(s) => Prop::Infrastructure(replace(&mut s.infrastructure, v)),
+            None => return Err(wrong(Prop::Infrastructure(v))),
+        },
         Prop::Locked(v) => Prop::Locked(replace(&mut element.locked, v)),
         Prop::Order(v) => Prop::Order(replace(&mut element.order, v)),
         Prop::Parent(v) => Prop::Parent(replace(&mut element.parent, v)),

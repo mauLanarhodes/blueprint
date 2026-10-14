@@ -3,10 +3,13 @@
 A native desktop diagram editor for ERDs, AWS/Azure architecture diagrams and
 flowcharts, written in Rust. Free and open source (MIT OR Apache-2.0).
 
-**Status: Phase 3 started — local AWS/Azure icon packs and cloud pages.**
+**Status: Phase 3 started — cloud pages, AWS/Azure icon packs and AWS network deployment.**
 Cloud diagrams can import official SVG icon ZIPs, connect service icons,
 and carry their artwork through saving, copy/paste and SVG export.
 See [docs/phase-3.md](docs/phase-3.md) for setup and remaining cloud work.
+Cloud pages can also deploy real AWS VPCs and private subnets through a reviewed
+Terraform plan. See [cloud deployment](docs/cloud-deployment.md) for requirements
+and the in-app workflow.
 The ERD and editor backlogs remain in [docs/phase-2.md](docs/phase-2.md)
 and [docs/phase-1.md](docs/phase-1.md).
 
@@ -122,7 +125,7 @@ Remove-Item Env:\BLUEPRINT_RENDERER
   one**, **Zero or one**, **One or many**, **Zero or many**, and **Many**.
   Hover a symbol for its meaning, then click it and drag a relationship.
   `C` activates the chosen tool; `Shift+C` cycles through the five types.
-  The floating toolbar shows the chosen symbol and name, with a menu to
+  The document action bar shows the chosen symbol and name, with a menu to
   change it. The chosen cardinality applies to the end you drag toward;
   the starting end is exactly one. Selection-tool row-port drags still
   infer cardinalities from the table columns.
@@ -147,6 +150,38 @@ Remove-Item Env:\BLUEPRINT_RENDERER
   its direct relationships, or select a relationship to highlight its mapped
   columns. Try the [dense retail schema](examples/retail.sql).
 
+## Desktop workspace
+
+Blueprint opens with a dark, docked workspace; **View → Theme** also offers Light.
+The floating toolbar keeps drawing tools, undo/redo, zoom/fit and snapping controls. The
+status bar holds zoom/fit, saved/modified state, and editing feedback.
+
+The left dock switches between **Library** and **Navigator**. Library provides
+labeled shape thumbnails and cloud grid/list views, category filters, favorites,
+and recent services. Navigator manages pages, layers, actual groups and elements;
+ERD tables also expose their stable columns. Double-click an object to frame it.
+Panels resize and collapse, and temporarily shrink or collapse in small windows
+without overwriting preferred widths. Use the edge arrows or View menu to reopen.
+
+Properties follow the selection. Flowcharts use Design/Arrange; cloud pages use
+Configuration/Appearance; ERD tables use Table/Columns/Appearance. Select an ERD
+column on the canvas or in Navigator to edit that row. Selected ERD relationships
+show semantic column mappings and cardinalities in the relationship drawer, or
+inside the inspector when the window is short. **Import SQL…** and **Export**
+retain the existing PostgreSQL preview workflows.
+
+Workspace preferences persist separately from diagram files. Theme/layout changes
+never mark a document modified. New pages receive authored dark colors; reopening
+or copying existing artwork preserves its colors. Official cloud artwork retains
+its original colors and versioned assets. **AWS network…** opens the existing
+real VPC/private-subnet review workflow; documentation icons are labeled Diagram
+only until explicitly configured.
+
+See [workspace verification](docs/workspace-redesign.md) for deterministic populated
+screenshots, window/display-scale options, and checks. Direct canvas cell editing,
+row dragging, presentation, minimap, cloud containment, and broader infrastructure
+resources remain follow-up features.
+
 ## Workspace
 
 | Crate | Owns |
@@ -157,6 +192,7 @@ Remove-Item Env:\BLUEPRINT_RENDERER
 | `bp-text` | Bundled Inter fonts, measurement (harfrust shaping) and line breaking |
 | `bp-shapes` | Shape definitions in TOML and the built-in libraries (basic, flowchart, ERD) |
 | `bp-icons` | Official cloud SVG ZIP imports, versioned catalogs and search aliases (`icon-import` binary) |
+| `bp-deploy` | Validated AWS network configuration, dedicated Terraform workspaces and reviewed-plan deployment |
 | `bp-commands` | Undoable property-level commands, undo/redo history, and edits built on them (delete, move, group, align, copy/paste) |
 | `bp-io` | `.blueprint` (zip) and `.blueprint.json` files, atomic saves, schema migration |
 | `bp-scene` | Document → resolved geometry and a render-agnostic display list, with per-element caching |
@@ -172,7 +208,7 @@ and every export draw from the same scene, so exports match the screen.
 
 A `.blueprint` file is a zip holding `document.json` and used cloud SVGs in `icons/`. Save as
 `name.blueprint.json` to get plain JSON for readable Git diffs. Every file
-carries a `schema_version` (currently 5); `bp-io` migrates older files on
+carries a `schema_version` (currently 6); `bp-io` migrates older files on
 open. Files store only what the user set: styles are sparse overrides of the
 shape's defaults, and connector routes, text layout and group bounds are
 recomputed on load. ERD column ids remain stable when rows are renamed or

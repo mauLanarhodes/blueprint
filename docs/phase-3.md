@@ -5,6 +5,10 @@ the remaining ERD and editor work is still tracked in phase-2.md and phase-1.md.
 
 ## Available now
 
+- Deploy real AWS VPCs and private IPv4 subnets from explicit shape settings.
+  **Add starter network** works without icon packs; **Deploy infrastructure…**
+  reviews an actual Terraform plan before applying it. See
+  [cloud deployment](cloud-deployment.md) for setup, state and supported resources.
 - Choose **Cloud architecture** for a new document or page. It has AWS and
   Azure provider tabs, categories, service-name labels and basic shapes.
 - **Manage icon packs…** in the palette or **File → Cloud icon packs…**

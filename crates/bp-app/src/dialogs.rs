@@ -20,7 +20,7 @@ impl BlueprintApp {
             };
             let mut choice = None;
             let modal = egui::Modal::new(egui::Id::new("unsaved-changes")).show(ctx, |ui| {
-                ui.set_width(380.0);
+                ui.set_width(380.0_f32.min((ctx.content_rect().width() - 48.0).max(240.0)));
                 ui.heading("Unsaved changes");
                 ui.add_space(4.0);
                 ui.label(format!(
@@ -60,10 +60,14 @@ impl BlueprintApp {
 
         if let Some(message) = self.error.clone() {
             let modal = egui::Modal::new(egui::Id::new("error")).show(ctx, |ui| {
-                ui.set_width(420.0);
+                ui.set_width(420.0_f32.min((ctx.content_rect().width() - 48.0).max(240.0)));
                 ui.heading("Something went wrong");
                 ui.add_space(4.0);
-                ui.label(message);
+                egui::ScrollArea::vertical()
+                    .max_height((ctx.content_rect().height() - 160.0).max(100.0))
+                    .show(ui, |ui| {
+                        ui.label(message);
+                    });
                 ui.add_space(12.0);
                 ui.button("OK").clicked()
             });
@@ -86,7 +90,7 @@ impl BlueprintApp {
         let mut cancel = false;
         let mut restore = false;
         let modal = egui::Modal::new(egui::Id::new("page-diagram-kind")).show(ctx, |ui| {
-            ui.set_width(420.0);
+            ui.set_width(420.0_f32.min((ctx.content_rect().width() - 48.0).max(240.0)));
             ui.heading("Choose diagram type");
             ui.add_space(6.0);
             ui.label("Each page has its own shapes and connection tools.");

@@ -63,10 +63,12 @@ impl BlueprintApp {
     }
 
     pub fn select_only(&mut self, id: ElementId) {
+        self.workspace.selected_column = None;
         self.selection = vec![id];
     }
 
     pub fn toggle_selected(&mut self, id: ElementId) {
+        self.workspace.selected_column = None;
         if let Some(i) = self.selection.iter().position(|s| *s == id) {
             self.selection.remove(i);
         } else {
@@ -92,6 +94,18 @@ impl BlueprintApp {
         };
         self.selection
             .retain(|id| doc.elements.contains_key(id) && visible(id));
+        if self.workspace.selected_column.is_some_and(|(id, column)| {
+            !self.selection.contains(&id)
+                || !visible(&id)
+                || !doc
+                    .elements
+                    .get(&id)
+                    .and_then(Element::as_shape)
+                    .and_then(|shape| shape.erd.as_ref())
+                    .is_some_and(|table| table.column(column).is_some())
+        }) {
+            self.workspace.selected_column = None;
+        }
         if self
             .scope
             .is_some_and(|s| !doc.elements.contains_key(&s) || !visible(&s))

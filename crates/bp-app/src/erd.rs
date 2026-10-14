@@ -1,6 +1,7 @@
 //! Smart-table editing uses the same property commands as canvas editing.
 
 use crate::app::BlueprintApp;
+use crate::inspector_sections::InspectorTab;
 use bp_commands::{ColumnProp, Command, Prop, edit};
 use bp_model::{
     ColumnId, Element, ElementId, Endpoint, ErdColumn, Marker, OrderKey, SqlDialect, TableDisplay,
@@ -45,6 +46,8 @@ impl BlueprintApp {
             }],
         ) {
             self.column_focus = Some((id, column_id));
+            self.workspace.selected_column = Some((id, column_id));
+            self.workspace.inspector_tab = InspectorTab::Columns;
             Some(column_id)
         } else {
             None
@@ -72,6 +75,9 @@ impl BlueprintApp {
         if self.apply("Delete column", commands) {
             if self.column_focus == Some((id, column)) {
                 self.column_focus = None;
+            }
+            if self.workspace.selected_column == Some((id, column)) {
+                self.workspace.selected_column = None;
             }
             self.prune_selection();
         }
@@ -239,7 +245,7 @@ impl BlueprintApp {
             let mut name = shape.text.clone();
             let response = ui
                 .add(
-                    egui::TextEdit::singleline(&mut name)
+                    crate::widgets::text_field(&mut name)
                         .id_salt(("erd-name", id))
                         .desired_width(f32::INFINITY),
                 )
@@ -301,20 +307,86 @@ impl BlueprintApp {
                 });
         });
         ui.add_space(6.0);
+        if ui
+            .button(format!("Edit columns ({})", table.columns.len()))
+            .clicked()
+        {
+            self.workspace.inspector_tab = InspectorTab::Columns;
+        }
+    }
+
+    pub(crate) fn erd_columns_inspector(&mut self, ui: &mut Ui, el: &Element) {
+        let Some(shape) = el.as_shape() else { return };
+        let Some(table) = &shape.erd else { return };
+        let id = el.id;
+        ui.add_space(6.0);
+        let mut added = false;
         ui.horizontal(|ui| {
             ui.label(RichText::new("Columns").strong());
             if ui.button("Add column").clicked() {
-                self.add_table_column(id);
+                added = self.add_table_column(id).is_some();
             }
         });
+        if added {
+            // The inspector snapshot predates insertion. Render the new row
+            // next frame rather than resetting its selection to an old column.
+            ui.ctx().request_repaint();
+            return;
+        }
         let columns = table.columns_sorted();
+        if !columns.is_empty()
+            && !columns
+                .iter()
+                .any(|column| self.workspace.selected_column == Some((id, column.id)))
+        {
+            self.workspace.selected_column = Some((id, columns[0].id));
+        }
+        for column in &columns {
+            let selected = self.workspace.selected_column == Some((id, column.id));
+            let keys = [
+                column.primary_key.then_some("PK"),
+                column.foreign_key.then_some("FK"),
+                column.unique.then_some("UK"),
+            ]
+            .into_iter()
+            .flatten()
+            .collect::<Vec<_>>()
+            .join(" · ");
+            let label = format!("{}  {}  {}", column.name, column.data_type, keys);
+            let response = ui
+                .add(
+                    Button::selectable(selected, &label)
+                        .truncate()
+                        .min_size(egui::vec2(ui.available_width(), 28.0)),
+                )
+                .on_hover_text(&label);
+            crate::widgets::focus_outline(ui, &response);
+            if response.clicked() {
+                self.workspace.selected_column = Some((id, column.id));
+                self.column_focus = Some((id, column.id));
+            }
+        }
+        if columns.is_empty() {
+            ui.label(
+                RichText::new("This table has no columns. Add a column to define its schema.")
+                    .weak(),
+            );
+        }
+        ui.add_space(6.0);
         for (i, column) in columns.iter().enumerate() {
+            if self.workspace.selected_column != Some((id, column.id)) {
+                continue;
+            }
             ui.push_id(("column", id, column.id), |ui| {
                 egui::Frame::group(ui.style())
                     .inner_margin(6)
                     .show(ui, |ui| {
                         ui.horizontal(|ui| {
-                            ui.label(RichText::new(&column.name).strong());
+                            ui.add_sized(
+                                [(ui.available_width() - 104.0).max(40.0), 28.0],
+                                egui::Label::new(RichText::new(&column.name).strong()).truncate(),
+                            )
+                            .on_hover_text(&column.name);
                             ui.with_layout(
                                 egui::Layout::right_to_left(egui::Align::Center),
                                 |ui| {
@@ -359,9 +431,9 @@ impl BlueprintApp {
                                 let mut name = column.name.clone();
                                 let response = ui
                                     .add(
-                                        egui::TextEdit::singleline(&mut name)
+                                        crate::widgets::text_field(&mut name)
                                             .id_salt("name")
-                                            .desired_width(140.0),
+                                            .desired_width((ui.available_width() - 44.0).max(80.0)),
                                     )
                                     .labelled_by(label.id);
                                 if self.column_focus == Some((id, column.id)) {
@@ -379,9 +451,9 @@ impl BlueprintApp {
                                 let mut data_type = column.data_type.clone();
                                 let response = ui
                                     .add(
-                                        egui::TextEdit::singleline(&mut data_type)
+                                        crate::widgets::text_field(&mut data_type)
                                             .id_salt("type")
-                                            .desired_width(140.0),
+                                            .desired_width((ui.available_width() - 44.0).max(80.0)),
                                     )
                                     .labelled_by(label.id);
                                 add |= (response.has_focus() || response.lost_focus())
@@ -420,7 +492,7 @@ impl BlueprintApp {
                                 let mut default = column.default_value.clone().unwrap_or_default();
                                 let response = ui
                                     .add(
-                                        egui::TextEdit::singleline(&mut default)
+                                        crate::widgets::text_field(&mut default)
                                             .id_salt("default")
                                             .hint_text("None")
                                             .desired_width(ui.available_width()),
@@ -486,6 +558,7 @@ fn row_button(ui: &mut Ui, glyph: &str, label: &str, enabled: bool) -> bool {
     let enabled = enabled && ui.is_enabled();
     let response = ui.add_enabled(enabled, Button::new(crate::theme::icon(glyph)).small());
     response.widget_info(|| egui::WidgetInfo::labeled(egui::WidgetType::Button, enabled, label));
+    crate::widgets::focus_outline(ui, &response);
     response.on_hover_text(label).clicked()
 }
 
@@ -501,6 +574,30 @@ mod tests {
             Rect::new(x, 0.0, x + 280.0, 160.0),
         )
         .unwrap()
+    }
+
+    #[test]
+    fn adding_a_column_selects_the_stable_row_and_opens_its_editor() {
+        let mut app = BlueprintApp::new(&egui::Context::default(), None);
+        let id = table(&mut app, 0.0);
+        let before = app.doc.clone();
+        let column = app.add_table_column(id).unwrap();
+        assert_eq!(app.workspace.selected_column, Some((id, column)));
+        assert_eq!(app.workspace.inspector_tab, InspectorTab::Columns);
+        assert_eq!(app.history.undo_label(), Some("Add column"));
+        app.undo();
+        assert_eq!(app.doc, before);
+        app.redo();
+        assert!(
+            app.doc.elements[&id]
+                .as_shape()
+                .unwrap()
+                .erd
+                .as_ref()
+                .unwrap()
+                .column(column)
+                .is_some()
+        );
     }
 
     #[test]

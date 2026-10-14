@@ -2,7 +2,7 @@
 //! editing.
 
 use crate::app::{BlueprintApp, Tool};
-use crate::theme::{ACCENT, GRID, GUIDE, PORT};
+use crate::theme::{ACCENT, GUIDE, PORT};
 use bp_commands::edit::{self, rect_to_rect};
 use bp_commands::{Command, Prop};
 use bp_geom::{Axis, Dir, Features, polyline_length, snap_point, snap_rect};
@@ -10,7 +10,7 @@ use bp_model::kurbo::{Affine, Point, Rect};
 use bp_model::{
     Connector, Document, ElementId, Endpoint, Paint, PortId, Routing, ShapeRef, TextAlign,
 };
-use bp_render_egui::{color32, paint, paint_grid, paint_with_presentation, text_font};
+use bp_render_egui::{color32, paint, paint_with_presentation, text_font};
 use bp_scene::{DisplayItem, DisplayList, Geometry};
 use egui::{
     Color32, CursorIcon, Key, PointerButton, Pos2, Response, Sense, Shape, Stroke, StrokeKind,
@@ -189,14 +189,22 @@ impl BlueprintApp {
         if self.fit_requested {
             self.fit_requested = false;
             self.refresh_scene();
+            let mut fit_rect = response.rect;
+            if response.rect.contains_rect(self.workspace.tool_rect) {
+                fit_rect.max.y =
+                    (self.workspace.tool_rect.top() - 12.0).max(response.rect.top() + 100.0);
+            }
             match self.scene.bounds() {
-                Some(bounds) => self.view.fit(response.rect, bounds, 48.0),
+                Some(bounds) => self.view.fit(fit_rect, bounds, 48.0),
                 None => self.view = bp_render_egui::Viewport::default(),
             }
         }
 
         // Scrolling pans; Ctrl/Cmd + scroll or a pinch zooms.
-        if response.hovered() {
+        let owns_pointer = ctx
+            .input(|input| input.pointer.interact_pos())
+            .is_some_and(|pos| ctx.layer_id_at(pos) == Some(response.layer_id));
+        if response.hovered() && owns_pointer {
             let (zoom, scroll, hover) = ctx.input(|i| {
                 (
                     i.zoom_delta(),
@@ -216,7 +224,9 @@ impl BlueprintApp {
             .or(response.interact_pointer_pos())
             .map(|p| self.view.to_page(origin, p));
 
-        self.pointer_input(&ctx, &response, origin);
+        if owns_pointer || self.drag.is_active() {
+            self.pointer_input(&ctx, &response, origin);
+        }
         self.palette_drop(&ctx, &response, origin);
         self.refresh_scene();
 
@@ -227,7 +237,13 @@ impl BlueprintApp {
             .map_or(Color32::WHITE, |p| color32(p.background));
         painter.rect_filled(response.rect, 0.0, background);
         if self.settings.show_grid {
-            paint_grid(&painter, origin, &self.view, self.settings.grid * 2.0, GRID);
+            paint_dot_grid(
+                &painter,
+                origin,
+                &self.view,
+                self.settings.grid * 2.0,
+                crate::theme::grid(self.doc.pages[&self.page].background),
+            );
         }
         let erd_focus = self.erd_focus();
         paint_with_presentation(
@@ -552,11 +568,25 @@ impl BlueprintApp {
                         self.toggle_selected(target);
                     } else {
                         self.select_only(target);
+                        if target == hit {
+                            self.workspace.selected_column = self
+                                .scene
+                                .shape(hit)
+                                .and_then(|shape| shape.erd.as_ref())
+                                .and_then(|table| {
+                                    table.rows.iter().find(|row| row.bounds.contains(p))
+                                })
+                                .map(|row| (hit, row.column));
+                            if self.workspace.selected_column.is_some() {
+                                self.workspace.inspector_tab = crate::InspectorTab::Columns;
+                            }
+                        }
                     }
                 }
                 None => {
                     if !shift {
                         self.selection.clear();
+                        self.workspace.selected_column = None;
                     }
                     if self
                         .scope
@@ -1446,7 +1476,7 @@ impl BlueprintApp {
             return;
         };
         let origin = self.canvas_rect.min;
-        let (area, size, align, face, color) = match self.scene.geometry(id) {
+        let (area, size, align, face, _color) = match self.scene.geometry(id) {
             Some(Geometry::Shape(g)) => (
                 g.text_box,
                 g.style.font_size,
@@ -1496,14 +1526,14 @@ impl BlueprintApp {
             .fixed_pos(top_left)
             .show(ctx, |ui| {
                 let frame = egui::Frame::new()
-                    .fill(Color32::from_white_alpha(235))
+                    .fill(ui.visuals().window_fill)
                     .stroke(Stroke::new(1.0, ACCENT))
                     .corner_radius(3.0)
                     .inner_margin(2.0);
                 frame.show(ui, |ui| {
                     let output = egui::TextEdit::multiline(&mut edit.text)
                         .font(text_font(ui.ctx(), face, font_size))
-                        .text_color(color32(color))
+                        .text_color(ui.visuals().text_color())
                         .horizontal_align(halign)
                         .desired_width(width)
                         .desired_rows(1)
@@ -1601,4 +1631,28 @@ fn paint_arrow(painter: &egui::Painter, at: Pos2, dir: Dir) {
         PORT,
         Stroke::NONE,
     ));
+}
+
+/// Adaptive page-anchored dots keep the grid quiet at every zoom level.
+fn paint_dot_grid(
+    painter: &egui::Painter,
+    origin: Pos2,
+    view: &bp_render_egui::Viewport,
+    spacing: f64,
+    color: Color32,
+) {
+    let mut step = spacing;
+    while step * f64::from(view.zoom) < 16.0 {
+        step *= 2.0;
+    }
+    let area = view.screen_to_page_rect(origin, painter.clip_rect());
+    let mut x = (area.x0 / step).floor() * step;
+    while x <= area.x1 {
+        let mut y = (area.y0 / step).floor() * step;
+        while y <= area.y1 {
+            painter.circle_filled(view.to_screen(origin, Point::new(x, y)), 0.8, color);
+            y += step;
+        }
+        x += step;
+    }
 }
