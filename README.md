@@ -1,226 +1,425 @@
-# Blueprint
+<p align="center">
+  <img src="docs/assets/blueprint-banner.svg" alt="Blueprint — a native workspace for schemas, workflows, and cloud architecture" width="100%">
+</p>
 
-A native desktop diagram editor for ERDs, AWS/Azure architecture diagrams and
-flowcharts, written in Rust. Free and open source (MIT OR Apache-2.0).
+<p align="center">
+  <strong>A native desktop workspace for turning systems into clear diagrams.</strong><br>
+  Entity relationships · Flowcharts · Cloud architecture
+</p>
 
-**Status: Phase 3 started — cloud pages, AWS/Azure icon packs and AWS network deployment.**
-Cloud diagrams can import official SVG icon ZIPs, connect service icons,
-and carry their artwork through saving, copy/paste and SVG export.
-See [docs/phase-3.md](docs/phase-3.md) for setup and remaining cloud work.
-Cloud pages can also deploy real AWS VPCs and private subnets through a reviewed
-Terraform plan. See [cloud deployment](docs/cloud-deployment.md) for requirements
-and the in-app workflow.
-The ERD and editor backlogs remain in [docs/phase-2.md](docs/phase-2.md)
-and [docs/phase-1.md](docs/phase-1.md).
+<p align="center">
+  <a href="https://github.com/mauLanarhodes/blueprint/actions/workflows/ci.yml"><img src="https://github.com/mauLanarhodes/blueprint/actions/workflows/ci.yml/badge.svg?branch=main" alt="CI on main"></a>
+  <img src="https://img.shields.io/badge/Rust-1.95%2B-E9B949?style=flat-square&amp;logo=rust&amp;logoColor=white" alt="Rust 1.95 or newer">
+  <img src="https://img.shields.io/badge/status-pre--1.0-4C9AFF?style=flat-square" alt="Pre-1.0 development">
+  <img src="https://img.shields.io/badge/license-MIT%20OR%20Apache--2.0-36CBB2?style=flat-square" alt="MIT or Apache 2.0">
+</p>
 
-## Run it
+<p align="center">
+  <a href="#overview">Overview</a> ·
+  <a href="#screenshots">Screenshots</a> ·
+  <a href="#current-state">Current state</a> ·
+  <a href="#run-blueprint">Run Blueprint</a> ·
+  <a href="#project-goals">Goals</a> ·
+  <a href="#contributing">Contribute</a>
+</p>
 
-```sh
-cargo run -p bp-app --release                     # the desktop app
-cargo run -p bp-app --release -- plan.blueprint
-cargo run -p bp-app --release -- examples/orders.blueprint.json # sample ERD
-cargo run -p bp-cli -- export plan.blueprint plan.svg [--page 2] [--embed-fonts]
-cargo run -p bp-cli -- info plan.blueprint
-cargo run -p bp-cli -- import-sql schema.sql --preview
-cargo run -p bp-cli -- import-sql schema.sql schema.blueprint
-cargo run -p bp-cli -- export-sql schema.blueprint --dialect postgres --preview
-cargo run -p bp-cli -- export-sql schema.blueprint schema-export.sql --page 1
-cargo test --workspace
-cargo test --release -p bp-scene --test bench -- --nocapture   # performance budgets
-```
+---
 
-Linux needs a few system libraries for windowing (Debian/Ubuntu names):
+## Overview
 
-```sh
-sudo apt-get install libxcb-render0-dev libxcb-shape0-dev libxcb-xfixes0-dev libxkbcommon-dev
-```
+Blueprint is an open-source diagram editor written in **Rust** with a native
+**egui/eframe** interface. Its goal is to bring database design, process mapping,
+and cloud architecture into one responsive desktop workspace.
 
-The app renders with wgpu and falls back to OpenGL if wgpu cannot start.
-Set `BLUEPRINT_RENDERER=glow` or `=wgpu` to force one.
+Draw and connect ideas, inspect their properties, and save editable local files.
+The workspace adds typed ERD tables, PostgreSQL schema interchange,
+searchable cloud artwork, and a floating drawing toolbar. A shared scene powers
+the canvas and SVG export so diagrams can move from editing to documentation.
 
-### Windows (PowerShell)
+| Design schemas | Explain workflows | Map infrastructure |
+| :--- | :--- | :--- |
+| Typed tables, stable column connections, and Crow's Foot relationships. | Labeled shapes, routed connectors, annotations, and reusable groups. | AWS/Azure architecture artwork and an explicit, limited AWS deployment workflow. |
+
+## Screenshots
+
+These are **actual rendered application screens**, using populated example
+documents. They were captured from `ui-changes`; that workspace is now merged
+into `main`.
+
+### ERD · Design the data model
+
+A shop schema with typed columns, key badges, Crow's Foot relationships, and a
+contextual table inspector.
+
+[![Blueprint ERD workspace showing customers, orders, payments, order items, and products](docs/screenshots/erd.png)](docs/screenshots/erd.png)
+
+### Flowchart · Make the process readable
+
+An order-processing workflow with a payment decision, an inventory annotation,
+shipment, and a cancellation path.
+
+[![Blueprint flowchart workspace showing an order-processing decision and its success and cancellation branches](docs/screenshots/flowchart.png)](docs/screenshots/flowchart.png)
+
+### Cloud architecture · Document the system
+
+A sample network with labeled services, subnet boundaries, storage connectivity,
+and a database subnet group. The icons in this example are **original synthetic
+fixture artwork**; official AWS/Azure packs are imported separately.
+
+[![Blueprint cloud architecture workspace showing a load balancer, container service, database, object storage, and subnet boundaries](docs/screenshots/cloud.png)](docs/screenshots/cloud.png)
+
+The cloud example is an architecture diagram. Its service icons do not imply
+that those services can be deployed. See [AWS deployment](#aws-deployment).
+Screenshot provenance and regeneration commands are in
+[the gallery notes](docs/screenshots/README.md).
+
+## Current state
+
+**Blueprint is in active, pre-1.0 development.** The manifests currently declare
+version `0.1.0`. The expanded ERD, flowchart, and cloud workspace is now merged
+into **`main`**, including the redesigned UI and limited AWS network deployment.
+
+Clone `main` using the instructions below to run the workspace shown in the
+gallery. Builds are currently from source; packaged stable releases remain
+future work.
+
+### Available today
+
+| Area | Implemented behavior |
+| :--- | :--- |
+| **Desktop UI** | Dark/Light themes, resizable and collapsible docks, Library/Navigator tabs, a floating toolbar, a page-add button, contextual inspectors, and persistent workspace preferences. |
+| **Canvas editing** | Pan/zoom, selection and multiselection, snapping and guides, text editing, grouping, alignment, ordering, clipboard, locking, and undo/redo. |
+| **Flowcharts** | Searchable labeled shape libraries, glued connectors, straight/orthogonal/curved routing, connector labels, and annotations. |
+| **ERDs** | Smart tables, typed columns, key/nullability metadata, stable column ports, Crow's Foot relationships, constraints/indexes, column selection, relationship details, and automatic layout. |
+| **SQL** | Preview-first **PostgreSQL** import/export through the UI and CLI. Other table dialects provide type suggestions; their SQL interchange is not implemented. |
+| **Cloud diagrams** | Local official AWS/Azure SVG-pack imports, versioned catalogs, search, grid/list views, favorites/recents, editable labels, and embedded artwork in saved projects. |
+| **AWS deployment** | Terraform preview and reviewed-plan application for explicitly configured **VPCs and private IPv4 subnets**. |
+| **Files and export** | `.blueprint` archives, readable `.blueprint.json`, older-format migration, SVG export, and headless file/SQL commands. |
+
+Presentation mode, a minimap, direct ERD cell editing and row dragging on the
+canvas, automatic cloud containment, broader AWS services, and Azure deployment
+remain future work. Windows, Linux, and macOS are included in the CI build/test
+matrix; installers and platform-specific release packaging remain separate work.
+
+## Run Blueprint
+
+You need **Git**, **Rust 1.95 or newer**, and the native compiler tools for your
+platform. The repository selects the `stable` Rust channel and requests
+`rustfmt` and `clippy`. Update Rust if your installed stable toolchain is older.
+
+<details>
+<summary><strong>Windows · PowerShell</strong></summary>
 
 1. Install [Git for Windows](https://git-scm.com/downloads/win).
-2. Install the [Visual Studio C++ Build Tools](https://visualstudio.microsoft.com/visual-cpp-build-tools/).
-   In the installer, select **Desktop development with C++** and include the
-   MSVC C++ toolset and a Windows 10 or Windows 11 SDK.
-3. Install Rust using [rustup](https://rust-lang.org/tools/install/) and accept
-   the default MSVC toolchain. This project uses stable Rust and requires
-   **Rust 1.95 or newer**.
-
-Open a new PowerShell window after installation so the tools are on `PATH`,
-then clone the repository and launch the desktop app:
+2. Install Rust using [rustup](https://rust-lang.org/tools/install/). Use the
+   default MSVC toolchain.
+3. Install the [Visual Studio C++ Build Tools](https://visualstudio.microsoft.com/visual-cpp-build-tools/)
+   with **Desktop development with C++**, the MSVC C++ toolset, and a Windows 10
+   or Windows 11 SDK. See the [MSVC prerequisites](https://rust-lang.github.io/rustup/installation/windows-msvc.html).
+4. Open a new PowerShell window, then run:
 
 ```powershell
-git clone https://github.com/mauLanarhodes/blueprint.git
-cd blueprint
 rustup update stable
 rustc --version
 cargo --version
+git clone https://github.com/mauLanarhodes/blueprint.git
+cd blueprint
 cargo run -p bp-app --release --locked
 ```
 
-The first build downloads dependencies and can take several minutes. Run all
-Cargo commands from the repository root (the folder containing `Cargo.toml`).
-To open the bundled sample ERD, close the app and run:
+Open an existing project:
 
 ```powershell
-cargo run -p bp-app --release --locked -- .\examples\orders.blueprint.json
+cargo run -p bp-app --release --locked -- "C:\Users\you\Documents\plan.blueprint"
 ```
 
-To build once and launch the executable directly:
+Build without launching:
 
 ```powershell
-cargo build -p bp-app --release --locked
+cargo build --release -p bp-app -p bp-cli --locked
 .\target\release\blueprint.exe
-# Or open an existing diagram (quote paths that contain spaces):
-.\target\release\blueprint.exe "C:\Users\YourName\Documents\plan.blueprint"
+# Or open a diagram directly; quote paths that contain spaces:
+.\target\release\blueprint.exe "C:\Users\you\Documents\plan.blueprint"
 ```
 
+Run Cargo commands from the repository root (the folder containing `Cargo.toml`).
 If `cargo` or `rustc` is not recognized, reopen PowerShell and check that
-`%USERPROFILE%\.cargo\bin` is on your user `PATH`. If the build reports that
-`link.exe` is missing, check that the C++ workload and Windows SDK above are
-installed.
+`%USERPROFILE%\.cargo\bin` is on your user `PATH`. If `link.exe` is missing,
+check that the C++ workload and Windows SDK above are installed.
 
-If the app cannot initialize its graphics renderer, try forcing OpenGL in
-PowerShell:
+</details>
+
+<details>
+<summary><strong>Linux · Debian / Ubuntu</strong></summary>
+
+Install the compiler tools and windowing development libraries used by CI:
+
+```sh
+sudo apt-get update
+sudo apt-get install -y build-essential pkg-config git curl \
+  libxcb-render0-dev libxcb-shape0-dev libxcb-xfixes0-dev libxkbcommon-dev
+```
+
+Install Rust with the [official rustup installer](https://rust-lang.org/tools/install/),
+then clone and run:
+
+```sh
+curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
+. "$HOME/.cargo/env"
+rustup update stable
+git clone https://github.com/mauLanarhodes/blueprint.git
+cd blueprint
+cargo run -p bp-app --release --locked
+```
+
+Use a graphical desktop session. Other distributions need equivalent compiler
+and XCB/XKB development packages.
+
+```sh
+# Open an existing project
+cargo run -p bp-app --release --locked -- "$HOME/Documents/plan.blueprint"
+
+# Build without launching, then run the binary
+cargo build --release -p bp-app -p bp-cli --locked
+./target/release/blueprint
+```
+
+</details>
+
+<details>
+<summary><strong>macOS · Terminal</strong></summary>
+
+Install Apple's [Command Line Tools for Xcode](https://developer.apple.com/documentation/xcode/installing-the-command-line-tools/)
+and complete the installer before continuing:
+
+```sh
+xcode-select --install
+```
+
+Install Rust with the [official rustup installer](https://rust-lang.org/tools/install/),
+then clone and run. The Xcode command-line tools also provide Git.
+
+```sh
+curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
+. "$HOME/.cargo/env"
+rustup update stable
+git clone https://github.com/mauLanarhodes/blueprint.git
+cd blueprint
+cargo run -p bp-app --release --locked
+```
+
+```sh
+# Open an existing project
+cargo run -p bp-app --release --locked -- "$HOME/Documents/plan.blueprint"
+
+# Build without launching, then run the binary
+cargo build --release -p bp-app -p bp-cli --locked
+./target/release/blueprint
+```
+
+This builds a native executable from source; an application bundle and signed
+macOS installer are not provided by these commands.
+
+</details>
+
+The first build downloads and compiles dependencies. Later launches can use the
+built executable directly. To try the bundled ERD:
+
+```sh
+cargo run -p bp-app --release --locked -- examples/orders.blueprint.json
+```
+
+<details>
+<summary><strong>Graphics troubleshooting</strong></summary>
+
+Blueprint tries **WGPU**, then falls back to **OpenGL/Glow** if WGPU cannot start.
+You can choose a renderer explicitly.
+
+Linux/macOS:
+
+```sh
+BLUEPRINT_RENDERER=glow cargo run -p bp-app --release --locked
+```
+
+Windows PowerShell:
 
 ```powershell
 $env:BLUEPRINT_RENDERER = "glow"
 cargo run -p bp-app --release --locked
-# After closing the app, restore automatic renderer selection:
-Remove-Item Env:\BLUEPRINT_RENDERER
+Remove-Item Env:BLUEPRINT_RENDERER
 ```
 
-## Using the editor
+Use `wgpu` instead of `glow` to test the WGPU path.
 
-- Choose **ERD**, **Flowchart** or **Cloud architecture** when starting a document or adding a page.
-  Each page remembers its type: ERD shows ERD shapes and basic shapes;
-  Flowchart shows flowchart symbols and basic shapes. Search and recent
-  shapes follow the current page. Change its type in the page inspector.
-- Cloud pages: use **Manage icon packs…**, download the official AWS/Azure
-  ZIP, accept that provider's terms, and import it with its release version.
-  Click or drag services from the palette, search by name or alias, and use
-  `C` for connections. Icons scale uniformly with editable names below them.
-  Saved diagrams include their used icons, so no pack is needed to reopen them.
-- Shapes: click or drag them from the palette, press `/` on the canvas to
-  insert one by name, or use the tools (`R` rectangle, `O` ellipse,
-  `D` decision on flowchart pages, `N` sticky note, `T` text).
-- Connectors: hover a shape and drag from one of its ports, drag the blue
-  arrows beside a selected shape, or use the connector tool (`C`). Drop on a
-  port to glue there, or anywhere on a shape to float on its outline.
-  Connectors follow their shapes; drag a selected connector's segments,
-  waypoints, ends or label to adjust it.
-- Double-click to edit text (or to edit inside a group); `Ctrl+G` groups,
-  `Ctrl+D` duplicates, `Ctrl+L` locks; hold `Alt` while dragging to turn
-  snapping off. The inspector lists the other shortcuts when nothing is
-  selected.
-- ERDs: insert **Table** from the ERD palette. Select it to edit the table
-  name, SQL dialect, display mode and columns in the inspector. Columns
-  carry names, types, PK/FK/UK flags, nullability and optional defaults;
-  use the row controls to add, remove or reorder them. Primary keys stay
-  above the divider. Enter in a row field adds a column; Tab moves between
-  fields. Double-click a table to edit its header.
-- ERD connection tools appear directly below the ERD shapes: **Exactly
-  one**, **Zero or one**, **One or many**, **Zero or many**, and **Many**.
-  Hover a symbol for its meaning, then click it and drag a relationship.
-  `C` activates the chosen tool; `Shift+C` cycles through the five types.
-  The document action bar shows the chosen symbol and name, with a menu to
-  change it. The chosen cardinality applies to the end you drag toward;
-  the starting end is exactly one. Selection-tool row-port drags still
-  infer cardinalities from the table columns.
-- Each table column has left and right ports. Connect a column to another
-  table's primary key to flag the column as FK and create a Crow's Foot
-  relationship. Choose either end's cardinality and a solid or dashed line
-  in the connector inspector. Keys-only and collapsed tables keep their
-  connector attachments when rows are hidden. Self-referencing tables are
-  supported. A foreign key that is also a primary key gets a solid
-  identifying relationship by default.
-- SQL schemas: on an ERD page use **File → Open SQL script…** or
-  **Paste SQL schema…**, review the table counts and line-specific warnings,
-  then apply. Tables and relationships are ordinary editable elements, added
-  in one undo step. **Export page as SQL…** previews PostgreSQL DDL and its
-  warnings before saving a separate `.sql` file. Only PostgreSQL is currently
-  implemented for SQL import/export; the other table dialects offer type
-  suggestions. See [SQL schema interchange](docs/erd-sql.md) for coverage.
-- Readable ERDs: imports arrange related tables from left to right with all
-  columns visible. Use **Arrange → Auto-arrange ERD** to reorganize an existing
-  page in one undo step, then zoom to fit. Orthogonal relationships avoid
-  other tables and separate shared routing corridors. Select a table to trace
-  its direct relationships, or select a relationship to highlight its mapped
-  columns. Try the [dense retail schema](examples/retail.sql).
+</details>
 
-## Desktop workspace
+## Your first diagram
 
-Blueprint opens with a dark, docked workspace; **View → Theme** also offers Light.
-The floating toolbar keeps drawing tools, undo/redo, zoom/fit and snapping controls. The
-status bar holds zoom/fit, saved/modified state, and editing feedback.
+Choose **ERD**, **Flowchart**, or **Cloud architecture** when
+creating a document. Use the **+** beside the page name to add another page.
 
-The left dock switches between **Library** and **Navigator**. Library provides
-labeled shape thumbnails and cloud grid/list views, category filters, favorites,
-and recent services. Navigator manages pages, layers, actual groups and elements;
-ERD tables also expose their stable columns. Double-click an object to frame it.
-Panels resize and collapse, and temporarily shrink or collapse in small windows
-without overwriting preferred widths. Use the edge arrows or View menu to reopen.
+- **Library** inserts shapes and services; **Navigator** manages pages, layers,
+  groups, and objects. Double-click a navigation entry to frame it.
+- The floating toolbar holds drawing and connector tools. Select an element to
+  edit it in **Properties**; double-click ordinary text to edit it on the canvas.
+- On an ERD page, **Import SQL…** previews a PostgreSQL schema before importing
+  editable tables and relationships. Column edits remain in the inspector.
+- On a cloud page, **Manage icon packs…** guides local AWS/Azure ZIP import.
+  Official vendor artwork is not bundled. **Add starter network** works without
+  an installed pack.
+- Save an editable `.blueprint` project, then export SVG for documentation.
+  Workspace theme/layout preferences are stored separately from the document.
 
-Properties follow the selection. Flowcharts use Design/Arrange; cloud pages use
-Configuration/Appearance; ERD tables use Table/Columns/Appearance. Select an ERD
-column on the canvas or in Navigator to edit that row. Selected ERD relationships
-show semantic column mappings and cardinalities in the relationship drawer, or
-inside the inspector when the window is short. **Import SQL…** and **Export**
-retain the existing PostgreSQL preview workflows.
+### AWS deployment
 
-Workspace preferences persist separately from diagram files. Theme/layout changes
-never mark a document modified. New pages receive authored dark colors; reopening
-or copying existing artwork preserves its colors. Official cloud artwork retains
-its original colors and versioned assets. **AWS network…** opens the existing
-real VPC/private-subnet review workflow; documentation icons are labeled Diagram
-only until explicitly configured.
+Blueprint deploys **two resource types: AWS VPCs and private IPv4
+subnets**. EC2, ECS, Lambda, RDS, S3, and other service icons are diagram artwork
+unless a supported resource configuration is explicitly assigned. Drawing a
+boundary or connecting icons does not configure deployment dependencies.
 
-See [workspace verification](docs/workspace-redesign.md) for deterministic populated
-screenshots, window/display-scale options, and checks. Direct canvas cell editing,
-row dragging, presentation, minimap, cloud containment, and broader infrastructure
-resources remain follow-up features.
+With **Terraform 1.5+ in the 1.x series** on PATH and an authenticated local AWS
+profile/session, create a starter network, open **AWS network…**, set the account,
+region, and deployment folder, then preview. Review the actual saved Terraform
+plan before choosing **Deploy reviewed plan**. Applying creates or changes real
+AWS resources and can incur charges. Preserve the deployment folder: it holds
+Terraform state outside the diagram.
 
-## Workspace
+Read the full [deployment setup and safeguards](docs/cloud-deployment.md)
+before using this workflow. No AWS account or Terraform installation is required
+for ordinary diagram editing.
 
-| Crate | Owns |
-| --- | --- |
-| `bp-model` | Document, pages, layers, elements (shapes, connectors, groups), ERD columns, sparse styles, ids, fractional order keys |
-| `bp-sql` | SQL schema parsing, import previews, editable ERD conversion, relationship-aware layout and dialect-specific DDL generation |
-| `bp-geom` | Ray and hit tests, the R-tree index, snapping and smart guides, orthogonal connector routing (A*) |
-| `bp-text` | Bundled Inter fonts, measurement (harfrust shaping) and line breaking |
-| `bp-shapes` | Shape definitions in TOML and the built-in libraries (basic, flowchart, ERD) |
-| `bp-icons` | Official cloud SVG ZIP imports, versioned catalogs and search aliases (`icon-import` binary) |
-| `bp-deploy` | Validated AWS network configuration, dedicated Terraform workspaces and reviewed-plan deployment |
-| `bp-commands` | Undoable property-level commands, undo/redo history, and edits built on them (delete, move, group, align, copy/paste) |
-| `bp-io` | `.blueprint` (zip) and `.blueprint.json` files, atomic saves, schema migration |
-| `bp-scene` | Document → resolved geometry and a render-agnostic display list, with per-element caching |
-| `bp-export` | Display list → SVG |
-| `bp-render-egui` | Display list → egui painter (with lyon for concave fills), pan/zoom viewport |
-| `bp-app` | The desktop app (`blueprint` binary) |
-| `bp-cli` | Headless SVG/SQL export, SQL schema import and file checks (`blueprint-cli` binary) |
+## Project goals
 
-Only `bp-app` and `bp-render-egui` depend on egui. The screen, hit-testing
-and every export draw from the same scene, so exports match the screen.
+Blueprint aims to become a dependable, open-source desktop workspace for
+designing and communicating systems:
 
-## File format
+1. **One coherent editor.** Make ERD, flowchart, and cloud work feel consistent,
+   with readable catalogs, contextual properties, accessible controls, and
+   useful navigation at small and large window sizes.
+2. **Reliable local documents.** Preserve authored artwork, connections, undo,
+   and save/reopen behavior; keep project files portable and exports faithful.
+3. **Semantic diagramming.** Build on typed ERD data and PostgreSQL interchange,
+   then improve direct table editing, additional notations, and SQL dialects.
+4. **Clear cloud modeling.** Add real boundary/containment behavior and improve
+   provider catalogs without treating service artwork as deployable resources.
+5. **Deliberate infrastructure deployment.** Expand supported AWS resources
+   through validated configuration, explicit dependencies, real plan previews,
+   and reviewed application. Broad AWS coverage is a long-term goal, not a
+   current capability.
+6. **A polished desktop product.** Improve large-document performance, recovery,
+   presentation/navigation, and tested Windows/Linux/macOS distribution.
 
-A `.blueprint` file is a zip holding `document.json` and used cloud SVGs in `icons/`. Save as
-`name.blueprint.json` to get plain JSON for readable Git diffs. Every file
-carries a `schema_version` (currently 6); `bp-io` migrates older files on
-open. Files store only what the user set: styles are sparse overrides of the
-shape's defaults, and connector routes, text layout and group bounds are
-recomputed on load. ERD column ids remain stable when rows are renamed or
-reordered, so column-to-column connections survive those edits.
+The next milestones include direct ERD cell editing, canvas row reordering,
+presentation mode, a minimap, cloud containment, and broader infrastructure
+support. Follow the development notes for
+[editor work](docs/phase-1.md),
+[ERDs](docs/phase-2.md), and
+[cloud architecture](docs/phase-3.md).
+Those phase notes also record earlier milestones; the current-state table above
+reflects the newer workspace changes.
 
-Shape libraries live in [`crates/bp-shapes/libraries`](crates/bp-shapes/libraries);
-the format is described at the top of `basic.toml`.
+## CLI and project files
 
-## Third-party assets
+Inspect a project or export its first page as SVG:
 
-- [Inter](https://rsms.me/inter/) 4.1 (SIL Open Font License 1.1), bundled
-  in `crates/bp-text/fonts` with its licence.
-- [Phosphor](https://phosphoricons.com/) icons via `egui-phosphor` (MIT).
-- AWS/Azure architecture artwork is imported locally from official packages
-  under each provider's terms; it is not included in this repository.
+```sh
+cargo run -p bp-cli -- info plan.blueprint
+cargo run -p bp-cli -- export plan.blueprint plan.svg
+```
+
+The CLI also offers page selection, embedded SVG fonts, and
+PostgreSQL interchange:
+
+```sh
+cargo run -p bp-cli -- export plan.blueprint plan.svg --page 2 --embed-fonts
+cargo run -p bp-cli -- import-sql schema.sql --preview
+cargo run -p bp-cli -- import-sql schema.sql schema.blueprint
+cargo run -p bp-cli -- export-sql schema.blueprint --dialect postgres --preview
+cargo run -p bp-cli -- export-sql schema.blueprint schema-export.sql --page 1
+```
+
+| Format | Purpose |
+| :--- | :--- |
+| `.blueprint` | ZIP archive containing `document.json` and used cloud SVG artwork. |
+| `.blueprint.json` | Readable JSON for reviewing document changes in Git. |
+| `.svg` | Vector output for documentation and sharing. |
+| `.sql` | PostgreSQL schema interchange, with preview warnings. |
+
+Documents carry a `schema_version`, currently **6**. Blueprint migrates older
+documents on open. Newer-format files require a build that supports their schema.
+
+## Contributing
+
+Contributions are welcome: bug reports, focused code changes, usability feedback,
+documentation, sample diagrams, and testing on Windows, Linux, or macOS all help.
+
+**Report a bug.** [Open an issue](https://github.com/mauLanarhodes/blueprint/issues/new)
+with your branch/commit, OS, renderer, steps to reproduce, and expected behavior.
+Include a minimal diagram or screenshot when possible; remove credentials and
+private data from anything you share.
+
+**Propose a feature.** Explain the workflow it improves and how it relates to the
+project goals. Discuss larger model, file-format, or deployment changes in an
+issue before implementing them.
+
+**Send a pull request.** Fork the repository, start from an up-to-date `main`,
+and create a focused topic branch. Open your PR against `main`.
+
+```sh
+git switch -c feat/describe-your-change
+cargo run -p bp-app
+```
+
+Run the shared checks before submitting:
+
+```sh
+cargo fmt --all --check
+cargo clippy --workspace --all-targets -- -D warnings
+cargo test --workspace
+```
+
+For scene or performance work, also run:
+
+```sh
+cargo test --release -p bp-scene --test bench -- --nocapture
+```
+
+Explain what changed, why it helps, and how you verified it. Add regression tests
+for behavior changes; include actual before/after renders for visual changes.
+Preserve existing documents and undo transactions. Deployment tests should use
+the existing mock runners and must not contact AWS.
+
+### Where the code lives
+
+The workspace has fourteen crates, separating the desktop interface from the
+model, commands, geometry, persistence, and infrastructure integrations:
+
+| Crates | Responsibility |
+| :--- | :--- |
+| `bp-app` | Native desktop UI and application orchestration. |
+| `bp-model`, `bp-commands`, `bp-io` | Documents, validation, undoable edits, persistence, and migration. |
+| `bp-geom`, `bp-scene`, `bp-render-egui`, `bp-export` | Geometry, shared scene construction, screen rendering, and SVG output. |
+| `bp-cli` | Headless file commands and SQL interchange. |
+| `bp-shapes`, `bp-text`, `bp-icons` | Shape libraries, bundled font measurement, and cloud artwork catalogs. |
+| `bp-sql`, `bp-deploy` | PostgreSQL interchange and reviewed Terraform network deployment. |
+
+Only `bp-app` and `bp-render-egui` depend on egui. Keep document and export logic
+usable without a graphical session.
+
+## License and artwork
+
+The Cargo manifests declare **MIT OR Apache-2.0** for project code.
+Blueprint bundles [Inter](https://rsms.me/inter/) under the
+SIL Open Font License and uses [Phosphor](https://phosphoricons.com/) icons under
+MIT. Official AWS/Azure artwork is imported locally under each provider's terms;
+it is not distributed in this repository. The cloud screenshot uses original
+synthetic artwork for reproducible examples.
+
+---
+
+<p align="center">
+  <strong>Help shape Blueprint.</strong><br>
+  <a href="https://github.com/mauLanarhodes/blueprint/issues">Report an issue</a> ·
+  <a href="https://github.com/mauLanarhodes/blueprint/pulls">Browse pull requests</a> ·
+  <a href="https://github.com/mauLanarhodes/blueprint/tree/main">Explore the source</a>
+</p>

@@ -1,0 +1,53 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="300" viewBox="0 0 1200 300" fill="none">
+  <title>Blueprint</title>
+  <desc>A native workspace for schemas, workflows, and cloud architecture, with three connected diagram cards on a dark grid.</desc>
+  <defs>
+    <linearGradient id="background" x1="0" y1="0" x2="1200" y2="300" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#14191F"/>
+      <stop offset="1" stop-color="#18283C"/>
+    </linearGradient>
+    <linearGradient id="accent" x1="48" y1="48" x2="1100" y2="270" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#4C9AFF"/>
+      <stop offset="1" stop-color="#36CBB2"/>
+    </linearGradient>
+    <pattern id="grid" width="24" height="24" patternUnits="userSpaceOnUse">
+      <circle cx="1" cy="1" r="1" fill="#A7B2BF" fill-opacity=".12"/>
+    </pattern>
+  </defs>
+  <rect x=".5" y=".5" width="1199" height="299" rx="16" fill="url(#background)" stroke="#394451"/>
+  <rect x="1" y="1" width="1198" height="298" rx="16" fill="url(#grid)"/>
+  <path d="M48 72V48H72M1128 48H1152V72M48 228V252H72M1128 252H1152V228" stroke="url(#accent)" stroke-width="2"/>
+  <g stroke="#4C9AFF" stroke-width="2.5" stroke-linejoin="round">
+    <path d="m76 99 20-12 20 12v24l-20 12-20-12z" fill="#173C67"/>
+    <path d="m76 99 20 12 20-12m-20 12v24"/>
+  </g>
+  <g font-family="Inter, Segoe UI, Arial, sans-serif">
+    <text x="133" y="129" fill="#EEF2F6" font-size="48" font-weight="700" letter-spacing="-1.5">Blueprint</text>
+    <text x="76" y="177" fill="#EEF2F6" font-size="22">Give your systems a clearer shape.</text>
+    <text x="76" y="214" fill="#A7B2BF" font-size="15">NATIVE DESKTOP</text>
+    <circle cx="231" cy="209" r="2" fill="#4C9AFF"/>
+    <text x="248" y="214" fill="#A7B2BF" font-size="15">BUILT IN RUST</text>
+    <circle cx="381" cy="209" r="2" fill="#36CBB2"/>
+    <text x="398" y="214" fill="#A7B2BF" font-size="15">OPEN SOURCE</text>
+  </g>
+  <path d="M701 150h34m144 0h34" stroke="#536C88" stroke-width="2"/>
+  <path d="m728 146 4 4-4 4m178-8 4 4-4 4" stroke="#A7B2BF" stroke-width="2"/>
+  <g font-family="Inter, Segoe UI, Arial, sans-serif" font-size="12" font-weight="600" text-anchor="middle" letter-spacing="1">
+    <rect x="557" y="83" width="144" height="134" rx="10" fill="#1C222A" stroke="#4C9AFF" stroke-opacity=".6"/>
+    <rect x="735" y="83" width="144" height="134" rx="10" fill="#1C222A" stroke="#E9B949" stroke-opacity=".6"/>
+    <rect x="913" y="83" width="144" height="134" rx="10" fill="#1C222A" stroke="#36CBB2" stroke-opacity=".6"/>
+    <text x="629" y="194" fill="#9CC8FF">SCHEMA</text>
+    <text x="807" y="194" fill="#F2D48A">WORKFLOW</text>
+    <text x="985" y="194" fill="#81E2D2">CLOUD</text>
+  </g>
+  <g stroke="#4C9AFF" stroke-width="2">
+    <rect x="599" y="108" width="60" height="50" rx="3" fill="#173C67"/>
+    <path d="M599 122h60m-60 12h60m-60 12h60m-40-24v36"/>
+  </g>
+  <g stroke="#E9B949" stroke-width="2" stroke-linejoin="round">
+    <path d="m807 110 27 25-27 25-27-25z" fill="#463919"/>
+    <path d="M765 135h15m54 0h15m-42-35v10m0 50v10"/>
+  </g>
+  <path d="M966 153h41c12 0 15-18 3-23-1-22-33-27-41-7-18-3-21 27-3 30Z" fill="#163D3C" stroke="#36CBB2" stroke-width="2"/>
+  <circle cx="985" cy="138" r="4" fill="#36CBB2"/>
+</svg>
