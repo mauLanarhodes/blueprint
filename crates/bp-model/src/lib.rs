@@ -13,6 +13,7 @@ mod document;
 mod element;
 mod erd;
 mod ids;
+mod infrastructure;
 mod order;
 mod style;
 
@@ -26,6 +27,7 @@ pub use erd::{
     SqlDialect, TableDisplay,
 };
 pub use ids::{ColumnId, ElementId, IdHasher, IdMap, LayerId, PageId};
+pub use infrastructure::{AwsDeployment, AwsResource};
 pub use kurbo;
 pub use order::OrderKey;
 pub use style::{Color, Dash, Paint, Style, StyleValues, TextAlign, VerticalAlign};

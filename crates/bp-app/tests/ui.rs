@@ -1,6 +1,8 @@
 //! UI tests: drive the real app with simulated mouse and keyboard input.
 
-use bp_app::{BlueprintApp, ErdConnection, Tool};
+use bp_app::{
+    BlueprintApp, ErdConnection, InspectorTab, LeftTab, Tool, WorkspacePreferences, WorkspaceTheme,
+};
 use bp_model::kurbo::{Point, Rect};
 use bp_model::{
     CloudIcon, CloudProvider, ColumnId, DiagramKind, ElementId, Endpoint, IconKind, Marker, PortId,
@@ -14,13 +16,25 @@ use egui_kittest::kittest::Queryable;
 type Ui = Harness<'static, Option<BlueprintApp>>;
 
 fn raw_harness() -> Ui {
+    raw_harness_with_preferences(WorkspacePreferences::default())
+}
+
+fn raw_harness_with_preferences(preferences: WorkspacePreferences) -> Ui {
     let mut h = Harness::builder()
         .with_size(egui::vec2(1360.0, 860.0))
+        .with_max_steps(16)
         // Real frame times, so double-clicks register.
         .with_step_dt(1.0 / 60.0)
         .build_ui_state(
-            |ui, app: &mut Option<BlueprintApp>| {
-                let app = app.get_or_insert_with(|| BlueprintApp::new(ui.ctx(), None));
+            move |ui, app: &mut Option<BlueprintApp>| {
+                let app = app.get_or_insert_with(|| {
+                    BlueprintApp::new_with_workspace(
+                        ui.ctx(),
+                        None,
+                        preferences.clone(),
+                        Vec::new(),
+                    )
+                });
                 app.frame(ui);
             },
             None,
@@ -81,14 +95,46 @@ fn cloud_harness() -> Ui {
 }
 
 #[test]
+fn deployment_starter_and_dialog_are_available_without_icon_packs() {
+    let mut h = harness_for(DiagramKind::Cloud);
+    h.get_by_label("Add starter network").click();
+    h.run();
+    assert_eq!(app(&mut h).doc.elements.len(), 5);
+    app(&mut h).selection.clear();
+    h.run();
+    assert!(h.query_by_label("AWS account ID").is_some());
+    h.get_by_label("AWS network…").click();
+    h.run();
+    assert!(h.query_by_label("Deploy AWS infrastructure").is_some());
+    assert!(h.query_by_label("Choose deployment folder…").is_some());
+    assert!(h.query_by_label("Deploy reviewed plan").is_none());
+    assert!(!app(&mut h).deployment.busy());
+    h.get_by_label("Close").click();
+    h.run();
+    assert!(!app(&mut h).deployment.open);
+}
+
+#[test]
+fn selecting_a_starter_shape_exposes_resource_settings() {
+    let mut h = harness_for(DiagramKind::Cloud);
+    app(&mut h).add_starter_network();
+    let id = app(&mut h).selection[0];
+    app(&mut h).selection = vec![id];
+    h.run();
+    assert!(h.query_by_label("Infrastructure").is_some());
+    assert!(h.query_by_label("IPv4 CIDR").is_some());
+    assert!(h.query_by_label("Resource type").is_some());
+}
+
+#[test]
 fn cloud_chooser_palette_providers_search_and_basic_shapes_are_separate() {
     let mut h = raw_harness();
     h.get_by_label("Cloud architecture").click();
     h.run();
     assert_eq!(app(&mut h).page_kind(), Some(DiagramKind::Cloud));
     assert!(h.query_by_label("Manage icon packs…").is_some());
-    assert!(h.query_by_label("Rectangle").is_some());
-    assert!(h.query_by_label("Table").is_none());
+    assert!(library_has(&h, "Rectangle"));
+    assert!(!library_has(&h, "Table"));
     assert!(h.query_by_label("Decision").is_none());
     assert!(h.query_by_label("R O D N").is_none());
     assert!(h.query_by_label("R O N").is_some());
@@ -114,12 +160,12 @@ fn cloud_chooser_palette_providers_search_and_basic_shapes_are_separate() {
     );
     app(&mut h).palette.query = "table".into();
     h.run();
-    assert!(h.query_by_label("Table").is_none());
+    assert!(!library_has(&h, "Table"));
     app(&mut h).palette.query.clear();
     app(&mut h).set_page_kind(DiagramKind::Erd);
     h.run();
     assert!(h.query_by_label("Virtual Machines").is_none());
-    assert!(h.query_by_label("Table").is_some());
+    assert!(library_has(&h, "Table"));
 }
 
 #[test]
@@ -174,7 +220,15 @@ fn azure_same_named_icons_are_selectable_after_catalog_reload() {
     assert_eq!(h.get_all_by_label("Workspaces").count(), 2);
     h.get_all_by_label("Workspaces").next().unwrap().click();
     h.run();
-    h.get_all_by_label("Workspaces").nth(1).unwrap().click();
+    h.get_all_by_label("Workspaces")
+        .rfind(|node| node.accesskit_node().role() == egui::accesskit::Role::Button)
+        .unwrap()
+        .scroll_to_me();
+    h.run();
+    h.get_all_by_label("Workspaces")
+        .rfind(|node| node.accesskit_node().role() == egui::accesskit::Role::Button)
+        .unwrap()
+        .click();
     h.run();
     assert_eq!(shapes(&mut h).len(), 2);
     for icon in &pack.icons {
@@ -508,7 +562,7 @@ fn drag(h: &mut Ui, from: Pos2, to: Pos2) {
         pressed: false,
         modifiers: Modifiers::NONE,
     });
-    h.run();
+    h.run_steps(8);
 }
 
 fn bounds(h: &mut Ui, id: ElementId) -> Rect {
@@ -535,49 +589,96 @@ fn shapes(h: &mut Ui) -> Vec<ElementId> {
         .collect()
 }
 
-fn toolbar_rect(h: &Ui) -> egui::Rect {
-    h.ctx
-        .memory(|memory| memory.area_rect(egui::Id::new("floating_toolbar")))
-        .expect("floating toolbar is visible")
+fn tool_strip_rect(h: &Ui) -> egui::Rect {
+    h.state().as_ref().unwrap().workspace.tool_rect
+}
+
+fn library_has(h: &Ui, label: &str) -> bool {
+    let library = h.state().as_ref().unwrap().workspace.left_rect;
+    h.query_all_by_label(label)
+        .any(|node| library.x_range().contains(node.rect().center().x))
+}
+
+fn library_rect(h: &mut Ui, label: &str) -> egui::Rect {
+    let library = h.state().as_ref().unwrap().workspace.left_rect;
+    h.get_all_by_label(label)
+        .into_iter()
+        .find(|node| library.x_range().contains(node.rect().center().x))
+        .unwrap_or_else(|| panic!("{label} is offered in the library"))
+        .scroll_to_me();
+    h.run();
+    h.get_all_by_label(label)
+        .into_iter()
+        .find(|node| library.contains_rect(node.rect()))
+        .unwrap_or_else(|| panic!("{label} scrolls into the library"))
+        .rect()
+}
+
+fn library_click(h: &mut Ui, label: &str) {
+    let rect = library_rect(h, label);
+    click(h, rect.center());
+}
+
+fn inspector_tab(h: &mut Ui, tab: InspectorTab) {
+    let inspector = h.state().as_ref().unwrap().workspace.right_rect;
+    h.get_all_by_label(tab.label())
+        .into_iter()
+        .find(|node| inspector.contains_rect(node.rect()))
+        .expect("inspector offers this tab")
+        .click();
+    h.run();
 }
 
 #[test]
-fn floating_toolbar_stays_centered_inside_the_canvas_after_resize() {
-    for kind in [DiagramKind::Flowchart, DiagramKind::Erd] {
+fn drawing_tools_and_docks_stay_inside_the_window_after_resize() {
+    for kind in [DiagramKind::Flowchart, DiagramKind::Erd, DiagramKind::Cloud] {
         let mut h = harness_for(kind);
-        for size in [
-            egui::vec2(1360.0, 860.0),
-            egui::vec2(920.0, 650.0),
-            egui::vec2(1800.0, 1000.0),
+        for (size, scale) in [
+            (egui::vec2(1600.0, 1000.0), 1.0),
+            (egui::vec2(1360.0, 860.0), 1.25),
+            (egui::vec2(1024.0, 720.0), 2.0),
+            (egui::vec2(760.0, 480.0), 1.0),
         ] {
             h.set_size(size);
+            h.set_pixels_per_point(scale);
             h.run();
-            let toolbar = toolbar_rect(&h);
-            let canvas = app(&mut h).canvas_rect;
+            let screen = h.ctx.content_rect();
+            let app = app(&mut h);
+            let canvas = app.canvas_rect;
+            for rect in [
+                app.workspace.tool_rect,
+                app.workspace.left_rect,
+                app.workspace.right_rect,
+                canvas,
+            ] {
+                assert!(
+                    screen.contains_rect(rect),
+                    "kind={kind:?}, size={size:?}, scale={scale}: {rect:?} stays in {screen:?}"
+                );
+            }
             assert!(
-                canvas.contains_rect(toolbar),
-                "toolbar stays within canvas: kind={kind:?}, window={size:?}, canvas={canvas:?}, toolbar={toolbar:?}"
+                canvas.width() >= 359.0,
+                "docks preserve a useful canvas: {canvas:?}"
             );
-            assert!(
-                (toolbar.center().x - canvas.center().x).abs() <= 1.0,
-                "toolbar is centered on the canvas rather than the window"
-            );
-            assert!(
-                toolbar.top() > canvas.center().y,
-                "toolbar is near the bottom"
-            );
-            assert!(
-                toolbar.bottom() < canvas.bottom(),
-                "toolbar floats above the edge"
-            );
+            assert!(canvas.height() >= 239.0);
+            assert!(!canvas.shrink(1.0).intersects(app.workspace.tool_rect));
+            assert!(!canvas.shrink(1.0).intersects(app.workspace.left_rect));
+            assert!(!canvas.shrink(1.0).intersects(app.workspace.right_rect));
+            // build_ui_state adds an eight-point test-only outer margin.
+            assert!((app.workspace.tool_rect.left() - screen.left() - 8.0).abs() <= 1.0);
         }
     }
 }
 
 #[test]
-fn floating_toolbar_shape_tool_places_a_shape_on_the_canvas() {
+fn drawing_tool_places_a_shape_on_the_canvas() {
     let mut h = harness();
-    h.get_by_label(egui_phosphor::regular::SQUARE).click();
+    let strip = tool_strip_rect(&h);
+    h.get_all_by_label("Rectangle")
+        .into_iter()
+        .find(|node| strip.contains_rect(node.rect()))
+        .unwrap()
+        .click();
     h.run();
     assert_eq!(
         app(&mut h).tool,
@@ -597,7 +698,7 @@ fn floating_toolbar_shape_tool_places_a_shape_on_the_canvas() {
 }
 
 #[test]
-fn floating_toolbar_padding_blocks_canvas_clicks_drags_and_scroll() {
+fn dock_padding_blocks_canvas_clicks_drags_and_scroll() {
     let mut h = harness();
     let id = add_shape(
         &mut h,
@@ -609,20 +710,29 @@ fn floating_toolbar_padding_blocks_canvas_clicks_drags_and_scroll() {
     h.run();
     let before = app(&mut h).doc.clone();
     let view = app(&mut h).view;
-    let toolbar = toolbar_rect(&h);
-    // The frame's top padding is inside the bar, above its buttons.
-    let padding = egui::pos2(toolbar.center().x, toolbar.top() + 4.0);
-    click(&mut h, padding);
-    drag(&mut h, padding, padding + egui::vec2(80.0, 0.0));
-    h.hover_at(padding);
-    for modifiers in [Modifiers::NONE, Modifiers::COMMAND] {
-        h.event(Event::MouseWheel {
-            unit: egui::MouseWheelUnit::Point,
-            delta: egui::vec2(0.0, 120.0),
-            phase: egui::TouchPhase::Move,
-            modifiers,
-        });
-        h.run_steps(60);
+    let docks = {
+        let app = app(&mut h);
+        [
+            app.workspace.tool_rect,
+            app.workspace.left_rect,
+            app.workspace.right_rect,
+        ]
+    };
+    for dock in docks {
+        // Test empty top padding away from the dedicated resize handle.
+        let padding = egui::pos2(dock.center().x, dock.top() + 3.0);
+        click(&mut h, padding);
+        drag(&mut h, padding, padding + egui::vec2(20.0, 20.0));
+        h.hover_at(padding);
+        for modifiers in [Modifiers::NONE, Modifiers::COMMAND] {
+            h.event(Event::MouseWheel {
+                unit: egui::MouseWheelUnit::Point,
+                delta: egui::vec2(0.0, 120.0),
+                phase: egui::TouchPhase::Move,
+                modifiers,
+            });
+            h.run_steps(60);
+        }
     }
     assert_eq!(app(&mut h).doc, before);
     assert_eq!(app(&mut h).selection, vec![id]);
@@ -630,15 +740,89 @@ fn floating_toolbar_padding_blocks_canvas_clicks_drags_and_scroll() {
 }
 
 #[test]
-fn floating_toolbar_rejects_palette_drops_but_canvas_accepts_them() {
+fn canvas_pan_and_zoom_keep_the_anchor_after_dock_changes() {
     let mut h = harness();
-    let source = h.get_by_label("Rectangle").rect().center();
-    let toolbar = toolbar_rect(&h);
-    let padding = egui::pos2(toolbar.center().x, toolbar.top() + 4.0);
+    add_shape(
+        &mut h,
+        "basic/rectangle",
+        Rect::new(100.0, 100.0, 200.0, 160.0),
+    );
+    let document = app(&mut h).doc.clone();
+    let revision = app(&mut h).history.revision();
+    for compact in [false, true, false] {
+        h.set_size(if compact {
+            egui::vec2(760.0, 480.0)
+        } else {
+            egui::vec2(1360.0, 860.0)
+        });
+        app(&mut h).preferences.right_width = if compact { 304.0 } else { 400.0 };
+        h.run();
+        let canvas = app(&mut h).canvas_rect;
+        let anchor = canvas.center() + egui::vec2(35.0, -20.0);
+        let before = app(&mut h).view;
+        h.hover_at(anchor);
+        h.event(Event::MouseWheel {
+            unit: egui::MouseWheelUnit::Point,
+            delta: egui::vec2(24.0, 72.0),
+            phase: egui::TouchPhase::Move,
+            modifiers: Modifiers::NONE,
+        });
+        h.run_steps(60);
+        assert_eq!(app(&mut h).view.zoom, before.zoom);
+        assert!((app(&mut h).view.pan - before.pan - egui::vec2(24.0, 72.0)).length() < 0.1);
+
+        let before = app(&mut h).view;
+        let page_anchor = before.to_page(canvas.min, anchor);
+        h.event(Event::MouseWheel {
+            unit: egui::MouseWheelUnit::Point,
+            delta: egui::vec2(0.0, 120.0),
+            phase: egui::TouchPhase::Move,
+            modifiers: Modifiers::COMMAND,
+        });
+        h.run_steps(60);
+        let after = app(&mut h).view;
+        assert!(
+            after.zoom > before.zoom,
+            "command wheel zooms over the canvas"
+        );
+        assert!((after.to_screen(canvas.min, page_anchor) - anchor).length() < 0.1);
+
+        let before = app(&mut h).view;
+        h.event(Event::Key {
+            key: Key::Space,
+            physical_key: None,
+            pressed: true,
+            repeat: false,
+            modifiers: Modifiers::NONE,
+        });
+        h.step();
+        let delta = egui::vec2(48.0, 32.0);
+        drag(&mut h, canvas.center(), canvas.center() + delta);
+        h.event(Event::Key {
+            key: Key::Space,
+            physical_key: None,
+            pressed: false,
+            repeat: false,
+            modifiers: Modifiers::NONE,
+        });
+        h.run();
+        assert_eq!(app(&mut h).view.zoom, before.zoom);
+        assert!((app(&mut h).view.pan - before.pan - delta).length() < 0.1);
+    }
+    assert_eq!(app(&mut h).doc, document);
+    assert_eq!(app(&mut h).history.revision(), revision);
+}
+
+#[test]
+fn docks_reject_palette_drops_but_canvas_accepts_them() {
+    let mut h = harness();
+    let source = library_rect(&mut h, "Rectangle").center();
+    let dock = tool_strip_rect(&h);
+    let padding = dock.min + egui::vec2(3.0, 3.0);
     drag(&mut h, source, padding);
     assert!(
         shapes(&mut h).is_empty(),
-        "toolbar is not a shape drop target: toolbar={toolbar:?}, padding={padding:?}, layer={:?}",
+        "tool strip is not a shape drop target: dock={dock:?}, padding={padding:?}, layer={:?}",
         h.ctx.layer_id_at(padding)
     );
     assert!(app(&mut h).palette.dragging.is_none());
@@ -1025,7 +1209,7 @@ fn erd_palette_and_inspector_add_columns_with_enter_and_undo() {
     let mut h = harness_for(DiagramKind::Erd);
     app(&mut h).palette.query = "table".into();
     h.run();
-    h.get_by_label("Table").click();
+    library_click(&mut h, "Table");
     h.run();
     let id = app(&mut h).selection[0];
     let table = app(&mut h).doc.elements[&id]
@@ -1037,6 +1221,7 @@ fn erd_palette_and_inspector_add_columns_with_enter_and_undo() {
     assert_eq!(table.columns.len(), 1);
     assert!(table.columns[0].primary_key);
 
+    inspector_tab(&mut h, InspectorTab::Columns);
     h.get_by_label("Add column").click();
     h.run();
     assert_eq!(
@@ -1173,6 +1358,7 @@ fn locked_erd_tables_refuse_row_edits() {
         .unwrap()
         .columns[0]
         .id;
+    inspector_tab(&mut h, InspectorTab::Columns);
     assert!(h.get_by_label("Add column").accesskit_node().is_disabled());
     h.get_by_label("Add column").click();
     h.run();
@@ -1301,9 +1487,9 @@ fn diagram_choice_sets_each_page_and_cancel_leaves_the_document_untouched() {
 #[test]
 fn page_kind_filters_shapes_search_recent_items_and_quick_insert() {
     let mut h = harness();
-    assert!(h.query_by_label("Table").is_none());
+    assert!(!library_has(&h, "Table"));
     assert!(h.query_by_label("Predefined process").is_some());
-    assert!(h.query_all_by_label("Rectangle").next().is_some());
+    assert!(library_has(&h, "Rectangle"));
     h.get_by_label("Predefined process").click();
     h.run();
     let flowchart = app(&mut h).page;
@@ -1311,9 +1497,9 @@ fn page_kind_filters_shapes_search_recent_items_and_quick_insert() {
     app(&mut h).add_page_with_kind(DiagramKind::Erd);
     h.run();
     let erd = app(&mut h).page;
-    assert!(h.query_by_label("Table").is_some());
+    assert!(library_has(&h, "Table"));
     assert!(h.query_by_label("Predefined process").is_none());
-    assert!(h.query_all_by_label("Rectangle").next().is_some());
+    assert!(library_has(&h, "Rectangle"));
     assert!(h.query_by_label("Zero or many").is_some());
 
     app(&mut h).palette.query = "predefined".into();
@@ -1323,12 +1509,12 @@ fn page_kind_filters_shapes_search_recent_items_and_quick_insert() {
     app(&mut h).palette.query.clear();
     app(&mut h).set_page(flowchart);
     h.run();
-    assert!(h.query_by_label("Table").is_none());
+    assert!(!library_has(&h, "Table"));
     assert!(h.query_by_label("Zero or many").is_none());
 
     app(&mut h).palette.query = "table".into();
     h.run();
-    assert!(h.query_by_label("Table").is_none());
+    assert!(!library_has(&h, "Table"));
     app(&mut h).palette.query.clear();
     app(&mut h).open_quick_insert();
     app(&mut h).quick_insert.as_mut().unwrap().query = "table".into();
@@ -1363,7 +1549,7 @@ fn page_kind_filters_shapes_search_recent_items_and_quick_insert() {
 }
 
 #[test]
-fn erd_palette_presets_draw_the_chosen_markers_and_update_the_floating_bar() {
+fn erd_palette_presets_draw_the_chosen_markers_and_update_the_action_bar() {
     let mut h = harness_for(DiagramKind::Erd);
     let a = add_shape(&mut h, "erd/table", Rect::new(100.0, 100.0, 380.0, 200.0));
     let b = add_shape(&mut h, "erd/table", Rect::new(600.0, 100.0, 880.0, 200.0));
@@ -1406,7 +1592,11 @@ fn erd_palette_presets_draw_the_chosen_markers_and_update_the_floating_bar() {
         );
         let indicator_label = format!("ERD connection: {label}");
         let indicator = h.get_by_label(indicator_label.as_str());
-        assert!(toolbar_rect(&h).contains_rect(indicator.rect()));
+        assert!(h.ctx.content_rect().contains_rect(indicator.rect()));
+        assert!(
+            indicator.rect().bottom() <= app(&mut h).canvas_rect.top(),
+            "the active relationship appears in the action bar"
+        );
         let from = table_column_port(&mut h, a, source, false);
         let to = table_column_port(&mut h, b, target, true);
         let from = screen(&mut h, from);
@@ -1530,11 +1720,11 @@ fn erd_connection_symbols_explain_cardinality_and_the_toolbar_can_choose_a_type(
     let before = app(&mut h).doc.clone();
     h.get_by_label("ERD connection: Exactly one").click();
     h.run();
-    let canvas_left = app(&mut h).canvas_rect.left();
+    let library = app(&mut h).workspace.left_rect;
     h.get_all_by_label("Zero or one")
         .into_iter()
-        .find(|node| node.rect().left() >= canvas_left)
-        .expect("Zero or one is offered in the floating toolbar menu")
+        .find(|node| !library.contains_rect(node.rect()))
+        .expect("Zero or one is offered in the action bar menu")
         .click();
     h.run();
     assert_eq!(app(&mut h).erd_connection, ErdConnection::ZeroOrOne);
@@ -1588,7 +1778,7 @@ fn undoing_the_initial_page_choice_can_be_redone_through_the_chooser() {
     assert_eq!(app(&mut h).page_kind(), Some(DiagramKind::Erd));
     assert!(app(&mut h).page_choice.is_none());
     assert!(h.query_by_label("Choose diagram type").is_none());
-    assert!(h.query_by_label("Table").is_some());
+    assert!(library_has(&h, "Table"));
 
     h.key_press_modifiers(Modifiers::COMMAND, Key::Z);
     h.run();
@@ -1914,4 +2104,553 @@ fn selecting_composite_relationship_shows_all_mapping_rows_without_document_chan
         4
     );
     assert_eq!(app(&mut h).doc, before);
+}
+
+#[derive(Default)]
+struct MemoryStorage(std::collections::BTreeMap<String, String>);
+
+impl eframe::Storage for MemoryStorage {
+    fn get_string(&self, key: &str) -> Option<String> {
+        self.0.get(key).cloned()
+    }
+
+    fn set_string(&mut self, key: &str, value: String) {
+        self.0.insert(key.into(), value);
+    }
+
+    fn remove_string(&mut self, key: &str) {
+        self.0.remove(key);
+    }
+
+    fn flush(&mut self) {}
+}
+
+#[test]
+fn workspace_preferences_round_trip_without_changing_document_history() {
+    let mut h = harness();
+    let before = app(&mut h).doc.clone();
+    let history = app(&mut h).history.state_id();
+    let dirty = app(&mut h).is_dirty();
+    assert!(
+        app(&mut h).cloud.packs.is_empty(),
+        "test startup ignores installed catalogs"
+    );
+
+    h.get_by_label("Collapse library").click();
+    h.run();
+    h.get_by_label("Collapse inspector").click();
+    h.run();
+    h.get_by_label("View").click();
+    h.run();
+    h.get_by_label_contains("Theme").click();
+    h.run();
+    h.get_by_label("Light").click();
+    h.run();
+    h.key_press(Key::Escape);
+    h.run();
+    h.key_press(Key::Escape);
+    h.run();
+    let preferences = app(&mut h).workspace_preferences();
+    assert!(!preferences.left_open && !preferences.right_open);
+    assert_eq!(preferences.theme, WorkspaceTheme::Light);
+    assert!(h.ctx.theme() == egui::Theme::Light);
+    assert_eq!(app(&mut h).doc, before);
+    assert_eq!(app(&mut h).history.state_id(), history);
+    assert_eq!(app(&mut h).is_dirty(), dirty);
+
+    let mut storage = MemoryStorage::default();
+    preferences.store(&mut storage);
+    let restored = WorkspacePreferences::load(Some(&storage));
+    assert_eq!(restored, preferences);
+    let mut reopened = raw_harness_with_preferences(restored);
+    app(&mut reopened).choose_page_kind(DiagramKind::Flowchart);
+    reopened.run();
+    assert_eq!(app(&mut reopened).workspace_preferences(), preferences);
+    assert!(reopened.query_by_label("Expand library").is_some());
+    assert!(reopened.query_by_label("Expand inspector").is_some());
+    assert!(reopened.ctx.theme() == egui::Theme::Light);
+}
+
+#[test]
+fn small_windows_keep_both_panels_reachable_and_restore_preferred_widths() {
+    let mut h = harness();
+    let preferred = app(&mut h).workspace_preferences();
+    let before = app(&mut h).doc.clone();
+    let history = app(&mut h).history.state_id();
+    h.set_size(egui::vec2(760.0, 480.0));
+    h.run();
+    assert!(!app(&mut h).workspace.effective_left_open);
+    assert!(app(&mut h).workspace.effective_right_open);
+    assert!(app(&mut h).canvas_rect.width() >= 359.0);
+    assert!(
+        app(&mut h).preferences.left_open,
+        "automatic collapse does not overwrite intent"
+    );
+    h.get_by_label("Expand library").click();
+    h.run();
+    assert!(app(&mut h).workspace.effective_left_open);
+    assert!(!app(&mut h).workspace.effective_right_open);
+    assert!(library_has(&h, "Predefined process"));
+    assert!(app(&mut h).canvas_rect.width() >= 359.0);
+    h.get_by_label("Expand inspector").click();
+    h.run();
+    assert!(app(&mut h).workspace.effective_right_open);
+    assert!(!app(&mut h).workspace.effective_left_open);
+    h.set_size(egui::vec2(1360.0, 860.0));
+    h.run();
+    let restored = app(&mut h).workspace_preferences();
+    assert!(app(&mut h).workspace.effective_left_open);
+    assert!(app(&mut h).workspace.effective_right_open);
+    assert!((restored.left_width - preferred.left_width).abs() <= 1.0);
+    assert!((restored.right_width - preferred.right_width).abs() <= 1.0);
+    assert_eq!(app(&mut h).doc, before);
+    assert_eq!(app(&mut h).history.state_id(), history);
+}
+
+#[test]
+fn dragging_a_panel_splitter_persists_width_without_editing_the_document() {
+    let mut h = harness();
+    let before = app(&mut h).doc.clone();
+    let history = app(&mut h).history.state_id();
+    let left = app(&mut h).workspace.left_rect;
+    let from = egui::pos2(left.right() - 1.0, left.center().y);
+    drag(&mut h, from, from + egui::vec2(48.0, 0.0));
+    let width = app(&mut h).workspace.left_rect.width();
+    assert!(
+        width > left.width() + 20.0,
+        "splitter changes the visible panel width"
+    );
+    let preferences = app(&mut h).workspace_preferences();
+    assert!((preferences.left_width - width).abs() <= 1.0);
+    assert_eq!(app(&mut h).doc, before);
+    assert_eq!(app(&mut h).history.state_id(), history);
+    let mut reopened = raw_harness_with_preferences(preferences);
+    app(&mut reopened).choose_page_kind(DiagramKind::Flowchart);
+    reopened.run();
+    assert!((app(&mut reopened).workspace.left_rect.width() - width).abs() <= 1.0);
+}
+
+#[test]
+fn navigator_layer_controls_fit_the_dock_including_long_names_and_renaming() {
+    let mut h = harness();
+    h.get_by_label("Navigator").click();
+    h.run();
+    let layer = app(&mut h).layer;
+    let name = "A very long layer name that must leave both layer controls visible";
+    let page = app(&mut h).page;
+    let page_name = "A very long page name must also stay inside the navigation dock";
+    app(&mut h).rename_page(page, page_name.into());
+    app(&mut h).rename_layer(layer, name.into());
+    for width in [220.0, 256.0, 400.0] {
+        app(&mut h).preferences.left_width = width;
+        h.run();
+        let inside = app(&mut h).workspace.left_rect.shrink(8.0);
+        for label in [page_name, name, "Hide layer", "Lock layer"] {
+            let rect = h
+                .get_all_by_label(label)
+                .find(|node| node.accesskit_node().role() == egui::accesskit::Role::Button)
+                .expect("navigator button")
+                .rect();
+            assert!(
+                inside.contains_rect(rect),
+                "{label} spills outside a {width}-point dock: {rect:?}, dock={inside:?}"
+            );
+        }
+        let row = h.get_by_label(name).rect();
+        double_click(&mut h, row.center());
+        h.run();
+        for label in ["Hide layer", "Lock layer"] {
+            assert!(
+                inside.contains_rect(h.get_by_label(label).rect()),
+                "renaming must preserve room for {label}"
+            );
+        }
+        h.key_press(Key::Escape);
+        h.run();
+    }
+    h.get_by_label("Hide layer").click();
+    h.run();
+    assert!(!app(&mut h).doc.layers[&layer].visible);
+    h.get_by_label("Lock layer").click();
+    h.run();
+    assert!(app(&mut h).doc.layers[&layer].locked);
+}
+
+#[test]
+fn canvas_and_navigator_column_selection_agree_without_document_edits() {
+    let mut h = harness_for(DiagramKind::Erd);
+    let table = add_shape(&mut h, "erd/table", Rect::new(80.0, 80.0, 370.0, 220.0));
+    let column = app(&mut h).add_table_column(table).unwrap();
+    app(&mut h).set_table_column(
+        table,
+        column,
+        bp_commands::ColumnProp::Name("customer_id".into()),
+    );
+    h.run();
+    let row = app(&mut h)
+        .scene
+        .shape(table)
+        .unwrap()
+        .erd
+        .as_ref()
+        .unwrap()
+        .rows
+        .iter()
+        .find(|row| row.column == column)
+        .unwrap()
+        .bounds;
+    let at = screen(&mut h, Point::new(row.x0 + 40.0, row.center().y));
+    let before = app(&mut h).doc.clone();
+    let history = app(&mut h).history.state_id();
+    click(&mut h, at);
+    assert_eq!(app(&mut h).selection, vec![table]);
+    assert_eq!(app(&mut h).workspace.selected_column, Some((table, column)));
+    assert_eq!(app(&mut h).workspace.inspector_tab, InspectorTab::Columns);
+    assert!(app(&mut h).erd_focus().columns[&table].contains(&column));
+
+    h.get_by_label("Navigator").click();
+    h.run();
+    let column_name = {
+        let column = app(&mut h).doc.elements[&table]
+            .as_shape()
+            .unwrap()
+            .erd
+            .as_ref()
+            .unwrap()
+            .column(column)
+            .unwrap();
+        format!("{}  ·  {}", column.name, column.data_type)
+    };
+    h.get_by_label(column_name.as_str()).click();
+    h.run();
+    assert_eq!(app(&mut h).selection, vec![table]);
+    assert_eq!(app(&mut h).workspace.selected_column, Some((table, column)));
+    assert_eq!(app(&mut h).workspace.inspector_tab, InspectorTab::Columns);
+    assert_eq!(app(&mut h).doc, before);
+    assert_eq!(app(&mut h).history.state_id(), history);
+}
+
+#[test]
+fn selected_column_identity_survives_reordering_and_stale_selection_is_pruned() {
+    let mut h = harness_for(DiagramKind::Erd);
+    let table = add_shape(&mut h, "erd/table", Rect::new(80.0, 80.0, 370.0, 260.0));
+    let selected = app(&mut h).add_table_column(table).unwrap();
+    app(&mut h).add_table_column(table).unwrap();
+    app(&mut h).select_navigation_element(table, Some(selected));
+    app(&mut h).move_table_column(table, selected, 1);
+    app(&mut h).set_table_column(
+        table,
+        selected,
+        bp_commands::ColumnProp::Name("renamed_id".into()),
+    );
+    h.run();
+    assert_eq!(
+        app(&mut h).workspace.selected_column,
+        Some((table, selected))
+    );
+    assert!(app(&mut h).erd_focus().columns[&table].contains(&selected));
+
+    app(&mut h).delete_table_column(table, selected);
+    assert_eq!(app(&mut h).workspace.selected_column, None);
+    h.run();
+    assert_ne!(
+        app(&mut h).workspace.selected_column,
+        Some((table, selected))
+    );
+    app(&mut h).undo();
+    app(&mut h).select_navigation_element(table, Some(selected));
+    let layer = app(&mut h).layer;
+    app(&mut h).set_layer_flag(layer, bp_commands::LayerProp::Visible(false));
+    h.run();
+    assert_eq!(app(&mut h).workspace.selected_column, None);
+    assert!(app(&mut h).selection.is_empty());
+    app(&mut h).undo();
+    app(&mut h).select_navigation_element(table, Some(selected));
+    app(&mut h).add_page_with_kind(DiagramKind::Flowchart);
+    h.run();
+    assert_eq!(app(&mut h).workspace.selected_column, None);
+    assert!(app(&mut h).selection.is_empty());
+    assert_eq!(app(&mut h).doc.validate(), Ok(()));
+}
+
+#[test]
+fn keyboard_focus_activates_tools_with_tab_and_enter() {
+    let mut h = harness();
+    let before = app(&mut h).doc.clone();
+    let history = app(&mut h).history.state_id();
+    h.get_by_label("Select").focus();
+    h.run();
+    assert!(
+        h.query_all_by_label("Select")
+            .any(|node| node.accesskit_node().is_focused())
+    );
+    h.key_press(Key::Tab);
+    h.run();
+    assert!(
+        h.query_all_by_label("Pan")
+            .any(|node| node.accesskit_node().is_focused())
+    );
+    h.key_press(Key::Enter);
+    h.run();
+    assert_eq!(app(&mut h).tool, Tool::Pan);
+    h.key_press_modifiers(Modifiers::SHIFT, Key::Tab);
+    h.run();
+    assert!(
+        h.query_all_by_label("Select")
+            .any(|node| node.accesskit_node().is_focused())
+    );
+    h.key_press(Key::Enter);
+    h.run();
+    assert_eq!(app(&mut h).tool, Tool::Select);
+    assert_eq!(app(&mut h).doc, before);
+    assert_eq!(app(&mut h).history.state_id(), history);
+}
+
+#[test]
+fn navigator_arrow_keys_move_focus_and_selection_without_nudging_shapes() {
+    let preferences = WorkspacePreferences {
+        left_tab: LeftTab::Navigator,
+        ..Default::default()
+    };
+    let mut h = raw_harness_with_preferences(preferences);
+    app(&mut h).choose_page_kind(DiagramKind::Flowchart);
+    let alpha = add_shape(
+        &mut h,
+        "flowchart/process",
+        Rect::new(80.0, 80.0, 250.0, 150.0),
+    );
+    let beta = add_shape(
+        &mut h,
+        "flowchart/process",
+        Rect::new(300.0, 80.0, 470.0, 150.0),
+    );
+    app(&mut h).apply(
+        "Name navigation examples",
+        [
+            bp_commands::Command::Set {
+                id: alpha,
+                prop: bp_commands::Prop::Text("Alpha".into()),
+            },
+            bp_commands::Command::Set {
+                id: beta,
+                prop: bp_commands::Prop::Text("Beta".into()),
+            },
+        ],
+    );
+    h.run();
+    let before = app(&mut h).doc.clone();
+    let history = app(&mut h).history.state_id();
+    h.get_by_label("Alpha").focus();
+    h.run();
+    h.key_press(Key::ArrowDown);
+    h.run();
+    assert_eq!(app(&mut h).selection, vec![beta]);
+    assert!(h.get_by_label("Beta").accesskit_node().is_focused());
+    h.key_press(Key::ArrowUp);
+    h.run();
+    assert_eq!(app(&mut h).selection, vec![alpha]);
+    assert!(h.get_by_label("Alpha").accesskit_node().is_focused());
+    assert_eq!(app(&mut h).doc, before);
+    assert_eq!(app(&mut h).history.state_id(), history);
+}
+
+#[test]
+fn relationship_details_move_to_the_inspector_when_the_window_is_short() {
+    let mut h = harness_for(DiagramKind::Erd);
+    app(&mut h).paste_sql_schema();
+    app(&mut h).sql.import.as_mut().unwrap().source = "CREATE TABLE parent (id integer PRIMARY KEY); CREATE TABLE child (parent_id integer REFERENCES parent(id));".into();
+    app(&mut h).preview_sql_import();
+    assert!(app(&mut h).apply_sql_import());
+    let connector = app(&mut h)
+        .doc
+        .elements
+        .values()
+        .find(|element| element.is_connector())
+        .unwrap()
+        .id;
+    app(&mut h).select_only(connector);
+    h.run();
+    assert!(app(&mut h).workspace.drawer_rect.is_positive());
+    assert!(!app(&mut h).workspace.relationship_in_inspector);
+    let before = app(&mut h).doc.clone();
+    let history = app(&mut h).history.state_id();
+    h.set_size(egui::vec2(760.0, 480.0));
+    h.run_steps(3);
+    assert!(app(&mut h).workspace.relationship_in_inspector);
+    assert!(!app(&mut h).workspace.drawer_rect.is_positive());
+    assert!(h.query_by_label("SQL foreign key").is_some());
+    assert!(h.query_by_label("Referencing cardinality").is_some());
+    assert!(app(&mut h).canvas_rect.height() >= 239.0);
+    assert_eq!(app(&mut h).doc, before);
+    assert_eq!(app(&mut h).history.state_id(), history);
+}
+
+#[test]
+fn cloud_view_favorites_and_keyboard_undo_preserve_document_boundaries() {
+    let mut h = cloud_harness();
+    let before = app(&mut h).doc.clone();
+    let history = app(&mut h).history.state_id();
+    let reference = cloud_pack(CloudProvider::Aws).icons[0].reference.clone();
+    h.get_by_label("Favorite Amazon EC2").click();
+    h.run();
+    h.get_by_label("Service list view").click();
+    h.run();
+    assert_eq!(
+        app(&mut h).preferences.cloud_view,
+        bp_app::CatalogView::List
+    );
+    assert_eq!(app(&mut h).preferences.favorites, vec![reference.clone()]);
+    assert_eq!(app(&mut h).doc, before);
+    assert_eq!(app(&mut h).history.state_id(), history);
+
+    h.get_all_by_label("Amazon EC2")
+        .rfind(|node| node.accesskit_node().role() == egui::accesskit::Role::Button)
+        .unwrap()
+        .focus();
+    h.run();
+    h.key_press(Key::Enter);
+    h.run();
+    assert_eq!(shapes(&mut h).len(), 1);
+    h.key_press_modifiers(Modifiers::COMMAND, Key::Z);
+    h.run();
+    assert_eq!(
+        app(&mut h).doc,
+        before,
+        "focused catalog controls allow document undo"
+    );
+    assert_eq!(
+        app(&mut h).workspace_preferences().favorites,
+        vec![reference]
+    );
+
+    app(&mut h).cloud.packs.clear();
+    h.run();
+    assert!(h.query_by_label("Remove unavailable favorite").is_some());
+    h.get_by_label("Remove unavailable favorite").click();
+    h.run();
+    assert!(app(&mut h).preferences.favorites.is_empty());
+    assert_eq!(app(&mut h).doc, before);
+}
+
+#[test]
+fn navigator_keeps_inherited_locks_and_search_input_read_only() {
+    let prefs = WorkspacePreferences {
+        left_tab: LeftTab::Navigator,
+        ..Default::default()
+    };
+    let mut h = raw_harness_with_preferences(prefs);
+    app(&mut h).choose_page_kind(DiagramKind::Flowchart);
+    let alpha = add_shape(
+        &mut h,
+        "flowchart/process",
+        Rect::new(80.0, 80.0, 240.0, 140.0),
+    );
+    let beta = add_shape(
+        &mut h,
+        "flowchart/process",
+        Rect::new(280.0, 80.0, 440.0, 140.0),
+    );
+    app(&mut h).apply(
+        "Name child",
+        [bp_commands::Command::Set {
+            id: alpha,
+            prop: bp_commands::Prop::Text("Locked child".into()),
+        }],
+    );
+    app(&mut h).selection = vec![alpha, beta];
+    app(&mut h).group_selection();
+    app(&mut h).toggle_lock();
+    app(&mut h).select_navigation_element(alpha, None);
+    h.run();
+    let before = app(&mut h).doc.clone();
+    let history = app(&mut h).history.state_id();
+    h.get_all_by_label("Locked child")
+        .find(|node| node.accesskit_node().role() == egui::accesskit::Role::Button)
+        .unwrap()
+        .focus();
+    h.run();
+    h.key_press_modifiers(Modifiers::COMMAND, Key::L);
+    h.run();
+    assert_eq!(
+        app(&mut h).doc,
+        before,
+        "only the owning layer or group can release an inherited lock"
+    );
+    assert_eq!(app(&mut h).history.state_id(), history);
+
+    h.get_by_label("Search pages and objects").focus();
+    h.run();
+    h.event(Event::Text("__no_matching_object__".into()));
+    h.run();
+    h.key_press(Key::Delete);
+    h.key_press(Key::R);
+    h.run();
+    assert!(h.query_by_label("No objects match").is_some());
+    assert_eq!(app(&mut h).doc, before);
+    assert_eq!(app(&mut h).tool, Tool::Select);
+    let layer = app(&mut h).layer;
+    app(&mut h).set_layer_flag(layer, bp_commands::LayerProp::Visible(false));
+    h.run();
+    app(&mut h).select_navigation_element(alpha, None);
+    assert!(
+        app(&mut h).selection.is_empty(),
+        "hidden contents cannot become a stale selection"
+    );
+}
+
+#[test]
+fn reopening_existing_artwork_preserves_colors_and_exports_across_workspace_changes() {
+    let mut document = bp_model::Document::new();
+    let page = document.first_page().unwrap();
+    document.pages.get_mut(&page).unwrap().diagram_kind = Some(DiagramKind::Flowchart);
+    let layer = document.layers_of(page)[0].id;
+    let element = bp_model::Element::shape(
+        ShapeRef::new("flowchart", "process"),
+        bp_model::Parent::Layer(layer),
+        bp_model::OrderKey::first(),
+        Rect::new(80.0, 80.0, 250.0, 140.0),
+    );
+    document.elements.insert(element.id, element);
+    let path = std::env::temp_dir().join(format!(
+        "blueprint-workspace-colors-{}.blueprint.json",
+        ElementId::new()
+    ));
+    bp_io::save(&document, &path).unwrap();
+    let file = path.clone();
+    let mut h = Harness::builder()
+        .with_size(egui::vec2(1360.0, 860.0))
+        .build_ui_state(
+            move |ui, state: &mut Option<BlueprintApp>| {
+                let app = state.get_or_insert_with(|| {
+                    BlueprintApp::new_with_workspace(
+                        ui.ctx(),
+                        Some(file.clone()),
+                        Default::default(),
+                        Vec::new(),
+                    )
+                });
+                app.frame(ui);
+            },
+            None,
+        );
+    h.run();
+    assert_eq!(app(&mut h).doc, document);
+    assert!(!app(&mut h).is_dirty());
+    let svg = bp_export::page_to_svg(&document, page, &Default::default());
+    app(&mut h).preferences.theme = WorkspaceTheme::Light;
+    app(&mut h).preferences.left_open = false;
+    app(&mut h).preferences.right_open = false;
+    h.set_size(egui::vec2(760.0, 480.0));
+    h.run();
+    assert_eq!(app(&mut h).doc, document);
+    assert!(!app(&mut h).is_dirty());
+    assert_eq!(
+        bp_export::page_to_svg(&app(&mut h).doc, page, &Default::default()),
+        svg
+    );
+    assert_eq!(
+        app(&mut h).doc.pages[&page].background,
+        bp_model::Color::WHITE
+    );
+    std::fs::remove_file(path).unwrap();
 }

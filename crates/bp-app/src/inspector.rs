@@ -2,6 +2,7 @@
 //! page when nothing is selected.
 
 use crate::app::BlueprintApp;
+use crate::inspector_sections::InspectorTab;
 use crate::theme::labelled;
 use bp_commands::edit::{Align, Reorder};
 use bp_commands::{Command, PageProp, Prop};
@@ -16,19 +17,39 @@ use egui_phosphor::regular as icon;
 
 impl BlueprintApp {
     pub fn inspector(&mut self, ui: &mut Ui) {
-        egui::Panel::bottom("layers_panel")
-            .resizable(true)
-            .default_size(190.0)
-            .show(ui, |ui| self.layers_panel(ui));
+        let selected: Vec<Element> = self
+            .selection
+            .iter()
+            .filter_map(|id| self.doc.elements.get(id).cloned())
+            .collect();
+        let kind = self.page_kind();
+        let table = selected
+            .first()
+            .is_some_and(|el| el.as_shape().is_some_and(|shape| shape.erd.is_some()));
+        let tabs: &[InspectorTab] = if selected.len() > 1 {
+            &[InspectorTab::Design, InspectorTab::Arrange]
+        } else if table || (selected.is_empty() && kind == Some(DiagramKind::Erd)) {
+            &[
+                InspectorTab::Table,
+                InspectorTab::Columns,
+                InspectorTab::Appearance,
+            ]
+        } else if kind == Some(DiagramKind::Cloud)
+            || (kind == Some(DiagramKind::Erd)
+                && selected
+                    .first()
+                    .is_some_and(|el| el.as_connector().is_some()))
+        {
+            &[InspectorTab::Configuration, InspectorTab::Appearance]
+        } else {
+            &[InspectorTab::Design, InspectorTab::Arrange]
+        };
+        self.inspector_tabs(ui, tabs);
         egui::ScrollArea::vertical()
+            .id_salt("context-inspector")
             .auto_shrink(false)
             .show(ui, |ui| {
-                ui.add_space(6.0);
-                let selected: Vec<Element> = self
-                    .selection
-                    .iter()
-                    .filter_map(|id| self.doc.elements.get(id).cloned())
-                    .collect();
+                ui.add_space(4.0);
                 match selected.as_slice() {
                     [] => self.page_inspector(ui),
                     [one] => {
@@ -37,7 +58,9 @@ impl BlueprintApp {
                             ElementKind::Connector(_) => self.connector_inspector(ui, one),
                             ElementKind::Group => self.group_inspector(ui, one),
                         });
-                        self.arrange_section(ui);
+                        if one.locked && ui.button("Unlock selected element").clicked() {
+                            self.toggle_lock();
+                        }
                     }
                     many => self.multi_inspector(ui, many),
                 }
@@ -49,52 +72,67 @@ impl BlueprintApp {
             return;
         };
         ui.heading("Page");
+        if self.workspace.inspector_tab == InspectorTab::Columns {
+            ui.label(RichText::new("Select a table to edit its columns.").weak());
+            return;
+        }
         ui.add_space(4.0);
+        let appearance = self.workspace.inspector_tab == InspectorTab::Appearance;
         egui::Grid::new("page").num_columns(2).show(ui, |ui| {
-            ui.label("Name");
-            let mut name = page.name.clone();
-            let edit = ui.add(egui::TextEdit::singleline(&mut name).desired_width(f32::INFINITY));
-            if edit.changed() && !name.trim().is_empty() {
-                self.apply_merging(
-                    "Rename page",
-                    format!("page-name:{}", page.id),
-                    vec![Command::SetPage {
-                        id: page.id,
-                        prop: PageProp::Name(name),
-                    }],
-                );
+            if !appearance {
+                ui.label("Name");
+                let mut name = page.name.clone();
+                let edit =
+                    ui.add(crate::widgets::text_field(&mut name).desired_width(f32::INFINITY));
+                if edit.changed() && !name.trim().is_empty() {
+                    self.apply_merging(
+                        "Rename page",
+                        format!("page-name:{}", page.id),
+                        vec![Command::SetPage {
+                            id: page.id,
+                            prop: PageProp::Name(name),
+                        }],
+                    );
+                }
+                ui.end_row();
+                ui.label("Diagram type");
+                let current_kind = self.page_kind();
+                let mut chosen_kind = current_kind;
+                egui::ComboBox::from_id_salt("page-diagram-kind")
+                    .selected_text(current_kind.map_or("Choose type…", DiagramKind::label))
+                    .show_ui(ui, |ui| {
+                        for kind in [DiagramKind::Erd, DiagramKind::Flowchart, DiagramKind::Cloud] {
+                            ui.selectable_value(&mut chosen_kind, Some(kind), kind.label());
+                        }
+                    });
+                if chosen_kind != current_kind
+                    && let Some(kind) = chosen_kind
+                {
+                    self.set_page_kind(kind);
+                }
+                ui.end_row();
             }
-            ui.end_row();
-            ui.label("Diagram type");
-            let current_kind = self.page_kind();
-            let mut chosen_kind = current_kind;
-            egui::ComboBox::from_id_salt("page-diagram-kind")
-                .selected_text(current_kind.map_or("Choose type…", DiagramKind::label))
-                .show_ui(ui, |ui| {
-                    for kind in [DiagramKind::Erd, DiagramKind::Flowchart, DiagramKind::Cloud] {
-                        ui.selectable_value(&mut chosen_kind, Some(kind), kind.label());
-                    }
-                });
-            if chosen_kind != current_kind
-                && let Some(kind) = chosen_kind
-            {
-                self.set_page_kind(kind);
+            if appearance || self.workspace.inspector_tab == InspectorTab::Design {
+                ui.label("Background");
+                let mut bg = page.background;
+                if color_button(ui, &mut bg) {
+                    self.apply_merging(
+                        "Page background",
+                        format!("page-bg:{}", page.id),
+                        vec![Command::SetPage {
+                            id: page.id,
+                            prop: PageProp::Background(bg),
+                        }],
+                    );
+                }
+                ui.end_row();
             }
-            ui.end_row();
-            ui.label("Background");
-            let mut bg = page.background;
-            if color_button(ui, &mut bg) {
-                self.apply_merging(
-                    "Page background",
-                    format!("page-bg:{}", page.id),
-                    vec![Command::SetPage {
-                        id: page.id,
-                        prop: PageProp::Background(bg),
-                    }],
-                );
-            }
-            ui.end_row();
         });
+        if self.page_kind() == Some(DiagramKind::Cloud) && !appearance {
+            ui.add_space(10.0);
+            section(ui, "AWS deployment target");
+            self.deployment_target(ui);
+        }
         ui.add_space(10.0);
         section(ui, "Grid and snapping");
         ui.checkbox(&mut self.settings.show_grid, "Show grid");
@@ -113,6 +151,9 @@ impl BlueprintApp {
                 .small()
                 .weak(),
         );
+        if appearance {
+            return;
+        }
         ui.add_space(10.0);
         section(ui, "Shortcuts");
         let erd = self.page_kind() == Some(DiagramKind::Erd);
@@ -158,37 +199,116 @@ impl BlueprintApp {
         let def = self.libraries.resolve(&shape.shape);
         let cloud_icon = self.doc.icons.get(&shape.shape);
         ui.heading(cloud_icon.map_or(def.name.as_str(), |icon| &icon.name));
-        ui.label(RichText::new(shape.shape.as_str()).small().weak());
-        if el.locked {
-            ui.horizontal(|ui| {
-                ui.label(crate::theme::icon(icon::LOCK).weak());
-                ui.label(RichText::new("Locked").weak());
-            });
+        if shape.shape.is_cloud() {
+            ui.label(
+                RichText::new(if shape.shape.library() == "aws" {
+                    "AWS architecture icon"
+                } else {
+                    "Azure architecture icon"
+                })
+                .small()
+                .weak(),
+            );
+        }
+        if self.doc.is_locked(el.id) {
+            ui.label(RichText::new("Locked").weak());
+        }
+        if self.page_kind() == Some(DiagramKind::Cloud) {
+            ui.label(
+                RichText::new(
+                    shape
+                        .infrastructure
+                        .as_ref()
+                        .map_or("Diagram only", bp_model::AwsResource::label),
+                )
+                .small()
+                .strong(),
+            );
         }
         ui.add_space(6.0);
-
-        if shape.erd.is_some() {
-            self.erd_table_inspector(ui, el);
-        } else if self.editing.is_none() {
-            section(ui, "Text");
-            let mut text = shape.text.clone();
-            let edit = egui::TextEdit::multiline(&mut text)
-                .desired_rows(2)
-                .desired_width(f32::INFINITY);
-            if ui.add(edit).changed() {
-                let id = el.id;
-                self.apply_merging(
-                    "Edit text",
-                    format!("text:{id}"),
-                    vec![Command::Set {
-                        id,
-                        prop: Prop::Text(text),
-                    }],
-                );
+        match self.workspace.inspector_tab {
+            InspectorTab::Table if shape.erd.is_some() => self.erd_table_inspector(ui, el),
+            InspectorTab::Columns if shape.erd.is_some() => self.erd_columns_inspector(ui, el),
+            InspectorTab::Configuration => {
+                self.shape_text_inspector(ui, el);
+                self.resource_inspector(ui, el);
             }
-            ui.add_space(6.0);
+            InspectorTab::Arrange => {
+                self.position_size_section(ui, el);
+                self.arrange_section(ui);
+            }
+            InspectorTab::Appearance => {
+                self.position_size_section(ui, el);
+                self.shape_style_inspector(ui, el);
+            }
+            _ => {
+                self.shape_text_inspector(ui, el);
+                self.shape_style_inspector(ui, el);
+            }
         }
+    }
 
+    fn shape_text_inspector(&mut self, ui: &mut Ui, el: &Element) {
+        let Some(shape) = el.as_shape() else { return };
+        if self.editing.is_some() {
+            return;
+        }
+        section(
+            ui,
+            if self.page_kind() == Some(DiagramKind::Cloud) {
+                "Name"
+            } else {
+                "Text"
+            },
+        );
+        let mut text = shape.text.clone();
+        let label = ui.label(if self.page_kind() == Some(DiagramKind::Cloud) {
+            "Label"
+        } else {
+            "Content"
+        });
+        let response = ui
+            .add(
+                egui::TextEdit::multiline(&mut text)
+                    .desired_rows(2)
+                    .desired_width(f32::INFINITY),
+            )
+            .labelled_by(label.id);
+        if response.changed() {
+            let id = el.id;
+            self.apply_merging(
+                "Edit text",
+                format!("text:{id}"),
+                vec![Command::Set {
+                    id,
+                    prop: Prop::Text(text),
+                }],
+            );
+        }
+        ui.add_space(6.0);
+    }
+
+    fn shape_style_inspector(&mut self, ui: &mut Ui, el: &Element) {
+        let Some(shape) = el.as_shape() else { return };
+        if shape.shape.is_cloud() {
+            ui.label(
+                RichText::new("Icons scale uniformly and keep their original appearance.")
+                    .small()
+                    .weak(),
+            );
+            self.text_style_section(
+                ui,
+                &shape.style,
+                &bp_scene::shape_geometry(self.libraries, shape).style,
+            );
+        } else {
+            let has_corners = self.libraries.resolve(&shape.shape).outline == Outline::Rect;
+            self.style_section(ui, el, true, has_corners);
+        }
+    }
+
+    fn position_size_section(&mut self, ui: &mut Ui, el: &Element) {
+        let Some(shape) = el.as_shape() else { return };
         section(ui, "Position and size");
         let b = shape.bounds;
         let (mut x, mut y, mut w, mut h) = (b.x0, b.y0, b.width(), b.height());
@@ -232,22 +352,6 @@ impl BlueprintApp {
             );
         }
         ui.add_space(6.0);
-
-        if cloud {
-            ui.label(
-                RichText::new("Icons scale uniformly and keep their original appearance.")
-                    .small()
-                    .weak(),
-            );
-            self.text_style_section(
-                ui,
-                &shape.style,
-                &bp_scene::shape_geometry(self.libraries, shape).style,
-            );
-        } else {
-            let has_corners = def.outline == Outline::Rect;
-            self.style_section(ui, el, true, has_corners);
-        }
     }
 
     fn connector_inspector(&mut self, ui: &mut Ui, el: &Element) {
@@ -255,7 +359,37 @@ impl BlueprintApp {
         let id = el.id;
         ui.heading("Connector");
         ui.add_space(6.0);
-        self.erd_foreign_key_inspector(ui, el);
+        if self.workspace.inspector_tab == InspectorTab::Arrange {
+            self.arrange_section(ui);
+            return;
+        }
+        if self.workspace.inspector_tab == InspectorTab::Appearance {
+            self.style_section(ui, el, false, false);
+            return;
+        }
+        let erd = self.page_kind() == Some(DiagramKind::Erd);
+        if erd {
+            if self.workspace.relationship_in_inspector {
+                self.relationship_details(ui);
+            } else {
+                ui.label(RichText::new("Relationship").strong());
+                let mappings = self.foreign_key_mapping(id);
+                if mappings.is_empty() {
+                    ui.label(RichText::new("Diagram relationship").small().weak());
+                }
+                if !mappings.is_empty() {
+                    ui.label(format!(
+                        "SQL foreign key · {} mapped column{}",
+                        mappings.len(),
+                        if mappings.len() == 1 { "" } else { "s" }
+                    ));
+                }
+                if ui.button("Relationship details").clicked() {
+                    self.preferences.drawer_open = true;
+                }
+            }
+            ui.separator();
+        }
 
         section(ui, "Routing");
         ui.horizontal(|ui| {
@@ -293,46 +427,47 @@ impl BlueprintApp {
         }
         ui.add_space(6.0);
 
-        section(ui, "Ends");
-        let erd = self.page_kind() == Some(DiagramKind::Erd);
-        egui::Grid::new("ends").num_columns(2).show(ui, |ui| {
-            for (label, current, is_start) in [
-                ("Start", c.start_marker, true),
-                ("End", c.end_marker, false),
-            ] {
-                ui.label(label);
-                egui::ComboBox::from_id_salt(("marker", is_start))
-                    .selected_text(current.label())
-                    .show_ui(ui, |ui| {
-                        for marker in Marker::ALL {
-                            let is_erd = matches!(
-                                marker,
-                                Marker::ExactlyOne
-                                    | Marker::ZeroOrOne
-                                    | Marker::OneOrMany
-                                    | Marker::ZeroOrMany
-                                    | Marker::Many
-                            );
-                            if marker != Marker::None && is_erd != erd {
-                                continue;
+        if !erd {
+            section(ui, "Ends");
+            egui::Grid::new("ends").num_columns(2).show(ui, |ui| {
+                for (label, current, is_start) in [
+                    ("Start", c.start_marker, true),
+                    ("End", c.end_marker, false),
+                ] {
+                    ui.label(label);
+                    egui::ComboBox::from_id_salt(("marker", is_start))
+                        .selected_text(current.label())
+                        .show_ui(ui, |ui| {
+                            for marker in Marker::ALL {
+                                let is_erd = matches!(
+                                    marker,
+                                    Marker::ExactlyOne
+                                        | Marker::ZeroOrOne
+                                        | Marker::OneOrMany
+                                        | Marker::ZeroOrMany
+                                        | Marker::Many
+                                );
+                                if marker != Marker::None && is_erd != erd {
+                                    continue;
+                                }
+                                if ui
+                                    .selectable_label(current == marker, marker.label())
+                                    .clicked()
+                                    && current != marker
+                                {
+                                    let prop = if is_start {
+                                        Prop::StartMarker(marker)
+                                    } else {
+                                        Prop::EndMarker(marker)
+                                    };
+                                    self.apply("Change marker", [Command::Set { id, prop }]);
+                                }
                             }
-                            if ui
-                                .selectable_label(current == marker, marker.label())
-                                .clicked()
-                                && current != marker
-                            {
-                                let prop = if is_start {
-                                    Prop::StartMarker(marker)
-                                } else {
-                                    Prop::EndMarker(marker)
-                                };
-                                self.apply("Change marker", [Command::Set { id, prop }]);
-                            }
-                        }
-                    });
-                ui.end_row();
-            }
-        });
+                        });
+                    ui.end_row();
+                }
+            });
+        }
         if ui
             .button(labelled(icon::ARROWS_LEFT_RIGHT, "Swap ends"))
             .clicked()
@@ -379,7 +514,7 @@ impl BlueprintApp {
             let mut text = c.text.clone();
             if ui
                 .add(
-                    egui::TextEdit::singleline(&mut text)
+                    crate::widgets::text_field(&mut text)
                         .hint_text("Label")
                         .desired_width(f32::INFINITY),
                 )
@@ -414,7 +549,9 @@ impl BlueprintApp {
         });
         ui.add_space(6.0);
 
-        self.style_section(ui, el, false, false);
+        if !erd && self.page_kind() != Some(DiagramKind::Cloud) {
+            self.style_section(ui, el, false, false);
+        }
     }
 
     fn group_inspector(&mut self, ui: &mut Ui, el: &Element) {
@@ -422,6 +559,10 @@ impl BlueprintApp {
         let count = self.doc.descendants(el.id).len();
         ui.label(RichText::new(format!("{count} elements inside")).weak());
         ui.add_space(6.0);
+        if self.workspace.inspector_tab == InspectorTab::Arrange {
+            self.arrange_section(ui);
+            return;
+        }
         if ui.button(labelled(icon::SQUARES_FOUR, "Ungroup")).clicked() {
             self.ungroup_selection();
         }
@@ -439,6 +580,22 @@ impl BlueprintApp {
     fn multi_inspector(&mut self, ui: &mut Ui, many: &[Element]) {
         ui.heading(format!("{} selected", many.len()));
         ui.add_space(6.0);
+        if self.workspace.inspector_tab == InspectorTab::Design {
+            if let Some(first) = many.iter().find(|e| e.style().is_some()) {
+                let first = first.clone();
+                let artwork = many
+                    .iter()
+                    .any(|el| el.as_shape().is_some_and(|shape| shape.shape.is_cloud()));
+                if artwork {
+                    let style = first.style().unwrap().clone();
+                    let resolved = self.resolved_style(&first);
+                    self.text_style_section(ui, &style, &resolved);
+                } else {
+                    self.style_section(ui, &first, true, false);
+                }
+            }
+            return;
+        }
         section(ui, "Align");
         ui.horizontal_wrapped(|ui| {
             for (glyph, tip, how) in [
@@ -453,11 +610,7 @@ impl BlueprintApp {
                 (icon::ALIGN_CENTER_VERTICAL, "Align middles", Align::CenterY),
                 (icon::ALIGN_BOTTOM, "Align bottom", Align::Bottom),
             ] {
-                if ui
-                    .button(crate::theme::icon(glyph))
-                    .on_hover_text(tip)
-                    .clicked()
-                {
+                if crate::widgets::icon_button(ui, glyph, tip).clicked() {
                     self.align(how);
                 }
             }
@@ -489,10 +642,6 @@ impl BlueprintApp {
             self.group_selection();
         }
         ui.add_space(6.0);
-        if let Some(first) = many.iter().find(|e| e.style().is_some()) {
-            let first = first.clone();
-            self.style_section(ui, &first, true, false);
-        }
         self.arrange_section(ui);
     }
 
@@ -655,21 +804,13 @@ impl BlueprintApp {
 
             ui.label("Style");
             ui.horizontal(|ui| {
-                if ui
-                    .selectable_label(resolved.bold, crate::theme::icon(icon::TEXT_B))
-                    .on_hover_text("Bold")
-                    .clicked()
-                {
+                if style_toggle(ui, resolved.bold, icon::TEXT_B, "Bold").clicked() {
                     let bold = !resolved.bold;
                     self.set_on_selection("Bold", false, |e| {
                         e.style().map(|_| Prop::Bold(Some(bold)))
                     });
                 }
-                if ui
-                    .selectable_label(resolved.italic, crate::theme::icon(icon::TEXT_ITALIC))
-                    .on_hover_text("Italic")
-                    .clicked()
-                {
+                if style_toggle(ui, resolved.italic, icon::TEXT_ITALIC, "Italic").clicked() {
                     let italic = !resolved.italic;
                     self.set_on_selection("Italic", false, |e| {
                         e.style().map(|_| Prop::Italic(Some(italic)))
@@ -681,15 +822,16 @@ impl BlueprintApp {
 
             ui.label("Align");
             ui.horizontal(|ui| {
-                for (glyph, align) in [
-                    (icon::TEXT_ALIGN_LEFT, TextAlign::Left),
-                    (icon::TEXT_ALIGN_CENTER, TextAlign::Center),
-                    (icon::TEXT_ALIGN_RIGHT, TextAlign::Right),
+                for (glyph, align, label) in [
+                    (icon::TEXT_ALIGN_LEFT, TextAlign::Left, "Align text left"),
+                    (
+                        icon::TEXT_ALIGN_CENTER,
+                        TextAlign::Center,
+                        "Align text center",
+                    ),
+                    (icon::TEXT_ALIGN_RIGHT, TextAlign::Right, "Align text right"),
                 ] {
-                    if ui
-                        .selectable_label(resolved.text_align == align, crate::theme::icon(glyph))
-                        .clicked()
-                    {
+                    if style_toggle(ui, resolved.text_align == align, glyph, label).clicked() {
                         self.set_on_selection("Text alignment", false, |e| {
                             e.style().map(|_| Prop::TextAlign(Some(align)))
                         });
@@ -703,18 +845,20 @@ impl BlueprintApp {
 
             ui.label("Vertical");
             ui.horizontal(|ui| {
-                for (glyph, align) in [
-                    (icon::ALIGN_TOP, VerticalAlign::Top),
-                    (icon::ALIGN_CENTER_VERTICAL, VerticalAlign::Middle),
-                    (icon::ALIGN_BOTTOM, VerticalAlign::Bottom),
+                for (glyph, align, label) in [
+                    (icon::ALIGN_TOP, VerticalAlign::Top, "Align text top"),
+                    (
+                        icon::ALIGN_CENTER_VERTICAL,
+                        VerticalAlign::Middle,
+                        "Align text middle",
+                    ),
+                    (
+                        icon::ALIGN_BOTTOM,
+                        VerticalAlign::Bottom,
+                        "Align text bottom",
+                    ),
                 ] {
-                    if ui
-                        .selectable_label(
-                            resolved.vertical_align == align,
-                            crate::theme::icon(glyph),
-                        )
-                        .clicked()
-                    {
+                    if style_toggle(ui, resolved.vertical_align == align, glyph, label).clicked() {
                         self.set_on_selection("Vertical alignment", false, |e| {
                             e.style().map(|_| Prop::VerticalAlign(Some(align)))
                         });
@@ -741,11 +885,7 @@ impl BlueprintApp {
                 (icon::ARROW_DOWN, "Send backward", Reorder::Backward),
                 (icon::ARROW_LINE_DOWN, "Send to back", Reorder::Back),
             ] {
-                if ui
-                    .button(crate::theme::icon(glyph))
-                    .on_hover_text(tip)
-                    .clicked()
-                {
+                if crate::widgets::icon_button(ui, glyph, tip).clicked() {
                     self.reorder(how);
                 }
             }
@@ -758,18 +898,10 @@ impl BlueprintApp {
             } else {
                 (icon::LOCK_OPEN, "Lock")
             };
-            if ui
-                .selectable_label(locked, crate::theme::icon(glyph))
-                .on_hover_text(tip)
-                .clicked()
-            {
+            if style_toggle(ui, locked, glyph, tip).clicked() {
                 self.toggle_lock();
             }
-            if ui
-                .button(crate::theme::icon(icon::TRASH))
-                .on_hover_text("Delete")
-                .clicked()
-            {
+            if crate::widgets::icon_button(ui, icon::TRASH, "Delete").clicked() {
                 self.delete_selection();
             }
         });
@@ -796,10 +928,12 @@ impl BlueprintApp {
         prop: impl Fn(&Element) -> Prop,
     ) {
         if overridden {
-            if ui
-                .small_button(crate::theme::icon(icon::ARROW_COUNTER_CLOCKWISE))
-                .on_hover_text("Reset to the shape's default")
-                .clicked()
+            if crate::widgets::icon_button(
+                ui,
+                icon::ARROW_COUNTER_CLOCKWISE,
+                &format!("Reset {label} to the shape's default"),
+            )
+            .clicked()
             {
                 self.set_on_selection(label, false, |e| e.style().map(|_| prop(e)));
             }
@@ -807,6 +941,20 @@ impl BlueprintApp {
             ui.label("");
         }
     }
+}
+
+fn style_toggle(ui: &mut Ui, selected: bool, glyph: &str, label: &str) -> egui::Response {
+    let response = ui.selectable_label(selected, crate::theme::icon(glyph));
+    response.widget_info(|| {
+        egui::WidgetInfo::selected(
+            egui::WidgetType::SelectableLabel,
+            ui.is_enabled(),
+            selected,
+            label,
+        )
+    });
+    crate::widgets::focus_outline(ui, &response);
+    response.on_hover_text(label)
 }
 
 fn section(ui: &mut Ui, title: &str) {

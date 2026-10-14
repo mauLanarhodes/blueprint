@@ -154,7 +154,7 @@ impl BlueprintApp {
             draft.error = Some("Choose an unlocked layer on an ERD page before importing.".into());
             return false;
         }
-        let (ids, commands) =
+        let (ids, mut commands) =
             match bp_sql::import_commands(&self.doc, Parent::Layer(layer), &preview) {
                 Ok(result) => result,
                 Err(error) => {
@@ -162,6 +162,7 @@ impl BlueprintApp {
                     return false;
                 }
             };
+        crate::presets::commands(&mut commands, self.doc.pages[&page].background);
         self.finish_inline_edits();
         self.cancel_drag();
         self.history.commit();
@@ -247,6 +248,7 @@ impl BlueprintApp {
         let modal = egui::Modal::new(egui::Id::new("sql-import")).show(ctx, |ui| {
             ui.set_width(700.0_f32.min(ctx.content_rect().width() - 48.0));
             ui.heading("Import SQL schema");
+            egui::ScrollArea::vertical().id_salt("sql-import-body").max_height((ctx.content_rect().height() - 140.0).max(180.0)).show(ui, |ui| {
             ui.label("Import PostgreSQL tables, keys, foreign keys, and indexes. Other SQL is reported as warnings. SQL is never executed.");
             if let Some(path) = &draft.source_path {
                 ui.label(egui::RichText::new(format!("Source: {} (preserved)", path.display())).small());
@@ -287,6 +289,7 @@ impl BlueprintApp {
             if let Some(error) = &draft.error {
                 ui.colored_label(ui.visuals().error_fg_color, error);
             }
+            });
             ui.add_space(8.0);
             ui.horizontal(|ui| {
                 preview = ui.add_enabled(!draft.source.trim().is_empty(), egui::Button::new("Preview schema")).clicked();
@@ -316,6 +319,7 @@ impl BlueprintApp {
         let modal = egui::Modal::new(egui::Id::new("sql-export")).show(ctx, |ui| {
             ui.set_width(700.0_f32.min(ctx.content_rect().width() - 48.0));
             ui.heading("Export page as SQL");
+            egui::ScrollArea::vertical().id_salt("sql-export-body").max_height((ctx.content_rect().height() - 140.0).max(180.0)).show(ui, |ui| {
             dialect_picker(ui, "sql-export-dialect", &mut export.dialect);
             ui.label("Tables are created before foreign keys. Review warnings before saving a separate .sql file.");
             warnings(ui, &export.preview.warnings);
@@ -329,6 +333,7 @@ impl BlueprintApp {
                     .desired_rows(16)
                     .desired_width(f32::INFINITY))
                     .labelled_by(label.id);
+            });
             });
             ui.horizontal(|ui| {
                 save = ui.button("Save SQL…").clicked();

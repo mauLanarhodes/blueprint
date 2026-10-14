@@ -20,7 +20,7 @@ impl BlueprintApp {
                 if let Some(Renaming::Page(renaming, text)) = &mut self.renaming
                     && renaming == id
                 {
-                    let edit = ui.add(egui::TextEdit::singleline(text).desired_width(120.0));
+                    let edit = ui.add(crate::widgets::text_field(text).desired_width(120.0));
                     edit.request_focus();
                     let done = edit.lost_focus() || ui.input(|i| i.key_pressed(egui::Key::Enter));
                     let cancel = ui.input(|i| i.key_pressed(egui::Key::Escape));
@@ -196,7 +196,7 @@ impl BlueprintApp {
                             && *renaming == layer.id
                         {
                             let edit =
-                                ui.add(egui::TextEdit::singleline(text).desired_width(110.0));
+                                ui.add(crate::widgets::text_field(text).desired_width(110.0));
                             edit.request_focus();
                             let done =
                                 edit.lost_focus() || ui.input(|i| i.key_pressed(egui::Key::Enter));

@@ -15,7 +15,7 @@ use std::collections::HashSet;
 use std::sync::Arc;
 
 /// Size of a palette cell, in screen points.
-const CELL: Vec2 = Vec2::new(50.0, 44.0);
+const CELL: Vec2 = Vec2::new(96.0, 88.0);
 const RECENT_LIMIT: usize = 8;
 
 #[derive(Default)]
@@ -116,7 +116,13 @@ pub fn search_for_kind<'a>(
 }
 
 /// Draws `def` fitted into `rect` (screen points).
-fn paint_thumbnail(painter: &egui::Painter, def: &ShapeDef, rect: egui::Rect, alpha: f32) {
+fn paint_thumbnail(
+    painter: &egui::Painter,
+    def: &ShapeDef,
+    rect: egui::Rect,
+    alpha: f32,
+    chrome: bool,
+) {
     let (w, h) = def.default_size;
     let scale = (f64::from(rect.width()) / w).min(f64::from(rect.height()) / h);
     let size = (w * scale, h * scale);
@@ -124,9 +130,26 @@ fn paint_thumbnail(painter: &egui::Painter, def: &ShapeDef, rect: egui::Rect, al
     let bounds = Rect::from_center_size(center, size);
     let style: StyleValues = def.default_style();
     let fade = |c: bp_model::Color| c.faded(f64::from(alpha));
-    let fill = style.fill.filter(|_| def.is_closed()).map(fade);
+    // Neutral library symbols are line-art controls on dark chrome. The
+    // document and drag preview still use their actual library styling.
+    let ui_style = painter.ctx().style_of(painter.ctx().theme());
+    let visuals = &ui_style.visuals;
+    let dark_preview = chrome && visuals.dark_mode;
+    let fill = style.fill.filter(|_| def.is_closed()).map(|color| {
+        fade(if dark_preview && color == bp_model::Color::WHITE {
+            bp_model::Color::rgba(120, 150, 180, 32)
+        } else {
+            color
+        })
+    });
+    let stroke_color = if dark_preview {
+        let color = visuals.weak_text_color();
+        bp_model::Color::rgba(color.r(), color.g(), color.b(), color.a())
+    } else {
+        style.stroke.unwrap_or(bp_model::Color::rgb(100, 116, 139))
+    };
     let stroke = Some(SceneStroke {
-        color: fade(style.stroke.unwrap_or(bp_model::Color::rgb(100, 116, 139))),
+        color: fade(stroke_color),
         width: 1.2,
         dash: style.dash.pattern(1.2),
     });
@@ -168,23 +191,29 @@ impl BlueprintApp {
         ui.add_space(4.0);
         ui.horizontal(|ui| {
             ui.label(crate::theme::icon(icon::MAGNIFYING_GLASS).color(Color32::from_gray(120)));
-            ui.add(
-                egui::TextEdit::singleline(&mut self.palette.query)
-                    .hint_text(if kind == DiagramKind::Cloud {
-                        "Search shapes and services"
-                    } else {
-                        "Search shapes"
-                    })
+            let label = if kind == DiagramKind::Cloud {
+                "Search shapes and services"
+            } else {
+                "Search shapes"
+            };
+            let response = ui.add(
+                crate::widgets::text_field(&mut self.palette.query)
+                    .hint_text(label)
                     .desired_width(f32::INFINITY),
             );
+            response
+                .widget_info(|| egui::WidgetInfo::labeled(egui::WidgetType::TextEdit, true, label));
+            crate::widgets::focus_outline(ui, &response);
         });
         ui.add_space(4.0);
         let libraries = self.libraries;
         egui::ScrollArea::vertical()
             .auto_shrink(false)
-            .show(ui, |ui| {
+            .id_salt("shape-palette-scroll")
+            .show_viewport(ui, |ui, viewport| {
+                let viewport = viewport.translate(ui.max_rect().min.to_vec2());
                 if kind == DiagramKind::Cloud {
-                    self.cloud_palette(ui);
+                    self.cloud_palette(ui, viewport);
                 }
                 if !self.palette.query.trim().is_empty() {
                     let results = search_for_kind(libraries, &self.palette.query, Some(kind));
@@ -236,6 +265,9 @@ impl BlueprintApp {
                         } else {
                             self.palette.collapsed.remove(&lib.id);
                         }
+                        self.preferences.collapsed_libraries =
+                            self.palette.collapsed.iter().cloned().collect();
+                        self.preferences.collapsed_libraries.sort();
                     }
                 }
                 ui.add_space(8.0);
@@ -250,30 +282,66 @@ impl BlueprintApp {
     }
 
     fn shape_grid(&mut self, ui: &mut Ui, shapes: &[&ShapeDef]) {
-        let columns = ((ui.available_width() / CELL.x).floor() as usize).max(1);
+        let width = ui.available_width();
+        let columns = (((width + 6.0) / (CELL.x + 6.0)).floor() as usize).max(1);
+        let size = Vec2::new(
+            (width - (columns - 1) as f32 * 6.0) / columns as f32,
+            CELL.y,
+        );
         egui::Grid::new(ui.next_auto_id())
-            .spacing(Vec2::splat(2.0))
+            .spacing(Vec2::splat(6.0))
             .show(ui, |ui| {
                 for (i, def) in shapes.iter().enumerate() {
                     if i > 0 && i % columns == 0 {
                         ui.end_row();
                     }
-                    self.shape_cell(ui, def);
+                    ui.push_id(&def.reference, |ui| self.shape_cell(ui, def, size));
                 }
             });
     }
 
-    fn shape_cell(&mut self, ui: &mut Ui, def: &ShapeDef) {
-        let (rect, response) = ui.allocate_exact_size(CELL, Sense::click_and_drag());
+    fn shape_cell(&mut self, ui: &mut Ui, def: &ShapeDef, size: Vec2) {
+        let (rect, response) = ui.allocate_exact_size(size, Sense::click_and_drag());
+        ui.painter()
+            .rect_filled(rect, 4.0, ui.visuals().faint_bg_color);
         if response.hovered() {
             ui.painter()
                 .rect_filled(rect, 4.0, ui.visuals().widgets.hovered.weak_bg_fill);
         }
-        paint_thumbnail(ui.painter(), def, rect.shrink(8.0), 1.0);
-        // Thumbnails have no text; name them for screen readers (and tests).
+        paint_thumbnail(
+            ui.painter(),
+            def,
+            egui::Rect::from_center_size(
+                rect.center_top() + Vec2::new(0.0, 28.0),
+                Vec2::new(64.0, 38.0),
+            ),
+            1.0,
+            true,
+        );
+        let mut job = egui::text::LayoutJob::simple(
+            def.name.clone(),
+            egui::FontId::proportional(12.0),
+            ui.visuals().text_color(),
+            rect.width() - 8.0,
+        );
+        job.wrap.max_rows = 2;
+        job.wrap.break_anywhere = false;
+        let galley = ui.painter().layout_job(job);
+        ui.painter().galley(
+            Pos2::new(rect.center().x - galley.size().x / 2.0, rect.top() + 52.0),
+            galley,
+            ui.visuals().text_color(),
+        );
         response
             .widget_info(|| egui::WidgetInfo::labeled(egui::WidgetType::Button, true, &def.name));
         let response = response.on_hover_text(&def.name);
+        crate::widgets::focus_outline(ui, &response);
+        crate::widgets::command_focus(ui, &response);
+        if response.gained_focus()
+            && !ui.input(|i| i.pointer.any_pressed() || i.pointer.any_released())
+        {
+            response.scroll_to_me(Some(egui::Align::Center));
+        }
         if response.clicked() {
             let at = self.view_center();
             self.insert_shape_at(def.reference.clone(), at);
@@ -312,7 +380,7 @@ impl BlueprintApp {
         if let Some(asset) = asset {
             crate::cloud::paint_icon(&painter, asset, rect, 0.6);
         } else {
-            paint_thumbnail(&painter, def, rect, 0.6);
+            paint_thumbnail(&painter, def, rect, 0.6, false);
         }
         ctx.set_cursor_icon(egui::CursorIcon::Grabbing);
     }
@@ -331,11 +399,14 @@ impl BlueprintApp {
     }
 
     pub fn quick_insert_popup(&mut self, ctx: &egui::Context) {
+        let Some(query) = self.quick_insert.as_ref().map(|qi| qi.query.clone()) else {
+            return;
+        };
         let kind = self.page_kind();
-        let cloud: Vec<CloudIcon> = if kind == Some(DiagramKind::Cloud) {
-            self.cloud_candidates(None, self.quick_insert.as_ref().map_or("", |qi| &qi.query))
+        let cloud: Arc<[CloudIcon]> = if kind == Some(DiagramKind::Cloud) {
+            self.cloud_candidates(None, &query)
         } else {
-            Vec::new()
+            Arc::from([])
         };
         let Some(qi) = &mut self.quick_insert else {
             return;
@@ -374,7 +445,7 @@ impl BlueprintApp {
                 egui::Frame::popup(ui.style()).show(ui, |ui| {
                     ui.set_width(240.0);
                     let edit = ui.add(
-                        egui::TextEdit::singleline(&mut qi.query)
+                        crate::widgets::text_field(&mut qi.query)
                             .hint_text("Insert shape…")
                             .desired_width(f32::INFINITY),
                     );
@@ -401,7 +472,7 @@ impl BlueprintApp {
                         );
                         match def {
                             QuickChoice::Shape(def) => {
-                                paint_thumbnail(ui.painter(), def, thumb, 1.0)
+                                paint_thumbnail(ui.painter(), def, thumb, 1.0, true)
                             }
                             QuickChoice::Icon(icon) => {
                                 crate::cloud::paint_icon(ui.painter(), icon, thumb, 1.0)
@@ -414,6 +485,10 @@ impl BlueprintApp {
                             egui::FontId::proportional(13.0),
                             ui.visuals().text_color(),
                         );
+                        response.widget_info(|| {
+                            egui::WidgetInfo::labeled(egui::WidgetType::Button, true, def.name())
+                        });
+                        crate::widgets::focus_outline(ui, &response);
                         if response.clicked() {
                             chosen = Some(def.reference().clone());
                         }

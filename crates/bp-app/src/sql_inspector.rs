@@ -20,7 +20,7 @@ impl BlueprintApp {
                 let mut schema = table.schema.first().cloned().unwrap_or_default();
                 if ui
                     .add(
-                        egui::TextEdit::singleline(&mut schema)
+                        crate::widgets::text_field(&mut schema)
                             .hint_text("Default schema")
                             .desired_width(f32::INFINITY),
                     )
@@ -32,77 +32,81 @@ impl BlueprintApp {
             } else {
                 for (i, qualifier) in table.schema.iter_mut().enumerate() {
                     let label = ui.label(format!("Schema qualifier {}", i + 1));
-                    ui.add(egui::TextEdit::singleline(qualifier).desired_width(f32::INFINITY))
+                    ui.add(crate::widgets::text_field(qualifier).desired_width(f32::INFINITY))
                         .labelled_by(label.id);
                 }
             }
-            egui::CollapsingHeader::new("SQL keys and indexes")
-                .id_salt("constraints")
+            egui::CollapsingHeader::new(format!(
+                "Constraints ({})",
+                usize::from(table.primary_key.is_some()) + table.unique_keys.len()
+            ))
+            .id_salt("constraints")
+            .show(ui, |ui| {
+                if let Some(key) = &mut table.primary_key {
+                    ui.label(RichText::new("Primary key constraint").strong());
+                    key_editor(ui, "pk", key, &table.columns);
+                    if ui.button("Remove primary key").clicked() {
+                        table.primary_key = None;
+                    }
+                } else if ui
+                    .add_enabled(
+                        !table.columns.is_empty(),
+                        egui::Button::new("Add primary key"),
+                    )
+                    .clicked()
+                {
+                    table.primary_key = Some(ErdKey {
+                        name: None,
+                        columns: table
+                            .columns
+                            .iter()
+                            .filter(|c| c.primary_key)
+                            .map(|c| c.id)
+                            .collect(),
+                    });
+                    if let Some(key) = &mut table.primary_key
+                        && key.columns.is_empty()
+                    {
+                        key.columns.push(table.columns[0].id);
+                    }
+                }
+                ui.separator();
+                let mut remove = None;
+                for (i, key) in table.unique_keys.iter_mut().enumerate() {
+                    ui.push_id(("unique", i), |ui| {
+                        ui.label(RichText::new(format!("Unique constraint {}", i + 1)).strong());
+                        key_editor(ui, "unique", key, &table.columns);
+                        if ui.button("Remove unique constraint").clicked() {
+                            remove = Some(i);
+                        }
+                    });
+                }
+                if let Some(index) = remove {
+                    table.unique_keys.remove(index);
+                }
+                if ui
+                    .add_enabled(
+                        !table.columns.is_empty(),
+                        egui::Button::new("Add unique constraint"),
+                    )
+                    .clicked()
+                {
+                    table.unique_keys.push(ErdKey {
+                        name: None,
+                        columns: vec![table.columns[0].id],
+                    });
+                }
+            });
+            egui::CollapsingHeader::new(format!("Indexes ({})", table.indexes.len()))
+                .id_salt("indexes")
                 .show(ui, |ui| {
-                    if let Some(key) = &mut table.primary_key {
-                        ui.label(RichText::new("Primary key constraint").strong());
-                        key_editor(ui, "pk", key, &table.columns);
-                        if ui.button("Remove primary key").clicked() {
-                            table.primary_key = None;
-                        }
-                    } else if ui
-                        .add_enabled(
-                            !table.columns.is_empty(),
-                            egui::Button::new("Add primary key"),
-                        )
-                        .clicked()
-                    {
-                        table.primary_key = Some(ErdKey {
-                            name: None,
-                            columns: table
-                                .columns
-                                .iter()
-                                .filter(|c| c.primary_key)
-                                .map(|c| c.id)
-                                .collect(),
-                        });
-                        if let Some(key) = &mut table.primary_key
-                            && key.columns.is_empty()
-                        {
-                            key.columns.push(table.columns[0].id);
-                        }
-                    }
-                    ui.separator();
-                    let mut remove = None;
-                    for (i, key) in table.unique_keys.iter_mut().enumerate() {
-                        ui.push_id(("unique", i), |ui| {
-                            ui.label(
-                                RichText::new(format!("Unique constraint {}", i + 1)).strong(),
-                            );
-                            key_editor(ui, "unique", key, &table.columns);
-                            if ui.button("Remove unique constraint").clicked() {
-                                remove = Some(i);
-                            }
-                        });
-                    }
-                    if let Some(index) = remove {
-                        table.unique_keys.remove(index);
-                    }
-                    if ui
-                        .add_enabled(
-                            !table.columns.is_empty(),
-                            egui::Button::new("Add unique constraint"),
-                        )
-                        .clicked()
-                    {
-                        table.unique_keys.push(ErdKey {
-                            name: None,
-                            columns: vec![table.columns[0].id],
-                        });
-                    }
-                    ui.separator();
                     let mut remove = None;
                     for (i, index) in table.indexes.iter_mut().enumerate() {
                         ui.push_id(("index", i), |ui| {
                             ui.label(RichText::new(format!("Index {}", i + 1)).strong());
                             let label = ui.label("Index name");
                             ui.add(
-                                egui::TextEdit::singleline(&mut index.name)
+                                crate::widgets::text_field(&mut index.name)
                                     .desired_width(f32::INFINITY),
                             )
                             .labelled_by(label.id);
@@ -119,7 +123,7 @@ impl BlueprintApp {
                                     );
                                     if ui
                                         .add(
-                                            egui::TextEdit::singleline(&mut sql)
+                                            crate::widgets::text_field(&mut sql)
                                                 .desired_width(f32::INFINITY),
                                         )
                                         .labelled_by(label.id)
@@ -154,7 +158,7 @@ impl BlueprintApp {
                                 .unwrap_or_default();
                             if ui
                                 .add(
-                                    egui::TextEdit::singleline(&mut sql)
+                                    crate::widgets::text_field(&mut sql)
                                         .hint_text("None")
                                         .desired_width(f32::INFINITY),
                                 )
@@ -456,7 +460,7 @@ fn optional_text(ui: &mut Ui, name: &str, value: &mut Option<String>, hint: &str
     let mut text = value.clone().unwrap_or_default();
     if ui
         .add(
-            egui::TextEdit::singleline(&mut text)
+            crate::widgets::text_field(&mut text)
                 .hint_text(hint)
                 .desired_width(f32::INFINITY),
         )
@@ -472,19 +476,33 @@ fn column_picker(ui: &mut Ui, label: &str, selected: &mut ColumnId, columns: &[E
         .iter()
         .find(|column| column.id == *selected)
         .map_or("Missing column", |column| column.name.as_str());
-    ui.label(label);
+    let label_response = ui.label(label);
     egui::ComboBox::from_id_salt(label)
+        .width(ui.available_width())
+        .truncate()
         .selected_text(name)
         .show_ui(ui, |ui| {
             for column in columns {
-                ui.selectable_value(selected, column.id, &column.name);
+                if ui
+                    .add(egui::Button::selectable(*selected == column.id, &column.name).truncate())
+                    .on_hover_text(&column.name)
+                    .clicked()
+                {
+                    *selected = column.id;
+                    ui.close();
+                }
             }
-        });
+        })
+        .response
+        .labelled_by(label_response.id)
+        .on_hover_text(name);
 }
 
 fn reference_action(ui: &mut Ui, label: &str, selected: &mut Option<String>) {
-    ui.label(label);
+    let label_response = ui.label(label);
     egui::ComboBox::from_id_salt(label)
+        .width(ui.available_width())
+        .truncate()
         .selected_text(selected.as_deref().unwrap_or("Default (NO ACTION)"))
         .show_ui(ui, |ui| {
             ui.selectable_value(selected, None, "Default (NO ACTION)");
@@ -497,7 +515,9 @@ fn reference_action(ui: &mut Ui, label: &str, selected: &mut Option<String>) {
             ] {
                 ui.selectable_value(selected, Some(action.into()), action);
             }
-        });
+        })
+        .response
+        .labelled_by(label_response.id);
 }
 
 fn quote(identifier: &str) -> String {
@@ -508,6 +528,42 @@ fn quote(identifier: &str) -> String {
 mod tests {
     use super::*;
     use bp_model::DiagramKind;
+
+    #[test]
+    fn long_foreign_key_columns_fit_a_narrow_inspector_without_changing_selection() {
+        let columns = vec![ErdColumn::new(
+            "customer_account_identifier_with_a_long_imported_column_name".repeat(2),
+            "UUID",
+            bp_model::OrderKey::first(),
+        )];
+        let mut selected = columns[0].id;
+        let mut action = Some("SET DEFAULT".to_owned());
+        let ctx = egui::Context::default();
+        for _ in 0..2 {
+            let mut output = ctx.run_ui(
+                egui::RawInput {
+                    screen_rect: Some(egui::Rect::from_min_size(
+                        egui::Pos2::ZERO,
+                        egui::vec2(260.0, 480.0),
+                    )),
+                    ..Default::default()
+                },
+                |ctx| {
+                    egui::CentralPanel::default().show(ctx, |ui| {
+                        column_picker(ui, "Referenced column", &mut selected, &columns);
+                        reference_action(ui, "On delete", &mut action);
+                        assert!(
+                            ui.min_rect().right() <= ui.max_rect().right() + 1.0,
+                            "the control must remain inside a 260-point inspector"
+                        );
+                    });
+                },
+            );
+            output.textures_delta.clear();
+        }
+        assert_eq!(selected, columns[0].id);
+        assert_eq!(action.as_deref(), Some("SET DEFAULT"));
+    }
 
     #[test]
     fn editing_fk_mapping_moves_row_ports_and_badges_and_undoes_together() {

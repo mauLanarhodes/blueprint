@@ -88,6 +88,7 @@ impl BlueprintApp {
         let parent = self.insert_parent();
         let order = self.doc.next_order_key(parent);
         let mut el = Element::shape(shape.clone(), parent, order, bounds);
+        crate::presets::apply(&mut el, self.doc.pages[&self.page].background);
         let mut commands = Vec::new();
         if let Some(asset) = asset {
             el.as_shape_mut().unwrap().text = asset.name.clone();
@@ -131,6 +132,7 @@ impl BlueprintApp {
         let order = self.doc.next_order_key(parent);
         let relationship = self.table_relationship(&source, &target);
         let mut el = Element::connector(source, target, parent, order);
+        crate::presets::apply(&mut el, self.doc.pages[&self.page].background);
         let id = el.id;
         let mut commands = Vec::new();
         if let Some((start, end, table, column)) = relationship {
@@ -332,14 +334,35 @@ impl BlueprintApp {
 
     /// Locks the selection, or unlocks it if everything is locked already.
     pub fn toggle_lock(&mut self) {
-        let lock = !self
+        // A navigator can inspect inherited locks, but only the locking owner
+        // may be unlocked. Keep children read-only until their layer/group opens.
+        let ids: Vec<_> = self
             .selection
             .iter()
-            .all(|id| self.doc.elements.get(id).is_some_and(|e| e.locked));
-        let commands: Vec<Command> = self
-            .selection
-            .iter()
-            .map(|&id| Command::Set {
+            .copied()
+            .filter(|id| {
+                !self
+                    .doc
+                    .layer_of(*id)
+                    .and_then(|layer| self.doc.layers.get(&layer))
+                    .is_some_and(|layer| layer.locked)
+                    && !self.doc.ancestors(*id).iter().any(|parent| {
+                        self.doc
+                            .elements
+                            .get(parent)
+                            .is_some_and(|element| element.locked)
+                    })
+            })
+            .collect();
+        let lock = !ids.iter().all(|id| {
+            self.doc
+                .elements
+                .get(id)
+                .is_some_and(|element| element.locked)
+        });
+        let commands: Vec<Command> = ids
+            .into_iter()
+            .map(|id| Command::Set {
                 id,
                 prop: Prop::Locked(lock),
             })
@@ -478,6 +501,7 @@ impl BlueprintApp {
             OrderKey::between(Some(&below), above.as_ref()),
         );
         page.diagram_kind = Some(kind);
+        page.background = crate::presets::DARK_CANVAS;
         let layer = Layer::new(page.id, "Layer 1", OrderKey::first());
         let id = page.id;
         if self.apply(
@@ -523,6 +547,7 @@ impl BlueprintApp {
             OrderKey::between(Some(&original.order), above.as_ref()),
         );
         page.background = original.background;
+        page.deployment = original.deployment.clone();
         page.diagram_kind = self.page_kind_for(source);
         let new_page = page.id;
         let mut commands = vec![Command::InsertPage(Box::new(page))];
@@ -554,6 +579,10 @@ impl BlueprintApp {
                     Parent::Layer(id) => Parent::Layer(layers[&id]),
                     Parent::Element(id) => Parent::Element(fresh[&id]),
                 };
+                if let Some(resource) = copy.as_shape_mut().and_then(|s| s.infrastructure.as_mut())
+                {
+                    resource.remap(&fresh);
+                }
                 if let ElementKind::Connector(c) = &mut copy.kind {
                     for end in [&mut c.source, &mut c.target] {
                         if let Endpoint::Glued { element, .. } = end
@@ -754,9 +783,12 @@ impl BlueprintApp {
 
     pub fn handle_shortcuts(&mut self, ctx: &egui::Context) {
         use shortcuts::*;
-        let typing = ctx.egui_wants_keyboard_input()
-            || self.editing.is_some()
-            || self.quick_insert.is_some();
+        let control_focus = crate::widgets::document_control_has_focus(ctx);
+        let typing =
+            (ctx.egui_wants_keyboard_input() && !self.navigator_has_focus(ctx) && !control_focus)
+                || self.editing.is_some()
+                || self.quick_insert.is_some()
+                || self.renaming.is_some();
         let pressed = |s: KeyboardShortcut| ctx.input_mut(|i| i.consume_shortcut(&s));
 
         // Shift variants first: Ctrl+S also matches Ctrl+Shift+S.
@@ -853,7 +885,9 @@ impl BlueprintApp {
                 Key::Delete | Key::Backspace => self.delete_selection(),
                 Key::Escape => self.escape(),
                 Key::Enter | Key::F2 => {
-                    if let [id] = self.selection[..] {
+                    if (key != Key::Enter || !control_focus)
+                        && let [id] = self.selection[..]
+                    {
                         self.start_text_edit(id);
                     }
                 }

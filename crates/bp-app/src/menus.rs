@@ -2,7 +2,6 @@
 
 use crate::actions::shortcuts::*;
 use crate::app::{BlueprintApp, Pending};
-use crate::theme::labelled;
 use bp_commands::edit::{Align, Reorder};
 use egui::{Button, KeyboardShortcut, RichText, Ui, ViewportCommand};
 use egui_phosphor::regular as icon;
@@ -10,6 +9,13 @@ use egui_phosphor::regular as icon;
 impl BlueprintApp {
     pub fn menu_bar(&mut self, ui: &mut Ui) {
         egui::MenuBar::new().ui(ui, |ui| {
+            ui.label(
+                crate::theme::icon(icon::CUBE)
+                    .size(20.0)
+                    .color(crate::theme::ACCENT),
+            );
+            ui.label(RichText::new("Blueprint").strong());
+            ui.add_space(8.0);
             ui.menu_button("File", |ui| {
                 if item(ui, "New", Some(NEW), true) {
                     self.request(Pending::New);
@@ -40,6 +46,14 @@ impl BlueprintApp {
                 }
                 if item(ui, "Cloud icon packs…", None, true) {
                     self.open_cloud_manager();
+                }
+                if item(
+                    ui,
+                    "AWS network…",
+                    None,
+                    self.page_kind() == Some(bp_model::DiagramKind::Cloud),
+                ) {
+                    self.open_deployment();
                 }
                 ui.separator();
                 if item(ui, "Quit", Some(QUIT), true) {
@@ -103,6 +117,27 @@ impl BlueprintApp {
                 }
                 if item(ui, "Zoom to fit", Some(ZOOM_FIT), true) {
                     self.fit_requested = true;
+                }
+                ui.separator();
+                ui.menu_button("Theme", |ui| {
+                    ui.selectable_value(
+                        &mut self.preferences.theme,
+                        crate::WorkspaceTheme::Dark,
+                        "Dark",
+                    );
+                    ui.selectable_value(
+                        &mut self.preferences.theme,
+                        crate::WorkspaceTheme::Light,
+                        "Light",
+                    );
+                });
+                if ui.button("Library / Navigator panel").clicked() {
+                    self.toggle_dock(crate::workspace::Dock::Left);
+                    ui.close();
+                }
+                if ui.button("Inspector panel").clicked() {
+                    self.toggle_dock(crate::workspace::Dock::Right);
+                    ui.close();
                 }
                 ui.separator();
                 ui.checkbox(&mut self.settings.show_grid, "Show grid");
@@ -191,165 +226,216 @@ impl BlueprintApp {
         });
     }
 
-    pub fn floating_toolbar(&mut self, ctx: &egui::Context) {
-        let id = egui::Id::new("floating_toolbar");
-        let previous_size = ctx.memory(|memory| memory.area_rect(id).map(|rect| rect.size()));
-        let response = egui::Area::new(id)
-            .order(egui::Order::Foreground)
-            .sense(egui::Sense::click_and_drag())
-            .constrain_to(self.canvas_rect)
-            .anchor(egui::Align2::CENTER_BOTTOM, egui::vec2(0.0, -32.0))
-            .default_width((self.canvas_rect.width() - 24.0).max(0.0))
-            .show(ctx, |ui| {
-                ui.set_max_width((self.canvas_rect.width() - 24.0).max(0.0));
-                egui::Frame::new()
-                    .fill(ui.visuals().panel_fill)
-                    .stroke(egui::Stroke::new(1.0, crate::theme::CANVAS_EDGE))
-                    .corner_radius(12)
-                    .inner_margin(8)
-                    .shadow(egui::Shadow {
-                        offset: [0, 4],
-                        blur: 16,
-                        spread: 0,
-                        color: egui::Color32::from_black_alpha(24),
-                    })
-                    .show(ui, |ui| self.toolbar(ui));
+    pub(crate) fn document_bar(&mut self, ui: &mut Ui) {
+        let compact = ui.available_width() < 1000.0;
+        let actions = if compact { 150.0 } else { 420.0 };
+        let title_width = (ui.available_width() - actions - 12.0).max(100.0);
+        ui.horizontal(|ui| {
+            ui.allocate_ui_with_layout(
+                egui::vec2(title_width, 28.0),
+                egui::Layout::left_to_right(egui::Align::Center),
+                |ui| {
+                    let title = format!(
+                        "{}{}",
+                        self.file_name(),
+                        if self.is_dirty() { " •" } else { "" }
+                    );
+                    ui.add(egui::Label::new(RichText::new(title).size(15.0).strong()).truncate());
+                    if let Some(page) = self.doc.pages.get(&self.page) {
+                        ui.label(RichText::new("/").weak());
+                        ui.add(egui::Label::new(RichText::new(&page.name).weak()).truncate());
+                    }
+                },
+            );
+            ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                ui.menu_button("Export", |ui| {
+                    if ui.button("Export page as SVG…").clicked() {
+                        self.export_svg();
+                        ui.close();
+                    }
+                    if self.page_kind() == Some(bp_model::DiagramKind::Erd)
+                        && ui.button("Export page as SQL…").clicked()
+                    {
+                        self.open_sql_export();
+                        ui.close();
+                    }
+                });
+                if crate::widgets::primary_icon_button(ui, icon::FLOPPY_DISK, "Save").clicked() {
+                    self.save();
+                }
+                if compact {
+                    ui.menu_button("Actions", |ui| self.context_actions(ui));
+                } else {
+                    match self.page_kind() {
+                        Some(bp_model::DiagramKind::Erd) => {
+                            if ui.button("Import SQL…").clicked() {
+                                self.open_sql_file();
+                            }
+                        }
+                        Some(bp_model::DiagramKind::Cloud)
+                            if ui.button("AWS network…").clicked() =>
+                        {
+                            self.open_deployment();
+                        }
+                        _ => {}
+                    }
+                    ui.add_enabled_ui(self.history.can_redo(), |ui| {
+                        if crate::widgets::icon_button(ui, icon::ARROW_U_UP_RIGHT, "Redo").clicked()
+                        {
+                            self.redo();
+                        }
+                    });
+                    ui.add_enabled_ui(self.history.can_undo(), |ui| {
+                        if crate::widgets::icon_button(ui, icon::ARROW_U_UP_LEFT, "Undo").clicked()
+                        {
+                            self.undo();
+                        }
+                    });
+                    if self.page_kind() == Some(bp_model::DiagramKind::Erd) {
+                        self.erd_connection_toolbar(ui);
+                    }
+                }
             });
-        // Re-anchor after wrapping changes the bar's size, including window resizes.
-        if previous_size != Some(response.response.rect.size()) {
-            ctx.request_repaint();
-        }
-    }
-
-    pub fn toolbar(&mut self, ui: &mut Ui) {
-        ui.horizontal_wrapped(|ui| {
-            ui.spacing_mut().item_spacing.x = 2.0;
-            for (tool, glyph, label, key) in self.available_tools() {
-                let selected = self.tool == tool;
-                let button = Button::new(crate::theme::icon(glyph).size(17.0))
-                    .selected(selected)
-                    .min_size(egui::vec2(30.0, 28.0));
-                if ui
-                    .add(button)
-                    .on_hover_text(format!("{label} ({})", key.name()))
-                    .clicked()
-                {
-                    self.tool = tool;
-                }
-            }
-            if self.page_kind() == Some(bp_model::DiagramKind::Erd) {
-                self.erd_connection_toolbar(ui);
-            }
-            ui.separator();
-            if ui
-                .add_enabled(
-                    self.history.can_undo(),
-                    Button::new(crate::theme::icon(icon::ARROW_U_UP_LEFT).size(17.0)),
-                )
-                .on_hover_text("Undo")
-                .clicked()
-            {
-                self.undo();
-            }
-            if ui
-                .add_enabled(
-                    self.history.can_redo(),
-                    Button::new(crate::theme::icon(icon::ARROW_U_UP_RIGHT).size(17.0)),
-                )
-                .on_hover_text("Redo")
-                .clicked()
-            {
-                self.redo();
-            }
-            ui.separator();
-            if ui
-                .button(crate::theme::icon(icon::MAGNIFYING_GLASS_MINUS).size(17.0))
-                .on_hover_text("Zoom out")
-                .clicked()
-            {
-                self.zoom_by(0.8);
-            }
-            if ui
-                .add(
-                    Button::new(format!("{:.0}%", self.view.zoom * 100.0))
-                        .min_size(egui::vec2(52.0, 28.0)),
-                )
-                .on_hover_text("Actual size")
-                .clicked()
-            {
-                self.zoom_by(1.0 / self.view.zoom);
-            }
-            if ui
-                .button(crate::theme::icon(icon::MAGNIFYING_GLASS_PLUS).size(17.0))
-                .on_hover_text("Zoom in")
-                .clicked()
-            {
-                self.zoom_by(1.25);
-            }
-            if ui
-                .button(crate::theme::icon(icon::CORNERS_OUT).size(17.0))
-                .on_hover_text("Zoom to fit (Shift+1)")
-                .clicked()
-            {
-                self.fit_requested = true;
-            }
-            ui.separator();
-            let grid = &mut self.settings.snap_to_grid;
-            if ui
-                .add(Button::new(crate::theme::icon(icon::GRID_FOUR).size(17.0)).selected(*grid))
-                .on_hover_text("Snap to grid")
-                .clicked()
-            {
-                *grid = !*grid;
-            }
-            let guides = &mut self.settings.snap_to_shapes;
-            if ui
-                .add(Button::new(crate::theme::icon(icon::MAGNET).size(17.0)).selected(*guides))
-                .on_hover_text("Smart guides")
-                .clicked()
-            {
-                *guides = !*guides;
-            }
-            if let Some(scope) = self.scope {
-                ui.separator();
-                let count = self.doc.descendants(scope).len();
-                if ui
-                    .button(labelled(
-                        icon::ARROW_BEND_UP_LEFT,
-                        &format!("Editing group ({count}) — leave"),
-                    ))
-                    .clicked()
-                {
-                    self.scope = None;
-                    self.selection = vec![scope];
-                }
-            }
         });
     }
 
+    fn context_actions(&mut self, ui: &mut Ui) {
+        if ui
+            .add_enabled(self.history.can_undo(), Button::new("Undo"))
+            .clicked()
+        {
+            self.undo();
+            ui.close();
+        }
+        if ui
+            .add_enabled(self.history.can_redo(), Button::new("Redo"))
+            .clicked()
+        {
+            self.redo();
+            ui.close();
+        }
+        match self.page_kind() {
+            Some(bp_model::DiagramKind::Erd) => {
+                if ui.button("Import SQL…").clicked() {
+                    self.open_sql_file();
+                    ui.close();
+                }
+                if ui.button("Paste SQL schema…").clicked() {
+                    self.paste_sql_schema();
+                    ui.close();
+                }
+                self.erd_connection_toolbar(ui);
+            }
+            Some(bp_model::DiagramKind::Cloud) => {
+                if ui.button("AWS network…").clicked() {
+                    self.open_deployment();
+                    ui.close();
+                }
+                if ui.button("Manage icon packs…").clicked() {
+                    self.open_cloud_manager();
+                    ui.close();
+                }
+            }
+            _ => {}
+        }
+    }
+
+    pub(crate) fn tool_strip(&mut self, ui: &mut Ui) {
+        egui::ScrollArea::vertical()
+            .id_salt("drawing_tools")
+            .show(ui, |ui| {
+                ui.spacing_mut().item_spacing.y = 4.0;
+                for (tool, glyph, label, key) in self.available_tools() {
+                    let response = ui.add(
+                        Button::new(crate::theme::icon(glyph).size(20.0))
+                            .selected(self.tool == tool)
+                            .min_size(egui::vec2(40.0, 40.0)),
+                    );
+                    response.widget_info(|| {
+                        egui::WidgetInfo::labeled(egui::WidgetType::Button, true, label)
+                    });
+                    crate::widgets::focus_outline(ui, &response);
+                    crate::widgets::command_focus(ui, &response);
+                    if response
+                        .on_hover_text(format!("{label} ({})", key.name()))
+                        .clicked()
+                    {
+                        self.finish_inline_edits();
+                        self.cancel_drag();
+                        self.tool = tool;
+                    }
+                }
+                ui.separator();
+                if let Some(scope) = self.scope
+                    && crate::widgets::icon_button(ui, icon::ARROW_BEND_UP_LEFT, "Leave group")
+                        .clicked()
+                {
+                    self.scope = None;
+                    self.select_only(scope);
+                }
+            });
+    }
+
     pub fn status_bar(&mut self, ui: &mut Ui) {
+        let width = ui.available_width();
         ui.horizontal(|ui| {
-            let dirty = if self.is_dirty() { " •" } else { "" };
-            ui.label(format!("{}{dirty}", self.file_name()));
-            ui.separator();
-            let elements = self.doc.paint_order(self.page);
-            let shapes = elements.iter().filter(|e| e.is_shape()).count();
-            let connectors = elements.iter().filter(|e| e.is_connector()).count();
-            ui.label(format!("{shapes} shapes, {connectors} connectors"));
-            if !self.selection.is_empty() {
-                ui.separator();
-                ui.label(format!("{} selected", self.selection.len()));
-            }
-            if let Some(layer) = self.doc.layers.get(&self.layer) {
-                ui.separator();
-                ui.label(format!("Layer: {}", layer.name));
-            }
-            if let Some(p) = self.pointer {
-                ui.separator();
-                ui.label(RichText::new(format!("{:.0}, {:.0}", p.x, p.y)).monospace());
-            }
-            ui.separator();
-            ui.label(RichText::new(&self.status).weak());
+            ui.allocate_ui_with_layout(
+                egui::vec2((width - 220.0).max(100.0), 28.0),
+                egui::Layout::left_to_right(egui::Align::Center),
+                |ui| {
+                    let (glyph, label, color) = if self.is_dirty() {
+                        (icon::PENCIL_SIMPLE, "Modified", ui.visuals().warn_fg_color)
+                    } else if self.path.is_none() {
+                        (icon::FILE, "Unsaved", ui.visuals().weak_text_color())
+                    } else {
+                        (
+                            icon::CHECK_CIRCLE,
+                            "Saved",
+                            if ui.visuals().dark_mode {
+                                crate::theme::SUCCESS
+                            } else {
+                                egui::Color32::from_rgb(15, 118, 110)
+                            },
+                        )
+                    };
+                    ui.label(crate::theme::icon(glyph).color(color));
+                    ui.label(label);
+                    if !self.selection.is_empty() {
+                        ui.separator();
+                        ui.label(format!("{} selected", self.selection.len()));
+                    }
+                    if width > 1050.0 {
+                        ui.label(
+                            RichText::new(format!("{} elements", self.scene.order.len())).weak(),
+                        );
+                    }
+                    ui.separator();
+                    ui.add(egui::Label::new(RichText::new(&self.status).weak()).truncate());
+                },
+            );
+            ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                if crate::widgets::icon_button(ui, icon::CORNERS_OUT, "Zoom to fit (Shift+1)")
+                    .clicked()
+                {
+                    self.fit_requested = true;
+                }
+                if crate::widgets::icon_button(ui, icon::MAGNIFYING_GLASS_PLUS, "Zoom in").clicked()
+                {
+                    self.zoom_by(1.25);
+                }
+                if ui
+                    .button(format!("{:.0}%", self.view.zoom * 100.0))
+                    .on_hover_text("Actual size")
+                    .clicked()
+                {
+                    self.zoom_by(1.0 / self.view.zoom);
+                }
+                if crate::widgets::icon_button(ui, icon::MAGNIFYING_GLASS_MINUS, "Zoom out")
+                    .clicked()
+                {
+                    self.zoom_by(0.8);
+                }
+            });
         });
     }
 }

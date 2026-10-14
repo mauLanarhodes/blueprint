@@ -2,7 +2,7 @@
 
 use crate::{DisplayItem, Primitive, ShapeGeometry, TextStyle, path_item, stroke_of, text};
 use bp_geom::Dir;
-use bp_model::kurbo::{BezPath, Point, Rect, Shape as _};
+use bp_model::kurbo::{BezPath, Point, Rect, RoundedRect, Shape as _};
 use bp_model::{
     ColumnId, ElementId, ErdColumn, ErdTable, PortId, Shape, StyleValues, TableDisplay, TextAlign,
     VerticalAlign,
@@ -67,6 +67,41 @@ fn data_type(column: &ErdColumn) -> String {
     label
 }
 
+/// Shared slots keep every row aligned, even when its key badges differ.
+#[derive(Default)]
+struct ColumnSlots {
+    badge: f64,
+    name: f64,
+    data_type: f64,
+}
+
+fn column_slots(columns: &[&ErdColumn], style: &StyleValues) -> ColumnSlots {
+    let mut slots = ColumnSlots::default();
+    for column in columns {
+        let badge = badges(column);
+        if !badge.is_empty() {
+            slots.badge = slots
+                .badge
+                .max(bp_text::measure(&badge, Face::Bold, style.font_size * 0.8) + 12.0);
+        }
+        slots.name = slots.name.max(
+            bp_text::measure(
+                &column.name,
+                Face::new(column.primary_key || style.bold, style.italic),
+                style.font_size,
+            ) + 12.0,
+        );
+        slots.data_type = slots.data_type.max(
+            bp_text::measure(
+                &data_type(column),
+                Face::new(style.bold, style.italic),
+                style.font_size,
+            ) + 12.0,
+        );
+    }
+    slots
+}
+
 /// Enough room for the full typed rows, while preserving larger requested boxes.
 pub(crate) fn geometry(shape: &Shape, table: &ErdTable, style: StyleValues) -> ShapeGeometry {
     let requested = shape.bounds.abs();
@@ -77,25 +112,12 @@ pub(crate) fn geometry(shape: &Shape, table: &ErdTable, style: StyleValues) -> S
         .collect();
     let height = erd_header_height(style.font_size);
     let row_height = erd_row_height(style.font_size);
-    let width = columns.iter().fold(
-        requested.width().max(220.0).max(
-            bp_text::measure(&shape.text, Face::new(true, style.italic), style.font_size) + 24.0,
-        ),
-        |width, c| {
-            let badge_width = bp_text::measure(&badges(c), Face::Bold, style.font_size * 0.8);
-            let name_width = bp_text::measure(
-                &c.name,
-                Face::new(c.primary_key || style.bold, style.italic),
-                style.font_size,
-            );
-            let type_width = bp_text::measure(
-                &data_type(c),
-                Face::new(style.bold, style.italic),
-                style.font_size,
-            );
-            width.max(badge_width + name_width + type_width + 48.0)
-        },
-    );
+    let slots = column_slots(&columns, &style);
+    let width = requested
+        .width()
+        .max(220.0)
+        .max(bp_text::measure(&shape.text, Face::new(true, style.italic), style.font_size) + 24.0)
+        .max(slots.badge + slots.name + slots.data_type + 32.0);
     let minimum_height = height + columns.len() as f64 * row_height;
     let actual_height = if table.display == TableDisplay::Collapsed {
         height
@@ -225,6 +247,12 @@ pub(crate) fn items(
             }
         }
     }
+    let columns: Vec<_> = table
+        .columns_sorted()
+        .into_iter()
+        .filter(|column| visible(table, column))
+        .collect();
+    let slots = column_slots(&columns, s);
     for row in &layout.rows {
         let Some(column) = table.columns.iter().find(|c| c.id == row.column) else {
             continue;
@@ -235,25 +263,42 @@ pub(crate) fn items(
             size: s.font_size * 0.8,
             ..text_style
         };
-        let badge_width = bp_text::measure(&badge, badge_style.face, badge_style.size);
-        let badge_end = row.bounds.x0 + badge_width + 12.0;
+        let badge_width = bp_text::measure(&badge, badge_style.face, badge_style.size) + 12.0;
+        let badge_end = row.bounds.x0 + 8.0 + slots.badge;
+        if !badge.is_empty() {
+            let pill = Rect::from_center_size(
+                Point::new(
+                    row.bounds.x0 + 8.0 + badge_width / 2.0,
+                    row.bounds.center().y,
+                ),
+                (
+                    badge_width,
+                    (s.font_size * 1.3 + 4.0).min(row.bounds.height() - 6.0),
+                ),
+            );
+            out.push(path_item(
+                id,
+                RoundedRect::from_rect(pill, 3.0).to_path(0.1),
+                Some(s.text_color.faded(s.opacity * 0.08)),
+                None,
+            ));
+        }
         label(
             id,
             &badge,
-            Rect::new(row.bounds.x0, row.bounds.y0, badge_end, row.bounds.y1),
+            Rect::new(row.bounds.x0 + 8.0, row.bounds.y0, badge_end, row.bounds.y1),
             &badge_style,
             out,
         );
         let type_label = data_type(column);
-        let type_width = bp_text::measure(&type_label, text_style.face, text_style.size);
-        let type_start = row.bounds.x1 - type_width - 12.0;
+        let type_start = row.bounds.x1 - slots.data_type - 8.0;
         label(
             id,
             &column.name,
             Rect::new(
-                badge_end + 6.0,
+                badge_end + 8.0,
                 row.bounds.y0,
-                type_start - 6.0,
+                type_start - 8.0,
                 row.bounds.y1,
             ),
             &TextStyle {
@@ -265,12 +310,81 @@ pub(crate) fn items(
         label(
             id,
             &type_label,
-            Rect::new(type_start, row.bounds.y0, row.bounds.x1, row.bounds.y1),
-            &TextStyle {
-                align: TextAlign::Right,
-                ..text_style
-            },
+            Rect::new(
+                type_start,
+                row.bounds.y0,
+                row.bounds.x1 - 8.0,
+                row.bounds.y1,
+            ),
+            &text_style,
             out,
+        );
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use bp_model::{Element, LayerId, OrderKey, Parent, ShapeRef};
+
+    #[test]
+    fn table_slots_align_names_and_types_with_different_badges_and_long_values() {
+        let mut element = Element::shape(
+            ShapeRef::new("erd", "table"),
+            Parent::Layer(LayerId::new()),
+            OrderKey::first(),
+            Rect::new(10.0, 20.0, 230.0, 100.0),
+        );
+        let id = element.id;
+        let shape = element.as_shape_mut().unwrap();
+        let table = shape.erd.as_mut().unwrap();
+        table.columns[0].name = "identifier_with_a_long_name".into();
+        table.columns[0].data_type = "UUID".into();
+        table.columns.push(ErdColumn::new(
+            "note",
+            "VARCHAR(200) COLLATE customer_locale",
+            OrderKey::after(&table.columns[0].order),
+        ));
+        let style = StyleValues::default();
+        let geometry = geometry(shape, shape.erd.as_ref().unwrap(), style);
+        let mut display = Vec::new();
+        items(
+            id,
+            shape,
+            shape.erd.as_ref().unwrap(),
+            &geometry,
+            geometry.erd.as_ref().unwrap(),
+            &mut display,
+        );
+        let texts: Vec<_> = display
+            .iter()
+            .filter_map(|item| {
+                if let Primitive::Text(run) = &item.primitive {
+                    Some((&run.lines[0], item.bbox))
+                } else {
+                    None
+                }
+            })
+            .collect();
+        let line = |text: &str| texts.iter().find(|(line, _)| line.text == text).unwrap().0;
+        assert_eq!(line("identifier_with_a_long_name").x, line("note").x);
+        assert_eq!(
+            line("UUID").x,
+            line("VARCHAR(200) COLLATE customer_locale").x
+        );
+        for (_, bounds) in texts {
+            assert!(
+                bounds.x0 >= geometry.bounds.x0 && bounds.x1 <= geometry.bounds.x1,
+                "full text must fit the measured table width"
+            );
+        }
+        assert_eq!(
+            geometry.erd.as_ref().unwrap().rows[0].column,
+            shape.erd.as_ref().unwrap().columns[0].id
+        );
+        assert_eq!(
+            geometry.erd.as_ref().unwrap().rows[1].column,
+            shape.erd.as_ref().unwrap().columns[1].id
         );
     }
 }

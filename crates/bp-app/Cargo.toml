@@ -14,6 +14,7 @@ name = "blueprint"
 path = "src/main.rs"
 
 [dependencies]
+bp-deploy.workspace = true
 bp-commands.workspace = true
 bp-export.workspace = true
 bp-geom.workspace = true
@@ -25,13 +26,14 @@ bp-render-egui.workspace = true
 bp-scene.workspace = true
 bp-shapes.workspace = true
 bp-text.workspace = true
-eframe.workspace = true
+eframe = { workspace = true, features = ["persistence"] }
 egui.workspace = true
 egui-phosphor.workspace = true
 kurbo.workspace = true
 nucleo-matcher.workspace = true
 rfd.workspace = true
 serde_json.workspace = true
+serde.workspace = true
 
 [dev-dependencies]
 egui_kittest = { workspace = true, features = ["wgpu"] }

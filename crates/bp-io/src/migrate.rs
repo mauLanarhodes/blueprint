@@ -30,6 +30,10 @@ pub fn migrate(mut value: Value) -> Result<Value, IoError> {
         // Earlier readers must refuse to resave and discard that metadata.
         value["schema_version"] = 5.into();
     }
+    if version < 6 {
+        // Earlier readers must not discard deployable resource configuration.
+        value["schema_version"] = 6.into();
+    }
     Ok(value)
 }
 
