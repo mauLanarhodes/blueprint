@@ -474,7 +474,8 @@ fn schema_accepts_omitted_empty_nested_attributes_without_rewriting_the_payload(
     let attributes = &mut provider["resource_schemas"]["aws_instance"]["block"]["attributes"];
     attributes["empty_nested"] = attribute.clone();
     let snapshot =
-        SchemaSnapshot::from_outputs(&pin(), VERSION, &serde_json::to_vec(&schema).unwrap()).unwrap();
+        SchemaSnapshot::from_outputs(&pin(), VERSION, &serde_json::to_vec(&schema).unwrap())
+            .unwrap();
     let resource = snapshot.resource("aws_instance").unwrap();
     let attribute_schema = &resource.block.attributes["empty_nested"];
     let nested = attribute_schema.nested_type.as_ref().unwrap();
@@ -483,7 +484,10 @@ fn schema_accepts_omitted_empty_nested_attributes_without_rewriting_the_payload(
     assert_eq!(raw["empty_nested"], attribute);
     assert_eq!(
         snapshot
-            .output_type("aws_instance", &[OutputStep::Attribute("empty_nested".into())])
+            .output_type(
+                "aws_instance",
+                &[OutputStep::Attribute("empty_nested".into())]
+            )
             .unwrap(),
         Some(json!(["object", {}]))
     );
