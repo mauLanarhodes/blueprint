@@ -91,9 +91,19 @@ struct IconRule {
     resource_types: Vec<String>,
 }
 
+#[derive(Clone, Debug, Deserialize)]
+struct AliasCatalog {
+    format_version: u32,
+    provider: TerraformProvider,
+    provider_version: String,
+    source_url: String,
+    aliases: BTreeMap<String, String>,
+}
+
 pub struct Catalog {
     pub manifest: CatalogManifest,
     entries: BTreeMap<(TerraformProvider, String), CatalogEntry>,
+    aliases: BTreeMap<(TerraformProvider, String), CatalogEntry>,
     rules: Vec<IconRule>,
 }
 
@@ -106,6 +116,7 @@ impl Catalog {
                 include_str!("../catalogs/resources.json"),
                 include_str!("../catalogs/icon-rules.json"),
             )
+            .and_then(|catalog| catalog.with_aliases(include_str!("../catalogs/aliases.json")))
             .expect("bundled AWS catalog is validated by tests")
         })
     }
@@ -161,6 +172,7 @@ impl Catalog {
         let catalog = Self {
             manifest,
             entries: indexed,
+            aliases: BTreeMap::new(),
             rules: serde_json::from_str(rules).map_err(|e| e.to_string())?,
         };
         for rule in &catalog.rules {
@@ -177,12 +189,53 @@ impl Catalog {
         Ok(catalog)
     }
 
+    /// Provider aliases keep their literal Terraform identity while remaining
+    /// separate from the supplied documentation inventory.
+    pub fn with_aliases(mut self, json: &str) -> Result<Self, String> {
+        let aliases: AliasCatalog = serde_json::from_str(json).map_err(|e| e.to_string())?;
+        if aliases.format_version != 1
+            || aliases.source_url.trim().is_empty()
+            || !self.manifest.providers.iter().any(|provider| {
+                provider.provider == aliases.provider && provider.version == aliases.provider_version
+            })
+        {
+            return Err("Invalid or unpinned provider alias catalog".into());
+        }
+        for (alias, canonical) in aliases.aliases {
+            let mut entry = self
+                .entries
+                .get(&(aliases.provider, canonical))
+                .ok_or("Provider alias refers to an unknown canonical resource")?
+                .clone();
+            if !aliases.provider.owns(&alias)
+                || self.entries.contains_key(&(aliases.provider, alias.clone()))
+            {
+                return Err("Invalid or conflicting provider alias".into());
+            }
+            entry.terraform_resource_type = alias.clone();
+            if self
+                .aliases
+                .insert((aliases.provider, alias), entry)
+                .is_some()
+            {
+                return Err("Duplicate provider alias".into());
+            }
+        }
+        Ok(self)
+    }
+
+    pub fn aliases(&self) -> impl Iterator<Item = &CatalogEntry> {
+        self.aliases.values()
+    }
+
     pub fn entries(&self) -> impl Iterator<Item = &CatalogEntry> {
         self.entries.values()
     }
 
     pub fn find(&self, provider: TerraformProvider, resource_type: &str) -> Option<&CatalogEntry> {
-        self.entries.get(&(provider, resource_type.into()))
+        self.entries
+            .get(&(provider, resource_type.into()))
+            .or_else(|| self.aliases.get(&(provider, resource_type.into())))
     }
 
     pub fn validate_choice(&self, choice: &ResourceChoice) -> Result<(), String> {
@@ -202,6 +255,7 @@ impl Catalog {
     pub fn search(&self, provider: Option<TerraformProvider>, query: &str) -> Vec<&CatalogEntry> {
         let words: Vec<_> = query.split_whitespace().map(str::to_lowercase).collect();
         self.entries()
+            .chain(self.aliases())
             .filter(|entry| {
                 provider.is_none_or(|provider| entry.provider == provider)
                     && words.iter().all(|word| {

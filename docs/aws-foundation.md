@@ -14,6 +14,12 @@ entries in 292 prefix groups. These catalogs overlap. Neither their sum nor thei
 category counts is a count of unique AWS services or implemented deployments.
 The manifest records source URLs, exact versions, counts and the CSV SHA-256.
 
+The pinned AWS provider also exposes six legacy `aws_alb*` aliases of `aws_lb*`
+resources. They are recorded separately in `aliases.json`, with upstream source
+provenance, and remain searchable without changing the supplied inventory counts.
+Coverage expects 1,730 AWS schemas (1,724 documented types plus six aliases) and
+1,664 AWSCC schemas; aliases are reported separately from unexpected additions.
+
 ```sh
 python3 tools/update_aws_catalog.py
 python3 tools/update_aws_catalog.py --check

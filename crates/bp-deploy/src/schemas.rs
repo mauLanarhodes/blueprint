@@ -90,7 +90,9 @@ pub struct SchemaSnapshot {
 #[derive(Clone, Debug, PartialEq, Eq, Serialize)]
 pub struct SchemaCoverage {
     pub listed: usize,
+    pub expected: usize,
     pub available: usize,
+    pub recognized_aliases: Vec<String>,
     pub missing: Vec<String>,
     pub additional: Vec<String>,
 }
@@ -234,11 +236,19 @@ impl SchemaSnapshot {
             .keys()
             .cloned()
             .collect();
+        let aliases: BTreeSet<_> = catalog
+            .aliases()
+            .filter(|entry| entry.choice().provider == self.pin)
+            .map(|entry| entry.terraform_resource_type.clone())
+            .collect();
+        let expected: BTreeSet<_> = listed.union(&aliases).cloned().collect();
         Ok(SchemaCoverage {
             listed: listed.len(),
+            expected: expected.len(),
             available: available.len(),
-            missing: listed.difference(&available).cloned().collect(),
-            additional: available.difference(&listed).cloned().collect(),
+            recognized_aliases: aliases.intersection(&available).cloned().collect(),
+            missing: expected.difference(&available).cloned().collect(),
+            additional: available.difference(&expected).cloned().collect(),
         })
     }
 

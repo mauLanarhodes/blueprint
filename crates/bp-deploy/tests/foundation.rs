@@ -44,7 +44,7 @@ fn inventory_has_all_supplied_entries_without_claiming_distinct_aws_resources() 
             (count, groups)
         );
     }
-    for entry in catalog.entries() {
+    for entry in catalog.entries().chain(catalog.aliases()) {
         let mut resource = draft(&entry.terraform_resource_type);
         resource.provider = entry.choice().provider;
         resource.validate().unwrap();
@@ -95,8 +95,8 @@ fn schemas_verify_selected_release_keep_versions_separate_and_report_coverage_ga
     );
     let coverage = snapshot.coverage(Catalog::builtin()).unwrap();
     assert_eq!(
-        (coverage.listed, coverage.available, coverage.missing.len()),
-        (1724, 2, 1722)
+        (coverage.expected, coverage.available, coverage.missing.len()),
+        (1730, 2, 1728)
     );
     let wrong = ProviderPin {
         version: "6.67.0".into(),
@@ -431,4 +431,27 @@ fn discovery_only_initializes_and_reads_schemas_then_reuses_the_verified_cache()
     let link = scratch.0.join("linked");
     std::os::unix::fs::symlink(&cache.root, &link).unwrap();
     assert!(SchemaCache { root: link }.load(&pin()).is_err());
+}
+
+#[test]
+fn provider_aliases_are_separate_searchable_and_do_not_hide_unexpected_resource_types() {
+    let catalog = Catalog::builtin();
+    assert_eq!(catalog.entries().count(), 3388);
+    assert_eq!(catalog.aliases().count(), 6);
+    let alias = catalog.find(TerraformProvider::Aws, "aws_alb").unwrap();
+    assert_eq!(alias.terraform_resource_type, "aws_alb");
+    assert_eq!(
+        catalog.search(Some(TerraformProvider::Aws), "aws_alb").len(),
+        6
+    );
+    let mut snapshot = snapshot();
+    let sample = snapshot.provider_schema["resource_schemas"]["aws_s3_bucket"].clone();
+    for entry in catalog.aliases() {
+        snapshot.provider_schema["resource_schemas"][&entry.terraform_resource_type] = sample.clone();
+    }
+    snapshot.provider_schema["resource_schemas"]["aws_surprise_resource"] = sample;
+    let report = snapshot.coverage(catalog).unwrap();
+    assert_eq!(report.recognized_aliases.len(), 6);
+    assert_eq!(report.additional, ["aws_surprise_resource"]);
+    assert_eq!(report.listed, 1724);
 }
