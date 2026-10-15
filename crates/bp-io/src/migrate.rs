@@ -34,6 +34,11 @@ pub fn migrate(mut value: Value) -> Result<Value, IoError> {
         // Earlier readers must not discard deployable resource configuration.
         value["schema_version"] = 6.into();
     }
+    if version < 7 {
+        // Existing resource variants and addresses remain unchanged. Schema 7
+        // prevents old readers from discarding general resource drafts.
+        value["schema_version"] = 7.into();
+    }
     Ok(value)
 }
 

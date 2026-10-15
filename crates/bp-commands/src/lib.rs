@@ -621,7 +621,7 @@ impl Command {
 fn check_prop(doc: &Document, id: ElementId, prop: &Prop) -> Result<(), CommandError> {
     let finite = |p: &Point| p.x.is_finite() && p.y.is_finite();
     match prop {
-        Prop::ErdTable(_) if doc.elements.contains_key(&id) => {
+        Prop::ErdTable(_) | Prop::Infrastructure(_) if doc.elements.contains_key(&id) => {
             let mut candidate = doc.clone();
             set_prop(
                 candidate.elements.get_mut(&id).expect("checked above"),

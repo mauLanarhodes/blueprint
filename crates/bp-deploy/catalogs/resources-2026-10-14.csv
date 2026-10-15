@@ -1,0 +1,3389 @@
+provider,provider_version,service_group,terraform_resource_type
+aws,6.68.0,ACM (Certificate Manager),aws_acm_certificate
+aws,6.68.0,ACM (Certificate Manager),aws_acm_certificate_validation
+aws,6.68.0,ACM PCA (Certificate Manager Private Certificate Authority),aws_acmpca_certificate
+aws,6.68.0,ACM PCA (Certificate Manager Private Certificate Authority),aws_acmpca_certificate_authority
+aws,6.68.0,ACM PCA (Certificate Manager Private Certificate Authority),aws_acmpca_certificate_authority_certificate
+aws,6.68.0,ACM PCA (Certificate Manager Private Certificate Authority),aws_acmpca_permission
+aws,6.68.0,ACM PCA (Certificate Manager Private Certificate Authority),aws_acmpca_policy
+aws,6.68.0,AMP (Managed Prometheus),aws_prometheus_alert_manager_definition
+aws,6.68.0,AMP (Managed Prometheus),aws_prometheus_anomaly_detector
+aws,6.68.0,AMP (Managed Prometheus),aws_prometheus_query_logging_configuration
+aws,6.68.0,AMP (Managed Prometheus),aws_prometheus_resource_policy
+aws,6.68.0,AMP (Managed Prometheus),aws_prometheus_rule_group_namespace
+aws,6.68.0,AMP (Managed Prometheus),aws_prometheus_scraper
+aws,6.68.0,AMP (Managed Prometheus),aws_prometheus_scraper_logging_configuration
+aws,6.68.0,AMP (Managed Prometheus),aws_prometheus_workspace
+aws,6.68.0,AMP (Managed Prometheus),aws_prometheus_workspace_configuration
+aws,6.68.0,API Gateway,aws_api_gateway_account
+aws,6.68.0,API Gateway,aws_api_gateway_api_key
+aws,6.68.0,API Gateway,aws_api_gateway_authorizer
+aws,6.68.0,API Gateway,aws_api_gateway_base_path_mapping
+aws,6.68.0,API Gateway,aws_api_gateway_client_certificate
+aws,6.68.0,API Gateway,aws_api_gateway_deployment
+aws,6.68.0,API Gateway,aws_api_gateway_documentation_part
+aws,6.68.0,API Gateway,aws_api_gateway_documentation_version
+aws,6.68.0,API Gateway,aws_api_gateway_domain_name
+aws,6.68.0,API Gateway,aws_api_gateway_domain_name_access_association
+aws,6.68.0,API Gateway,aws_api_gateway_gateway_response
+aws,6.68.0,API Gateway,aws_api_gateway_integration
+aws,6.68.0,API Gateway,aws_api_gateway_integration_response
+aws,6.68.0,API Gateway,aws_api_gateway_method
+aws,6.68.0,API Gateway,aws_api_gateway_method_response
+aws,6.68.0,API Gateway,aws_api_gateway_method_settings
+aws,6.68.0,API Gateway,aws_api_gateway_model
+aws,6.68.0,API Gateway,aws_api_gateway_request_validator
+aws,6.68.0,API Gateway,aws_api_gateway_resource
+aws,6.68.0,API Gateway,aws_api_gateway_rest_api
+aws,6.68.0,API Gateway,aws_api_gateway_rest_api_policy
+aws,6.68.0,API Gateway,aws_api_gateway_rest_api_put
+aws,6.68.0,API Gateway,aws_api_gateway_stage
+aws,6.68.0,API Gateway,aws_api_gateway_usage_plan
+aws,6.68.0,API Gateway,aws_api_gateway_usage_plan_key
+aws,6.68.0,API Gateway,aws_api_gateway_vpc_link
+aws,6.68.0,API Gateway V2,aws_apigatewayv2_api
+aws,6.68.0,API Gateway V2,aws_apigatewayv2_api_mapping
+aws,6.68.0,API Gateway V2,aws_apigatewayv2_authorizer
+aws,6.68.0,API Gateway V2,aws_apigatewayv2_deployment
+aws,6.68.0,API Gateway V2,aws_apigatewayv2_domain_name
+aws,6.68.0,API Gateway V2,aws_apigatewayv2_integration
+aws,6.68.0,API Gateway V2,aws_apigatewayv2_integration_response
+aws,6.68.0,API Gateway V2,aws_apigatewayv2_model
+aws,6.68.0,API Gateway V2,aws_apigatewayv2_route
+aws,6.68.0,API Gateway V2,aws_apigatewayv2_route_response
+aws,6.68.0,API Gateway V2,aws_apigatewayv2_routing_rule
+aws,6.68.0,API Gateway V2,aws_apigatewayv2_stage
+aws,6.68.0,API Gateway V2,aws_apigatewayv2_vpc_link
+aws,6.68.0,ARC (Application Recovery Controller) Region Switch,aws_arcregionswitch_plan
+aws,6.68.0,ARC (Application Recovery Controller) Zonal Shift,aws_arczonalshift_autoshift_observer_notification_status
+aws,6.68.0,ARC (Application Recovery Controller) Zonal Shift,aws_arczonalshift_zonal_autoshift_configuration
+aws,6.68.0,Account Access,aws_accountaccess_application
+aws,6.68.0,Account Access,aws_accountaccess_entitlement
+aws,6.68.0,Account Management,aws_account_alternate_contact
+aws,6.68.0,Account Management,aws_account_primary_contact
+aws,6.68.0,Account Management,aws_account_region
+aws,6.68.0,Agent Registry,aws_agentregistry_registry
+aws,6.68.0,Amazon Q Business,aws_qbusiness_application
+aws,6.68.0,Amplify,aws_amplify_app
+aws,6.68.0,Amplify,aws_amplify_backend_environment
+aws,6.68.0,Amplify,aws_amplify_branch
+aws,6.68.0,Amplify,aws_amplify_domain_association
+aws,6.68.0,Amplify,aws_amplify_webhook
+aws,6.68.0,App Mesh,aws_appmesh_gateway_route
+aws,6.68.0,App Mesh,aws_appmesh_mesh
+aws,6.68.0,App Mesh,aws_appmesh_route
+aws,6.68.0,App Mesh,aws_appmesh_virtual_gateway
+aws,6.68.0,App Mesh,aws_appmesh_virtual_node
+aws,6.68.0,App Mesh,aws_appmesh_virtual_router
+aws,6.68.0,App Mesh,aws_appmesh_virtual_service
+aws,6.68.0,App Runner,aws_apprunner_auto_scaling_configuration_version
+aws,6.68.0,App Runner,aws_apprunner_connection
+aws,6.68.0,App Runner,aws_apprunner_custom_domain_association
+aws,6.68.0,App Runner,aws_apprunner_default_auto_scaling_configuration_version
+aws,6.68.0,App Runner,aws_apprunner_deployment
+aws,6.68.0,App Runner,aws_apprunner_observability_configuration
+aws,6.68.0,App Runner,aws_apprunner_service
+aws,6.68.0,App Runner,aws_apprunner_vpc_connector
+aws,6.68.0,App Runner,aws_apprunner_vpc_ingress_connection
+aws,6.68.0,AppConfig,aws_appconfig_application
+aws,6.68.0,AppConfig,aws_appconfig_configuration_profile
+aws,6.68.0,AppConfig,aws_appconfig_deployment
+aws,6.68.0,AppConfig,aws_appconfig_deployment_strategy
+aws,6.68.0,AppConfig,aws_appconfig_environment
+aws,6.68.0,AppConfig,aws_appconfig_extension
+aws,6.68.0,AppConfig,aws_appconfig_extension_association
+aws,6.68.0,AppConfig,aws_appconfig_hosted_configuration_version
+aws,6.68.0,AppFabric,aws_appfabric_app_authorization
+aws,6.68.0,AppFabric,aws_appfabric_app_authorization_connection
+aws,6.68.0,AppFabric,aws_appfabric_app_bundle
+aws,6.68.0,AppFabric,aws_appfabric_ingestion
+aws,6.68.0,AppFabric,aws_appfabric_ingestion_destination
+aws,6.68.0,AppFlow,aws_appflow_connector_profile
+aws,6.68.0,AppFlow,aws_appflow_flow
+aws,6.68.0,AppIntegrations,aws_appintegrations_data_integration
+aws,6.68.0,AppIntegrations,aws_appintegrations_event_integration
+aws,6.68.0,AppStream 2.0,aws_appstream_directory_config
+aws,6.68.0,AppStream 2.0,aws_appstream_fleet
+aws,6.68.0,AppStream 2.0,aws_appstream_fleet_stack_association
+aws,6.68.0,AppStream 2.0,aws_appstream_image_builder
+aws,6.68.0,AppStream 2.0,aws_appstream_stack
+aws,6.68.0,AppStream 2.0,aws_appstream_user
+aws,6.68.0,AppStream 2.0,aws_appstream_user_stack_association
+aws,6.68.0,AppSync,aws_appsync_api
+aws,6.68.0,AppSync,aws_appsync_api_cache
+aws,6.68.0,AppSync,aws_appsync_api_key
+aws,6.68.0,AppSync,aws_appsync_channel_namespace
+aws,6.68.0,AppSync,aws_appsync_datasource
+aws,6.68.0,AppSync,aws_appsync_domain_name
+aws,6.68.0,AppSync,aws_appsync_domain_name_api_association
+aws,6.68.0,AppSync,aws_appsync_function
+aws,6.68.0,AppSync,aws_appsync_graphql_api
+aws,6.68.0,AppSync,aws_appsync_resolver
+aws,6.68.0,AppSync,aws_appsync_source_api_association
+aws,6.68.0,AppSync,aws_appsync_type
+aws,6.68.0,Application Auto Scaling,aws_appautoscaling_policy
+aws,6.68.0,Application Auto Scaling,aws_appautoscaling_scheduled_action
+aws,6.68.0,Application Auto Scaling,aws_appautoscaling_target
+aws,6.68.0,Athena,aws_athena_capacity_reservation
+aws,6.68.0,Athena,aws_athena_data_catalog
+aws,6.68.0,Athena,aws_athena_database
+aws,6.68.0,Athena,aws_athena_named_query
+aws,6.68.0,Athena,aws_athena_prepared_statement
+aws,6.68.0,Athena,aws_athena_workgroup
+aws,6.68.0,Audit Manager,aws_auditmanager_account_registration
+aws,6.68.0,Audit Manager,aws_auditmanager_assessment
+aws,6.68.0,Audit Manager,aws_auditmanager_assessment_delegation
+aws,6.68.0,Audit Manager,aws_auditmanager_assessment_report
+aws,6.68.0,Audit Manager,aws_auditmanager_control
+aws,6.68.0,Audit Manager,aws_auditmanager_framework
+aws,6.68.0,Audit Manager,aws_auditmanager_framework_share
+aws,6.68.0,Audit Manager,aws_auditmanager_organization_admin_account_registration
+aws,6.68.0,Auto Scaling,aws_autoscaling_attachment
+aws,6.68.0,Auto Scaling,aws_autoscaling_group
+aws,6.68.0,Auto Scaling,aws_autoscaling_group_tag
+aws,6.68.0,Auto Scaling,aws_autoscaling_lifecycle_hook
+aws,6.68.0,Auto Scaling,aws_autoscaling_notification
+aws,6.68.0,Auto Scaling,aws_autoscaling_policy
+aws,6.68.0,Auto Scaling,aws_autoscaling_schedule
+aws,6.68.0,Auto Scaling,aws_autoscaling_traffic_source_attachment
+aws,6.68.0,Auto Scaling,aws_launch_configuration
+aws,6.68.0,Auto Scaling Plans,aws_autoscalingplans_scaling_plan
+aws,6.68.0,BCM Data Exports,aws_bcmdataexports_export
+aws,6.68.0,Backup,aws_backup_framework
+aws,6.68.0,Backup,aws_backup_global_settings
+aws,6.68.0,Backup,aws_backup_logically_air_gapped_vault
+aws,6.68.0,Backup,aws_backup_plan
+aws,6.68.0,Backup,aws_backup_region_settings
+aws,6.68.0,Backup,aws_backup_report_plan
+aws,6.68.0,Backup,aws_backup_restore_testing_plan
+aws,6.68.0,Backup,aws_backup_restore_testing_selection
+aws,6.68.0,Backup,aws_backup_selection
+aws,6.68.0,Backup,aws_backup_vault
+aws,6.68.0,Backup,aws_backup_vault_lock_configuration
+aws,6.68.0,Backup,aws_backup_vault_notifications
+aws,6.68.0,Backup,aws_backup_vault_policy
+aws,6.68.0,Batch,aws_batch_compute_environment
+aws,6.68.0,Batch,aws_batch_job_definition
+aws,6.68.0,Batch,aws_batch_job_queue
+aws,6.68.0,Batch,aws_batch_scheduling_policy
+aws,6.68.0,Bedrock,aws_bedrock_custom_model
+aws,6.68.0,Bedrock,aws_bedrock_evaluation_job
+aws,6.68.0,Bedrock,aws_bedrock_foundation_model_agreement
+aws,6.68.0,Bedrock,aws_bedrock_guardrail
+aws,6.68.0,Bedrock,aws_bedrock_guardrail_version
+aws,6.68.0,Bedrock,aws_bedrock_inference_profile
+aws,6.68.0,Bedrock,aws_bedrock_model_invocation_job
+aws,6.68.0,Bedrock,aws_bedrock_model_invocation_logging_configuration
+aws,6.68.0,Bedrock,aws_bedrock_provisioned_model_throughput
+aws,6.68.0,Bedrock,aws_bedrock_use_case_for_model_access
+aws,6.68.0,Bedrock AgentCore,aws_bedrockagentcore_agent_runtime
+aws,6.68.0,Bedrock AgentCore,aws_bedrockagentcore_agent_runtime_endpoint
+aws,6.68.0,Bedrock AgentCore,aws_bedrockagentcore_api_key_credential_provider
+aws,6.68.0,Bedrock AgentCore,aws_bedrockagentcore_browser
+aws,6.68.0,Bedrock AgentCore,aws_bedrockagentcore_browser_profile
+aws,6.68.0,Bedrock AgentCore,aws_bedrockagentcore_code_interpreter
+aws,6.68.0,Bedrock AgentCore,aws_bedrockagentcore_evaluator
+aws,6.68.0,Bedrock AgentCore,aws_bedrockagentcore_gateway
+aws,6.68.0,Bedrock AgentCore,aws_bedrockagentcore_gateway_rule
+aws,6.68.0,Bedrock AgentCore,aws_bedrockagentcore_gateway_target
+aws,6.68.0,Bedrock AgentCore,aws_bedrockagentcore_harness
+aws,6.68.0,Bedrock AgentCore,aws_bedrockagentcore_memory
+aws,6.68.0,Bedrock AgentCore,aws_bedrockagentcore_memory_strategy
+aws,6.68.0,Bedrock AgentCore,aws_bedrockagentcore_oauth2_credential_provider
+aws,6.68.0,Bedrock AgentCore,aws_bedrockagentcore_online_evaluation_config
+aws,6.68.0,Bedrock AgentCore,aws_bedrockagentcore_policy
+aws,6.68.0,Bedrock AgentCore,aws_bedrockagentcore_policy_engine
+aws,6.68.0,Bedrock AgentCore,aws_bedrockagentcore_registry
+aws,6.68.0,Bedrock AgentCore,aws_bedrockagentcore_resource_policy
+aws,6.68.0,Bedrock AgentCore,aws_bedrockagentcore_token_vault_cmk
+aws,6.68.0,Bedrock AgentCore,aws_bedrockagentcore_workload_identity
+aws,6.68.0,Bedrock Agents,aws_bedrockagent_agent
+aws,6.68.0,Bedrock Agents,aws_bedrockagent_agent_action_group
+aws,6.68.0,Bedrock Agents,aws_bedrockagent_agent_alias
+aws,6.68.0,Bedrock Agents,aws_bedrockagent_agent_collaborator
+aws,6.68.0,Bedrock Agents,aws_bedrockagent_agent_knowledge_base_association
+aws,6.68.0,Bedrock Agents,aws_bedrockagent_data_source
+aws,6.68.0,Bedrock Agents,aws_bedrockagent_flow
+aws,6.68.0,Bedrock Agents,aws_bedrockagent_knowledge_base
+aws,6.68.0,Bedrock Agents,aws_bedrockagent_prompt
+aws,6.68.0,Billing,aws_billing_view
+aws,6.68.0,CE (Cost Explorer),aws_ce_anomaly_monitor
+aws,6.68.0,CE (Cost Explorer),aws_ce_anomaly_subscription
+aws,6.68.0,CE (Cost Explorer),aws_ce_cost_allocation_tag
+aws,6.68.0,CE (Cost Explorer),aws_ce_cost_category
+aws,6.68.0,Chatbot,aws_chatbot_slack_channel_configuration
+aws,6.68.0,Chatbot,aws_chatbot_teams_channel_configuration
+aws,6.68.0,Chime,aws_chime_voice_connector
+aws,6.68.0,Chime,aws_chime_voice_connector_group
+aws,6.68.0,Chime,aws_chime_voice_connector_logging
+aws,6.68.0,Chime,aws_chime_voice_connector_origination
+aws,6.68.0,Chime,aws_chime_voice_connector_streaming
+aws,6.68.0,Chime,aws_chime_voice_connector_termination
+aws,6.68.0,Chime,aws_chime_voice_connector_termination_credentials
+aws,6.68.0,Chime SDK Media Pipelines,aws_chimesdkmediapipelines_media_insights_pipeline_configuration
+aws,6.68.0,Chime SDK Voice,aws_chimesdkvoice_global_settings
+aws,6.68.0,Chime SDK Voice,aws_chimesdkvoice_sip_media_application
+aws,6.68.0,Chime SDK Voice,aws_chimesdkvoice_sip_rule
+aws,6.68.0,Chime SDK Voice,aws_chimesdkvoice_voice_profile_domain
+aws,6.68.0,Clean Rooms,aws_cleanrooms_collaboration
+aws,6.68.0,Clean Rooms,aws_cleanrooms_configured_table
+aws,6.68.0,Clean Rooms,aws_cleanrooms_membership
+aws,6.68.0,Cloud Control API,aws_cloudcontrolapi_resource
+aws,6.68.0,Cloud Map,aws_service_discovery_http_namespace
+aws,6.68.0,Cloud Map,aws_service_discovery_instance
+aws,6.68.0,Cloud Map,aws_service_discovery_private_dns_namespace
+aws,6.68.0,Cloud Map,aws_service_discovery_public_dns_namespace
+aws,6.68.0,Cloud Map,aws_service_discovery_service
+aws,6.68.0,Cloud9,aws_cloud9_environment_ec2
+aws,6.68.0,Cloud9,aws_cloud9_environment_membership
+aws,6.68.0,CloudFormation,aws_cloudformation_stack
+aws,6.68.0,CloudFormation,aws_cloudformation_stack_instances
+aws,6.68.0,CloudFormation,aws_cloudformation_stack_set
+aws,6.68.0,CloudFormation,aws_cloudformation_stack_set_instance
+aws,6.68.0,CloudFormation,aws_cloudformation_type
+aws,6.68.0,CloudFront,aws_cloudfront_anycast_ip_list
+aws,6.68.0,CloudFront,aws_cloudfront_cache_policy
+aws,6.68.0,CloudFront,aws_cloudfront_connection_function
+aws,6.68.0,CloudFront,aws_cloudfront_connection_group
+aws,6.68.0,CloudFront,aws_cloudfront_continuous_deployment_policy
+aws,6.68.0,CloudFront,aws_cloudfront_distribution
+aws,6.68.0,CloudFront,aws_cloudfront_distribution_tenant
+aws,6.68.0,CloudFront,aws_cloudfront_field_level_encryption_config
+aws,6.68.0,CloudFront,aws_cloudfront_field_level_encryption_profile
+aws,6.68.0,CloudFront,aws_cloudfront_function
+aws,6.68.0,CloudFront,aws_cloudfront_key_group
+aws,6.68.0,CloudFront,aws_cloudfront_key_value_store
+aws,6.68.0,CloudFront,aws_cloudfront_monitoring_subscription
+aws,6.68.0,CloudFront,aws_cloudfront_multitenant_distribution
+aws,6.68.0,CloudFront,aws_cloudfront_origin_access_control
+aws,6.68.0,CloudFront,aws_cloudfront_origin_access_identity
+aws,6.68.0,CloudFront,aws_cloudfront_origin_request_policy
+aws,6.68.0,CloudFront,aws_cloudfront_public_key
+aws,6.68.0,CloudFront,aws_cloudfront_realtime_log_config
+aws,6.68.0,CloudFront,aws_cloudfront_response_headers_policy
+aws,6.68.0,CloudFront,aws_cloudfront_trust_store
+aws,6.68.0,CloudFront,aws_cloudfront_vpc_origin
+aws,6.68.0,CloudFront KeyValueStore,aws_cloudfrontkeyvaluestore_key
+aws,6.68.0,CloudFront KeyValueStore,aws_cloudfrontkeyvaluestore_keys_exclusive
+aws,6.68.0,CloudHSM,aws_cloudhsm_v2_cluster
+aws,6.68.0,CloudHSM,aws_cloudhsm_v2_hsm
+aws,6.68.0,CloudSearch,aws_cloudsearch_domain
+aws,6.68.0,CloudSearch,aws_cloudsearch_domain_service_access_policy
+aws,6.68.0,CloudTrail,aws_cloudtrail
+aws,6.68.0,CloudTrail,aws_cloudtrail_event_data_store
+aws,6.68.0,CloudTrail,aws_cloudtrail_organization_delegated_admin_account
+aws,6.68.0,CloudWatch,aws_cloudwatch_alarm_mute_rule
+aws,6.68.0,CloudWatch,aws_cloudwatch_composite_alarm
+aws,6.68.0,CloudWatch,aws_cloudwatch_contributor_insight_rule
+aws,6.68.0,CloudWatch,aws_cloudwatch_contributor_managed_insight_rule
+aws,6.68.0,CloudWatch,aws_cloudwatch_dashboard
+aws,6.68.0,CloudWatch,aws_cloudwatch_metric_alarm
+aws,6.68.0,CloudWatch,aws_cloudwatch_metric_stream
+aws,6.68.0,CloudWatch,aws_cloudwatch_otel_enrichment
+aws,6.68.0,CloudWatch Application Insights,aws_applicationinsights_application
+aws,6.68.0,CloudWatch Evidently,aws_evidently_feature
+aws,6.68.0,CloudWatch Evidently,aws_evidently_launch
+aws,6.68.0,CloudWatch Evidently,aws_evidently_project
+aws,6.68.0,CloudWatch Evidently,aws_evidently_segment
+aws,6.68.0,CloudWatch Internet Monitor,aws_internetmonitor_monitor
+aws,6.68.0,CloudWatch Logs,aws_cloudwatch_log_account_policy
+aws,6.68.0,CloudWatch Logs,aws_cloudwatch_log_anomaly_detector
+aws,6.68.0,CloudWatch Logs,aws_cloudwatch_log_data_protection_policy
+aws,6.68.0,CloudWatch Logs,aws_cloudwatch_log_delivery
+aws,6.68.0,CloudWatch Logs,aws_cloudwatch_log_delivery_destination
+aws,6.68.0,CloudWatch Logs,aws_cloudwatch_log_delivery_destination_policy
+aws,6.68.0,CloudWatch Logs,aws_cloudwatch_log_delivery_source
+aws,6.68.0,CloudWatch Logs,aws_cloudwatch_log_destination
+aws,6.68.0,CloudWatch Logs,aws_cloudwatch_log_destination_policy
+aws,6.68.0,CloudWatch Logs,aws_cloudwatch_log_group
+aws,6.68.0,CloudWatch Logs,aws_cloudwatch_log_index_policy
+aws,6.68.0,CloudWatch Logs,aws_cloudwatch_log_metric_filter
+aws,6.68.0,CloudWatch Logs,aws_cloudwatch_log_resource_policy
+aws,6.68.0,CloudWatch Logs,aws_cloudwatch_log_s3_table_integration_source
+aws,6.68.0,CloudWatch Logs,aws_cloudwatch_log_storage_tier_policy
+aws,6.68.0,CloudWatch Logs,aws_cloudwatch_log_stream
+aws,6.68.0,CloudWatch Logs,aws_cloudwatch_log_subscription_filter
+aws,6.68.0,CloudWatch Logs,aws_cloudwatch_log_transformer
+aws,6.68.0,CloudWatch Logs,aws_cloudwatch_query_definition
+aws,6.68.0,CloudWatch Network Monitor,aws_networkmonitor_monitor
+aws,6.68.0,CloudWatch Network Monitor,aws_networkmonitor_probe
+aws,6.68.0,CloudWatch NetworkFlow Monitor,aws_networkflowmonitor_monitor
+aws,6.68.0,CloudWatch NetworkFlow Monitor,aws_networkflowmonitor_scope
+aws,6.68.0,CloudWatch Observability Access Manager,aws_oam_link
+aws,6.68.0,CloudWatch Observability Access Manager,aws_oam_sink
+aws,6.68.0,CloudWatch Observability Access Manager,aws_oam_sink_policy
+aws,6.68.0,CloudWatch Observability Admin,aws_observabilityadmin_centralization_rule_for_organization
+aws,6.68.0,CloudWatch Observability Admin,aws_observabilityadmin_s3_table_integration
+aws,6.68.0,CloudWatch Observability Admin,aws_observabilityadmin_telemetry_enrichment
+aws,6.68.0,CloudWatch Observability Admin,aws_observabilityadmin_telemetry_evaluation
+aws,6.68.0,CloudWatch Observability Admin,aws_observabilityadmin_telemetry_evaluation_for_organization
+aws,6.68.0,CloudWatch Observability Admin,aws_observabilityadmin_telemetry_pipeline
+aws,6.68.0,CloudWatch Observability Admin,aws_observabilityadmin_telemetry_rule
+aws,6.68.0,CloudWatch Observability Admin,aws_observabilityadmin_telemetry_rule_for_organization
+aws,6.68.0,CloudWatch RUM,aws_rum_app_monitor
+aws,6.68.0,CloudWatch RUM,aws_rum_metrics_destination
+aws,6.68.0,CloudWatch Synthetics,aws_synthetics_canary
+aws,6.68.0,CloudWatch Synthetics,aws_synthetics_group
+aws,6.68.0,CloudWatch Synthetics,aws_synthetics_group_association
+aws,6.68.0,CodeArtifact,aws_codeartifact_domain
+aws,6.68.0,CodeArtifact,aws_codeartifact_domain_permissions_policy
+aws,6.68.0,CodeArtifact,aws_codeartifact_repository
+aws,6.68.0,CodeArtifact,aws_codeartifact_repository_permissions_policy
+aws,6.68.0,CodeBuild,aws_codebuild_fleet
+aws,6.68.0,CodeBuild,aws_codebuild_project
+aws,6.68.0,CodeBuild,aws_codebuild_report_group
+aws,6.68.0,CodeBuild,aws_codebuild_resource_policy
+aws,6.68.0,CodeBuild,aws_codebuild_source_credential
+aws,6.68.0,CodeBuild,aws_codebuild_webhook
+aws,6.68.0,CodeCatalyst,aws_codecatalyst_dev_environment
+aws,6.68.0,CodeCatalyst,aws_codecatalyst_project
+aws,6.68.0,CodeCatalyst,aws_codecatalyst_source_repository
+aws,6.68.0,CodeCommit,aws_codecommit_approval_rule_template
+aws,6.68.0,CodeCommit,aws_codecommit_approval_rule_template_association
+aws,6.68.0,CodeCommit,aws_codecommit_repository
+aws,6.68.0,CodeCommit,aws_codecommit_trigger
+aws,6.68.0,CodeConnections,aws_codeconnections_connection
+aws,6.68.0,CodeConnections,aws_codeconnections_host
+aws,6.68.0,CodeDeploy,aws_codedeploy_app
+aws,6.68.0,CodeDeploy,aws_codedeploy_deployment_config
+aws,6.68.0,CodeDeploy,aws_codedeploy_deployment_group
+aws,6.68.0,CodeGuru Profiler,aws_codeguruprofiler_profiling_group
+aws,6.68.0,CodeGuru Reviewer,aws_codegurureviewer_repository_association
+aws,6.68.0,CodePipeline,aws_codepipeline
+aws,6.68.0,CodePipeline,aws_codepipeline_custom_action_type
+aws,6.68.0,CodePipeline,aws_codepipeline_webhook
+aws,6.68.0,CodeStar Connections,aws_codestarconnections_connection
+aws,6.68.0,CodeStar Connections,aws_codestarconnections_host
+aws,6.68.0,CodeStar Notifications,aws_codestarnotifications_notification_rule
+aws,6.68.0,Cognito IDP (Identity Provider),aws_cognito_identity_provider
+aws,6.68.0,Cognito IDP (Identity Provider),aws_cognito_log_delivery_configuration
+aws,6.68.0,Cognito IDP (Identity Provider),aws_cognito_managed_login_branding
+aws,6.68.0,Cognito IDP (Identity Provider),aws_cognito_managed_user_pool_client
+aws,6.68.0,Cognito IDP (Identity Provider),aws_cognito_resource_server
+aws,6.68.0,Cognito IDP (Identity Provider),aws_cognito_risk_configuration
+aws,6.68.0,Cognito IDP (Identity Provider),aws_cognito_user
+aws,6.68.0,Cognito IDP (Identity Provider),aws_cognito_user_group
+aws,6.68.0,Cognito IDP (Identity Provider),aws_cognito_user_in_group
+aws,6.68.0,Cognito IDP (Identity Provider),aws_cognito_user_pool
+aws,6.68.0,Cognito IDP (Identity Provider),aws_cognito_user_pool_client
+aws,6.68.0,Cognito IDP (Identity Provider),aws_cognito_user_pool_domain
+aws,6.68.0,Cognito IDP (Identity Provider),aws_cognito_user_pool_ui_customization
+aws,6.68.0,Cognito Identity,aws_cognito_identity_pool
+aws,6.68.0,Cognito Identity,aws_cognito_identity_pool_provider_principal_tag
+aws,6.68.0,Cognito Identity,aws_cognito_identity_pool_roles_attachment
+aws,6.68.0,Comprehend,aws_comprehend_document_classifier
+aws,6.68.0,Comprehend,aws_comprehend_entity_recognizer
+aws,6.68.0,Compute Optimizer,aws_computeoptimizer_enrollment_status
+aws,6.68.0,Compute Optimizer,aws_computeoptimizer_recommendation_preferences
+aws,6.68.0,Config,aws_config_aggregate_authorization
+aws,6.68.0,Config,aws_config_config_rule
+aws,6.68.0,Config,aws_config_configuration_aggregator
+aws,6.68.0,Config,aws_config_configuration_recorder
+aws,6.68.0,Config,aws_config_configuration_recorder_status
+aws,6.68.0,Config,aws_config_conformance_pack
+aws,6.68.0,Config,aws_config_delivery_channel
+aws,6.68.0,Config,aws_config_organization_conformance_pack
+aws,6.68.0,Config,aws_config_organization_custom_policy_rule
+aws,6.68.0,Config,aws_config_organization_custom_rule
+aws,6.68.0,Config,aws_config_organization_managed_rule
+aws,6.68.0,Config,aws_config_remediation_configuration
+aws,6.68.0,Config,aws_config_retention_configuration
+aws,6.68.0,Connect,aws_connect_bot_association
+aws,6.68.0,Connect,aws_connect_contact_flow
+aws,6.68.0,Connect,aws_connect_contact_flow_module
+aws,6.68.0,Connect,aws_connect_hours_of_operation
+aws,6.68.0,Connect,aws_connect_instance
+aws,6.68.0,Connect,aws_connect_instance_storage_config
+aws,6.68.0,Connect,aws_connect_lambda_function_association
+aws,6.68.0,Connect,aws_connect_phone_number
+aws,6.68.0,Connect,aws_connect_phone_number_contact_flow_association
+aws,6.68.0,Connect,aws_connect_queue
+aws,6.68.0,Connect,aws_connect_quick_connect
+aws,6.68.0,Connect,aws_connect_routing_profile
+aws,6.68.0,Connect,aws_connect_security_profile
+aws,6.68.0,Connect,aws_connect_user
+aws,6.68.0,Connect,aws_connect_user_hierarchy_group
+aws,6.68.0,Connect,aws_connect_user_hierarchy_structure
+aws,6.68.0,Connect,aws_connect_vocabulary
+aws,6.68.0,Connect Customer Profiles,aws_customerprofiles_domain
+aws,6.68.0,Connect Customer Profiles,aws_customerprofiles_profile
+aws,6.68.0,Control Tower,aws_controltower_baseline
+aws,6.68.0,Control Tower,aws_controltower_control
+aws,6.68.0,Control Tower,aws_controltower_landing_zone
+aws,6.68.0,Cost Optimization Hub,aws_costoptimizationhub_enrollment_status
+aws,6.68.0,Cost Optimization Hub,aws_costoptimizationhub_preferences
+aws,6.68.0,Cost and Usage Report,aws_cur_report_definition
+aws,6.68.0,DLM (Data Lifecycle Manager),aws_dlm_lifecycle_policy
+aws,6.68.0,DMS (Database Migration),aws_dms_certificate
+aws,6.68.0,DMS (Database Migration),aws_dms_data_provider
+aws,6.68.0,DMS (Database Migration),aws_dms_endpoint
+aws,6.68.0,DMS (Database Migration),aws_dms_event_subscription
+aws,6.68.0,DMS (Database Migration),aws_dms_instance_profile
+aws,6.68.0,DMS (Database Migration),aws_dms_migration_project
+aws,6.68.0,DMS (Database Migration),aws_dms_replication_config
+aws,6.68.0,DMS (Database Migration),aws_dms_replication_instance
+aws,6.68.0,DMS (Database Migration),aws_dms_replication_subnet_group
+aws,6.68.0,DMS (Database Migration),aws_dms_replication_task
+aws,6.68.0,DMS (Database Migration),aws_dms_s3_endpoint
+aws,6.68.0,DRS (Elastic Disaster Recovery),aws_drs_replication_configuration_template
+aws,6.68.0,DSQL,aws_dsql_cluster
+aws,6.68.0,DSQL,aws_dsql_cluster_peering
+aws,6.68.0,DSQL,aws_dsql_cluster_policy
+aws,6.68.0,Data Exchange,aws_dataexchange_data_set
+aws,6.68.0,Data Exchange,aws_dataexchange_event_action
+aws,6.68.0,Data Exchange,aws_dataexchange_revision
+aws,6.68.0,Data Exchange,aws_dataexchange_revision_assets
+aws,6.68.0,Data Pipeline,aws_datapipeline_pipeline
+aws,6.68.0,Data Pipeline,aws_datapipeline_pipeline_definition
+aws,6.68.0,DataSync,aws_datasync_agent
+aws,6.68.0,DataSync,aws_datasync_location_azure_blob
+aws,6.68.0,DataSync,aws_datasync_location_efs
+aws,6.68.0,DataSync,aws_datasync_location_fsx_lustre_file_system
+aws,6.68.0,DataSync,aws_datasync_location_fsx_ontap_file_system
+aws,6.68.0,DataSync,aws_datasync_location_fsx_openzfs_file_system
+aws,6.68.0,DataSync,aws_datasync_location_fsx_windows_file_system
+aws,6.68.0,DataSync,aws_datasync_location_hdfs
+aws,6.68.0,DataSync,aws_datasync_location_nfs
+aws,6.68.0,DataSync,aws_datasync_location_object_storage
+aws,6.68.0,DataSync,aws_datasync_location_s3
+aws,6.68.0,DataSync,aws_datasync_location_smb
+aws,6.68.0,DataSync,aws_datasync_task
+aws,6.68.0,DataZone,aws_datazone_asset_type
+aws,6.68.0,DataZone,aws_datazone_domain
+aws,6.68.0,DataZone,aws_datazone_environment
+aws,6.68.0,DataZone,aws_datazone_environment_blueprint_configuration
+aws,6.68.0,DataZone,aws_datazone_environment_profile
+aws,6.68.0,DataZone,aws_datazone_form_type
+aws,6.68.0,DataZone,aws_datazone_glossary
+aws,6.68.0,DataZone,aws_datazone_glossary_term
+aws,6.68.0,DataZone,aws_datazone_policy_grant
+aws,6.68.0,DataZone,aws_datazone_project
+aws,6.68.0,DataZone,aws_datazone_user_profile
+aws,6.68.0,Detective,aws_detective_graph
+aws,6.68.0,Detective,aws_detective_invitation_accepter
+aws,6.68.0,Detective,aws_detective_member
+aws,6.68.0,Detective,aws_detective_organization_admin_account
+aws,6.68.0,Detective,aws_detective_organization_configuration
+aws,6.68.0,DevOps Guru,aws_devopsguru_event_sources_config
+aws,6.68.0,DevOps Guru,aws_devopsguru_notification_channel
+aws,6.68.0,DevOps Guru,aws_devopsguru_resource_collection
+aws,6.68.0,DevOps Guru,aws_devopsguru_service_integration
+aws,6.68.0,Device Farm,aws_devicefarm_device_pool
+aws,6.68.0,Device Farm,aws_devicefarm_instance_profile
+aws,6.68.0,Device Farm,aws_devicefarm_network_profile
+aws,6.68.0,Device Farm,aws_devicefarm_project
+aws,6.68.0,Device Farm,aws_devicefarm_test_grid_project
+aws,6.68.0,Device Farm,aws_devicefarm_upload
+aws,6.68.0,Direct Connect,aws_dx_bgp_peer
+aws,6.68.0,Direct Connect,aws_dx_connection
+aws,6.68.0,Direct Connect,aws_dx_connection_association
+aws,6.68.0,Direct Connect,aws_dx_connection_confirmation
+aws,6.68.0,Direct Connect,aws_dx_gateway
+aws,6.68.0,Direct Connect,aws_dx_gateway_association
+aws,6.68.0,Direct Connect,aws_dx_gateway_association_proposal
+aws,6.68.0,Direct Connect,aws_dx_hosted_connection
+aws,6.68.0,Direct Connect,aws_dx_hosted_private_virtual_interface
+aws,6.68.0,Direct Connect,aws_dx_hosted_private_virtual_interface_accepter
+aws,6.68.0,Direct Connect,aws_dx_hosted_public_virtual_interface
+aws,6.68.0,Direct Connect,aws_dx_hosted_public_virtual_interface_accepter
+aws,6.68.0,Direct Connect,aws_dx_hosted_transit_virtual_interface
+aws,6.68.0,Direct Connect,aws_dx_hosted_transit_virtual_interface_accepter
+aws,6.68.0,Direct Connect,aws_dx_lag
+aws,6.68.0,Direct Connect,aws_dx_macsec_key_association
+aws,6.68.0,Direct Connect,aws_dx_private_virtual_interface
+aws,6.68.0,Direct Connect,aws_dx_public_virtual_interface
+aws,6.68.0,Direct Connect,aws_dx_transit_virtual_interface
+aws,6.68.0,Directory Service,aws_directory_service_conditional_forwarder
+aws,6.68.0,Directory Service,aws_directory_service_directory
+aws,6.68.0,Directory Service,aws_directory_service_ip_route
+aws,6.68.0,Directory Service,aws_directory_service_ip_routes_exclusive
+aws,6.68.0,Directory Service,aws_directory_service_log_subscription
+aws,6.68.0,Directory Service,aws_directory_service_radius_settings
+aws,6.68.0,Directory Service,aws_directory_service_region
+aws,6.68.0,Directory Service,aws_directory_service_shared_directory
+aws,6.68.0,Directory Service,aws_directory_service_shared_directory_accepter
+aws,6.68.0,Directory Service,aws_directory_service_trust
+aws,6.68.0,Directory Service Data,aws_directoryservicedata_user
+aws,6.68.0,DocumentDB,aws_docdb_cluster
+aws,6.68.0,DocumentDB,aws_docdb_cluster_instance
+aws,6.68.0,DocumentDB,aws_docdb_cluster_parameter_group
+aws,6.68.0,DocumentDB,aws_docdb_cluster_snapshot
+aws,6.68.0,DocumentDB,aws_docdb_event_subscription
+aws,6.68.0,DocumentDB,aws_docdb_global_cluster
+aws,6.68.0,DocumentDB,aws_docdb_subnet_group
+aws,6.68.0,DocumentDB Elastic,aws_docdbelastic_cluster
+aws,6.68.0,DynamoDB,aws_dynamodb_contributor_insights
+aws,6.68.0,DynamoDB,aws_dynamodb_global_secondary_index
+aws,6.68.0,DynamoDB,aws_dynamodb_global_table
+aws,6.68.0,DynamoDB,aws_dynamodb_kinesis_streaming_destination
+aws,6.68.0,DynamoDB,aws_dynamodb_resource_policy
+aws,6.68.0,DynamoDB,aws_dynamodb_table
+aws,6.68.0,DynamoDB,aws_dynamodb_table_export
+aws,6.68.0,DynamoDB,aws_dynamodb_table_item
+aws,6.68.0,DynamoDB,aws_dynamodb_table_replica
+aws,6.68.0,DynamoDB,aws_dynamodb_tag
+aws,6.68.0,DynamoDB Accelerator (DAX),aws_dax_cluster
+aws,6.68.0,DynamoDB Accelerator (DAX),aws_dax_parameter_group
+aws,6.68.0,DynamoDB Accelerator (DAX),aws_dax_subnet_group
+aws,6.68.0,EBS (EC2),aws_ebs_default_kms_key
+aws,6.68.0,EBS (EC2),aws_ebs_encryption_by_default
+aws,6.68.0,EBS (EC2),aws_ebs_fast_snapshot_restore
+aws,6.68.0,EBS (EC2),aws_ebs_snapshot
+aws,6.68.0,EBS (EC2),aws_ebs_snapshot_block_public_access
+aws,6.68.0,EBS (EC2),aws_ebs_snapshot_copy
+aws,6.68.0,EBS (EC2),aws_ebs_snapshot_import
+aws,6.68.0,EBS (EC2),aws_ebs_volume
+aws,6.68.0,EBS (EC2),aws_ebs_volume_copy
+aws,6.68.0,EBS (EC2),aws_snapshot_create_volume_permission
+aws,6.68.0,EBS (EC2),aws_volume_attachment
+aws,6.68.0,EC2 (Elastic Compute Cloud),aws_ami
+aws,6.68.0,EC2 (Elastic Compute Cloud),aws_ami_copy
+aws,6.68.0,EC2 (Elastic Compute Cloud),aws_ami_from_instance
+aws,6.68.0,EC2 (Elastic Compute Cloud),aws_ami_launch_permission
+aws,6.68.0,EC2 (Elastic Compute Cloud),aws_ec2_allowed_images_settings
+aws,6.68.0,EC2 (Elastic Compute Cloud),aws_ec2_availability_zone_group
+aws,6.68.0,EC2 (Elastic Compute Cloud),aws_ec2_capacity_block_reservation
+aws,6.68.0,EC2 (Elastic Compute Cloud),aws_ec2_capacity_reservation
+aws,6.68.0,EC2 (Elastic Compute Cloud),aws_ec2_default_credit_specification
+aws,6.68.0,EC2 (Elastic Compute Cloud),aws_ec2_fleet
+aws,6.68.0,EC2 (Elastic Compute Cloud),aws_ec2_host
+aws,6.68.0,EC2 (Elastic Compute Cloud),aws_ec2_image_block_public_access
+aws,6.68.0,EC2 (Elastic Compute Cloud),aws_ec2_instance_connect_endpoint
+aws,6.68.0,EC2 (Elastic Compute Cloud),aws_ec2_instance_metadata_defaults
+aws,6.68.0,EC2 (Elastic Compute Cloud),aws_ec2_instance_state
+aws,6.68.0,EC2 (Elastic Compute Cloud),aws_ec2_secondary_network
+aws,6.68.0,EC2 (Elastic Compute Cloud),aws_ec2_secondary_subnet
+aws,6.68.0,EC2 (Elastic Compute Cloud),aws_ec2_serial_console_access
+aws,6.68.0,EC2 (Elastic Compute Cloud),aws_ec2_tag
+aws,6.68.0,EC2 (Elastic Compute Cloud),aws_eip
+aws,6.68.0,EC2 (Elastic Compute Cloud),aws_eip_association
+aws,6.68.0,EC2 (Elastic Compute Cloud),aws_eip_domain_name
+aws,6.68.0,EC2 (Elastic Compute Cloud),aws_instance
+aws,6.68.0,EC2 (Elastic Compute Cloud),aws_key_pair
+aws,6.68.0,EC2 (Elastic Compute Cloud),aws_launch_template
+aws,6.68.0,EC2 (Elastic Compute Cloud),aws_placement_group
+aws,6.68.0,EC2 (Elastic Compute Cloud),aws_spot_datafeed_subscription
+aws,6.68.0,EC2 (Elastic Compute Cloud),aws_spot_fleet_request
+aws,6.68.0,EC2 (Elastic Compute Cloud),aws_spot_instance_request
+aws,6.68.0,EC2 Image Builder,aws_imagebuilder_component
+aws,6.68.0,EC2 Image Builder,aws_imagebuilder_container_recipe
+aws,6.68.0,EC2 Image Builder,aws_imagebuilder_distribution_configuration
+aws,6.68.0,EC2 Image Builder,aws_imagebuilder_image
+aws,6.68.0,EC2 Image Builder,aws_imagebuilder_image_pipeline
+aws,6.68.0,EC2 Image Builder,aws_imagebuilder_image_recipe
+aws,6.68.0,EC2 Image Builder,aws_imagebuilder_infrastructure_configuration
+aws,6.68.0,EC2 Image Builder,aws_imagebuilder_lifecycle_policy
+aws,6.68.0,EC2 Image Builder,aws_imagebuilder_workflow
+aws,6.68.0,ECR (Elastic Container Registry),aws_ecr_account_setting
+aws,6.68.0,ECR (Elastic Container Registry),aws_ecr_lifecycle_policy
+aws,6.68.0,ECR (Elastic Container Registry),aws_ecr_pull_through_cache_rule
+aws,6.68.0,ECR (Elastic Container Registry),aws_ecr_pull_time_update_exclusion
+aws,6.68.0,ECR (Elastic Container Registry),aws_ecr_registry_policy
+aws,6.68.0,ECR (Elastic Container Registry),aws_ecr_registry_scanning_configuration
+aws,6.68.0,ECR (Elastic Container Registry),aws_ecr_replication_configuration
+aws,6.68.0,ECR (Elastic Container Registry),aws_ecr_repository
+aws,6.68.0,ECR (Elastic Container Registry),aws_ecr_repository_creation_template
+aws,6.68.0,ECR (Elastic Container Registry),aws_ecr_repository_policy
+aws,6.68.0,ECR Public,aws_ecrpublic_repository
+aws,6.68.0,ECR Public,aws_ecrpublic_repository_policy
+aws,6.68.0,ECS (Elastic Container),aws_ecs_account_setting_default
+aws,6.68.0,ECS (Elastic Container),aws_ecs_capacity_provider
+aws,6.68.0,ECS (Elastic Container),aws_ecs_cluster
+aws,6.68.0,ECS (Elastic Container),aws_ecs_cluster_capacity_providers
+aws,6.68.0,ECS (Elastic Container),aws_ecs_daemon
+aws,6.68.0,ECS (Elastic Container),aws_ecs_daemon_task_definition
+aws,6.68.0,ECS (Elastic Container),aws_ecs_express_gateway_service
+aws,6.68.0,ECS (Elastic Container),aws_ecs_service
+aws,6.68.0,ECS (Elastic Container),aws_ecs_tag
+aws,6.68.0,ECS (Elastic Container),aws_ecs_task_definition
+aws,6.68.0,ECS (Elastic Container),aws_ecs_task_set
+aws,6.68.0,EFS (Elastic File System),aws_efs_access_point
+aws,6.68.0,EFS (Elastic File System),aws_efs_backup_policy
+aws,6.68.0,EFS (Elastic File System),aws_efs_file_system
+aws,6.68.0,EFS (Elastic File System),aws_efs_file_system_policy
+aws,6.68.0,EFS (Elastic File System),aws_efs_mount_target
+aws,6.68.0,EFS (Elastic File System),aws_efs_replication_configuration
+aws,6.68.0,EKS (Elastic Kubernetes),aws_eks_access_entry
+aws,6.68.0,EKS (Elastic Kubernetes),aws_eks_access_policy_association
+aws,6.68.0,EKS (Elastic Kubernetes),aws_eks_addon
+aws,6.68.0,EKS (Elastic Kubernetes),aws_eks_capability
+aws,6.68.0,EKS (Elastic Kubernetes),aws_eks_cluster
+aws,6.68.0,EKS (Elastic Kubernetes),aws_eks_fargate_profile
+aws,6.68.0,EKS (Elastic Kubernetes),aws_eks_identity_provider_config
+aws,6.68.0,EKS (Elastic Kubernetes),aws_eks_node_group
+aws,6.68.0,EKS (Elastic Kubernetes),aws_eks_pod_identity_association
+aws,6.68.0,ELB (Elastic Load Balancing),aws_lb
+aws,6.68.0,ELB (Elastic Load Balancing),aws_lb_listener
+aws,6.68.0,ELB (Elastic Load Balancing),aws_lb_listener_certificate
+aws,6.68.0,ELB (Elastic Load Balancing),aws_lb_listener_rule
+aws,6.68.0,ELB (Elastic Load Balancing),aws_lb_target_group
+aws,6.68.0,ELB (Elastic Load Balancing),aws_lb_target_group_attachment
+aws,6.68.0,ELB (Elastic Load Balancing),aws_lb_trust_store
+aws,6.68.0,ELB (Elastic Load Balancing),aws_lb_trust_store_revocation
+aws,6.68.0,ELB Classic,aws_app_cookie_stickiness_policy
+aws,6.68.0,ELB Classic,aws_elb
+aws,6.68.0,ELB Classic,aws_elb_attachment
+aws,6.68.0,ELB Classic,aws_lb_cookie_stickiness_policy
+aws,6.68.0,ELB Classic,aws_lb_ssl_negotiation_policy
+aws,6.68.0,ELB Classic,aws_load_balancer_backend_server_policy
+aws,6.68.0,ELB Classic,aws_load_balancer_listener_policy
+aws,6.68.0,ELB Classic,aws_load_balancer_policy
+aws,6.68.0,ELB Classic,aws_proxy_protocol_policy
+aws,6.68.0,EMR,aws_emr_block_public_access_configuration
+aws,6.68.0,EMR,aws_emr_cluster
+aws,6.68.0,EMR,aws_emr_instance_fleet
+aws,6.68.0,EMR,aws_emr_instance_group
+aws,6.68.0,EMR,aws_emr_managed_scaling_policy
+aws,6.68.0,EMR,aws_emr_security_configuration
+aws,6.68.0,EMR,aws_emr_studio
+aws,6.68.0,EMR,aws_emr_studio_session_mapping
+aws,6.68.0,EMR Containers,aws_emrcontainers_job_template
+aws,6.68.0,EMR Containers,aws_emrcontainers_virtual_cluster
+aws,6.68.0,EMR Serverless,aws_emrserverless_application
+aws,6.68.0,ElastiCache,aws_elasticache_cluster
+aws,6.68.0,ElastiCache,aws_elasticache_global_replication_group
+aws,6.68.0,ElastiCache,aws_elasticache_parameter_group
+aws,6.68.0,ElastiCache,aws_elasticache_replication_group
+aws,6.68.0,ElastiCache,aws_elasticache_reserved_cache_node
+aws,6.68.0,ElastiCache,aws_elasticache_serverless_cache
+aws,6.68.0,ElastiCache,aws_elasticache_subnet_group
+aws,6.68.0,ElastiCache,aws_elasticache_user
+aws,6.68.0,ElastiCache,aws_elasticache_user_group
+aws,6.68.0,ElastiCache,aws_elasticache_user_group_association
+aws,6.68.0,Elastic Beanstalk,aws_elastic_beanstalk_application
+aws,6.68.0,Elastic Beanstalk,aws_elastic_beanstalk_application_version
+aws,6.68.0,Elastic Beanstalk,aws_elastic_beanstalk_configuration_template
+aws,6.68.0,Elastic Beanstalk,aws_elastic_beanstalk_environment
+aws,6.68.0,Elastic Transcoder,aws_elastictranscoder_pipeline
+aws,6.68.0,Elastic Transcoder,aws_elastictranscoder_preset
+aws,6.68.0,Elasticsearch,aws_elasticsearch_domain
+aws,6.68.0,Elasticsearch,aws_elasticsearch_domain_policy
+aws,6.68.0,Elasticsearch,aws_elasticsearch_domain_saml_options
+aws,6.68.0,Elasticsearch,aws_elasticsearch_vpc_endpoint
+aws,6.68.0,Elemental MediaConvert,aws_media_convert_queue
+aws,6.68.0,Elemental MediaLive,aws_medialive_channel
+aws,6.68.0,Elemental MediaLive,aws_medialive_input
+aws,6.68.0,Elemental MediaLive,aws_medialive_input_security_group
+aws,6.68.0,Elemental MediaLive,aws_medialive_multiplex
+aws,6.68.0,Elemental MediaLive,aws_medialive_multiplex_program
+aws,6.68.0,Elemental MediaPackage,aws_media_package_channel
+aws,6.68.0,Elemental MediaPackage Version 2,aws_media_packagev2_channel_group
+aws,6.68.0,Elemental MediaStore,aws_media_store_container
+aws,6.68.0,Elemental MediaStore,aws_media_store_container_policy
+aws,6.68.0,End User Messaging,aws_pinpoint_adm_channel
+aws,6.68.0,End User Messaging,aws_pinpoint_apns_channel
+aws,6.68.0,End User Messaging,aws_pinpoint_apns_sandbox_channel
+aws,6.68.0,End User Messaging,aws_pinpoint_apns_voip_channel
+aws,6.68.0,End User Messaging,aws_pinpoint_apns_voip_sandbox_channel
+aws,6.68.0,End User Messaging,aws_pinpoint_app
+aws,6.68.0,End User Messaging,aws_pinpoint_baidu_channel
+aws,6.68.0,End User Messaging,aws_pinpoint_email_channel
+aws,6.68.0,End User Messaging,aws_pinpoint_email_template
+aws,6.68.0,End User Messaging,aws_pinpoint_event_stream
+aws,6.68.0,End User Messaging,aws_pinpoint_gcm_channel
+aws,6.68.0,End User Messaging,aws_pinpoint_sms_channel
+aws,6.68.0,End User Messaging SMS,aws_pinpointsmsvoicev2_configuration_set
+aws,6.68.0,End User Messaging SMS,aws_pinpointsmsvoicev2_event_destination
+aws,6.68.0,End User Messaging SMS,aws_pinpointsmsvoicev2_keyword
+aws,6.68.0,End User Messaging SMS,aws_pinpointsmsvoicev2_opt_out_list
+aws,6.68.0,End User Messaging SMS,aws_pinpointsmsvoicev2_phone_number
+aws,6.68.0,End User Messaging SMS,aws_pinpointsmsvoicev2_pool
+aws,6.68.0,End User Messaging SMS,aws_pinpointsmsvoicev2_resource_policy
+aws,6.68.0,End User Messaging SMS,aws_pinpointsmsvoicev2_sender_id
+aws,6.68.0,EventBridge,aws_cloudwatch_event_api_destination
+aws,6.68.0,EventBridge,aws_cloudwatch_event_archive
+aws,6.68.0,EventBridge,aws_cloudwatch_event_bus
+aws,6.68.0,EventBridge,aws_cloudwatch_event_bus_policy
+aws,6.68.0,EventBridge,aws_cloudwatch_event_connection
+aws,6.68.0,EventBridge,aws_cloudwatch_event_endpoint
+aws,6.68.0,EventBridge,aws_cloudwatch_event_permission
+aws,6.68.0,EventBridge,aws_cloudwatch_event_rule
+aws,6.68.0,EventBridge,aws_cloudwatch_event_target
+aws,6.68.0,EventBridge Pipes,aws_pipes_pipe
+aws,6.68.0,EventBridge Scheduler,aws_scheduler_schedule
+aws,6.68.0,EventBridge Scheduler,aws_scheduler_schedule_group
+aws,6.68.0,EventBridge Schemas,aws_schemas_discoverer
+aws,6.68.0,EventBridge Schemas,aws_schemas_registry
+aws,6.68.0,EventBridge Schemas,aws_schemas_registry_policy
+aws,6.68.0,EventBridge Schemas,aws_schemas_schema
+aws,6.68.0,FIS (Fault Injection Simulator),aws_fis_experiment_template
+aws,6.68.0,FIS (Fault Injection Simulator),aws_fis_safety_lever_state
+aws,6.68.0,FIS (Fault Injection Simulator),aws_fis_target_account_configuration
+aws,6.68.0,FMS (Firewall Manager),aws_fms_admin_account
+aws,6.68.0,FMS (Firewall Manager),aws_fms_policy
+aws,6.68.0,FMS (Firewall Manager),aws_fms_resource_set
+aws,6.68.0,FSx,aws_fsx_backup
+aws,6.68.0,FSx,aws_fsx_data_repository_association
+aws,6.68.0,FSx,aws_fsx_file_cache
+aws,6.68.0,FSx,aws_fsx_lustre_file_system
+aws,6.68.0,FSx,aws_fsx_ontap_file_system
+aws,6.68.0,FSx,aws_fsx_ontap_storage_virtual_machine
+aws,6.68.0,FSx,aws_fsx_ontap_volume
+aws,6.68.0,FSx,aws_fsx_openzfs_file_system
+aws,6.68.0,FSx,aws_fsx_openzfs_snapshot
+aws,6.68.0,FSx,aws_fsx_openzfs_volume
+aws,6.68.0,FSx,aws_fsx_s3_access_point_attachment
+aws,6.68.0,FSx,aws_fsx_windows_file_system
+aws,6.68.0,FinSpace,aws_finspace_kx_cluster
+aws,6.68.0,FinSpace,aws_finspace_kx_database
+aws,6.68.0,FinSpace,aws_finspace_kx_dataview
+aws,6.68.0,FinSpace,aws_finspace_kx_environment
+aws,6.68.0,FinSpace,aws_finspace_kx_scaling_group
+aws,6.68.0,FinSpace,aws_finspace_kx_user
+aws,6.68.0,FinSpace,aws_finspace_kx_volume
+aws,6.68.0,GameLift,aws_gamelift_alias
+aws,6.68.0,GameLift,aws_gamelift_build
+aws,6.68.0,GameLift,aws_gamelift_fleet
+aws,6.68.0,GameLift,aws_gamelift_game_server_group
+aws,6.68.0,GameLift,aws_gamelift_game_session_queue
+aws,6.68.0,GameLift,aws_gamelift_script
+aws,6.68.0,Global Accelerator,aws_globalaccelerator_accelerator
+aws,6.68.0,Global Accelerator,aws_globalaccelerator_cross_account_attachment
+aws,6.68.0,Global Accelerator,aws_globalaccelerator_custom_routing_accelerator
+aws,6.68.0,Global Accelerator,aws_globalaccelerator_custom_routing_endpoint_group
+aws,6.68.0,Global Accelerator,aws_globalaccelerator_custom_routing_listener
+aws,6.68.0,Global Accelerator,aws_globalaccelerator_endpoint_group
+aws,6.68.0,Global Accelerator,aws_globalaccelerator_listener
+aws,6.68.0,Glue,aws_glue_catalog
+aws,6.68.0,Glue,aws_glue_catalog_database
+aws,6.68.0,Glue,aws_glue_catalog_table
+aws,6.68.0,Glue,aws_glue_catalog_table_optimizer
+aws,6.68.0,Glue,aws_glue_classifier
+aws,6.68.0,Glue,aws_glue_connection
+aws,6.68.0,Glue,aws_glue_crawler
+aws,6.68.0,Glue,aws_glue_data_catalog_encryption_settings
+aws,6.68.0,Glue,aws_glue_data_quality_ruleset
+aws,6.68.0,Glue,aws_glue_dev_endpoint
+aws,6.68.0,Glue,aws_glue_job
+aws,6.68.0,Glue,aws_glue_ml_transform
+aws,6.68.0,Glue,aws_glue_partition
+aws,6.68.0,Glue,aws_glue_partition_index
+aws,6.68.0,Glue,aws_glue_registry
+aws,6.68.0,Glue,aws_glue_resource_policy
+aws,6.68.0,Glue,aws_glue_schema
+aws,6.68.0,Glue,aws_glue_security_configuration
+aws,6.68.0,Glue,aws_glue_trigger
+aws,6.68.0,Glue,aws_glue_user_defined_function
+aws,6.68.0,Glue,aws_glue_workflow
+aws,6.68.0,GuardDuty,aws_guardduty_detector
+aws,6.68.0,GuardDuty,aws_guardduty_detector_feature
+aws,6.68.0,GuardDuty,aws_guardduty_filter
+aws,6.68.0,GuardDuty,aws_guardduty_invite_accepter
+aws,6.68.0,GuardDuty,aws_guardduty_ipset
+aws,6.68.0,GuardDuty,aws_guardduty_malware_protection_plan
+aws,6.68.0,GuardDuty,aws_guardduty_member
+aws,6.68.0,GuardDuty,aws_guardduty_member_detector_feature
+aws,6.68.0,GuardDuty,aws_guardduty_organization_admin_account
+aws,6.68.0,GuardDuty,aws_guardduty_organization_configuration
+aws,6.68.0,GuardDuty,aws_guardduty_organization_configuration_feature
+aws,6.68.0,GuardDuty,aws_guardduty_publishing_destination
+aws,6.68.0,GuardDuty,aws_guardduty_threatintelset
+aws,6.68.0,IAM (Identity & Access Management),aws_iam_access_key
+aws,6.68.0,IAM (Identity & Access Management),aws_iam_account_alias
+aws,6.68.0,IAM (Identity & Access Management),aws_iam_account_password_policy
+aws,6.68.0,IAM (Identity & Access Management),aws_iam_group
+aws,6.68.0,IAM (Identity & Access Management),aws_iam_group_membership
+aws,6.68.0,IAM (Identity & Access Management),aws_iam_group_policies_exclusive
+aws,6.68.0,IAM (Identity & Access Management),aws_iam_group_policy
+aws,6.68.0,IAM (Identity & Access Management),aws_iam_group_policy_attachment
+aws,6.68.0,IAM (Identity & Access Management),aws_iam_group_policy_attachments_exclusive
+aws,6.68.0,IAM (Identity & Access Management),aws_iam_instance_profile
+aws,6.68.0,IAM (Identity & Access Management),aws_iam_openid_connect_provider
+aws,6.68.0,IAM (Identity & Access Management),aws_iam_organizations_features
+aws,6.68.0,IAM (Identity & Access Management),aws_iam_outbound_web_identity_federation
+aws,6.68.0,IAM (Identity & Access Management),aws_iam_policy
+aws,6.68.0,IAM (Identity & Access Management),aws_iam_policy_attachment
+aws,6.68.0,IAM (Identity & Access Management),aws_iam_role
+aws,6.68.0,IAM (Identity & Access Management),aws_iam_role_policies_exclusive
+aws,6.68.0,IAM (Identity & Access Management),aws_iam_role_policy
+aws,6.68.0,IAM (Identity & Access Management),aws_iam_role_policy_attachment
+aws,6.68.0,IAM (Identity & Access Management),aws_iam_role_policy_attachments_exclusive
+aws,6.68.0,IAM (Identity & Access Management),aws_iam_saml_provider
+aws,6.68.0,IAM (Identity & Access Management),aws_iam_security_token_service_preferences
+aws,6.68.0,IAM (Identity & Access Management),aws_iam_server_certificate
+aws,6.68.0,IAM (Identity & Access Management),aws_iam_service_linked_role
+aws,6.68.0,IAM (Identity & Access Management),aws_iam_service_specific_credential
+aws,6.68.0,IAM (Identity & Access Management),aws_iam_signing_certificate
+aws,6.68.0,IAM (Identity & Access Management),aws_iam_user
+aws,6.68.0,IAM (Identity & Access Management),aws_iam_user_group_membership
+aws,6.68.0,IAM (Identity & Access Management),aws_iam_user_login_profile
+aws,6.68.0,IAM (Identity & Access Management),aws_iam_user_policies_exclusive
+aws,6.68.0,IAM (Identity & Access Management),aws_iam_user_policy
+aws,6.68.0,IAM (Identity & Access Management),aws_iam_user_policy_attachment
+aws,6.68.0,IAM (Identity & Access Management),aws_iam_user_policy_attachments_exclusive
+aws,6.68.0,IAM (Identity & Access Management),aws_iam_user_ssh_key
+aws,6.68.0,IAM (Identity & Access Management),aws_iam_virtual_mfa_device
+aws,6.68.0,IAM Access Analyzer,aws_accessanalyzer_analyzer
+aws,6.68.0,IAM Access Analyzer,aws_accessanalyzer_archive_rule
+aws,6.68.0,IVS (Interactive Video),aws_ivs_channel
+aws,6.68.0,IVS (Interactive Video),aws_ivs_playback_key_pair
+aws,6.68.0,IVS (Interactive Video),aws_ivs_recording_configuration
+aws,6.68.0,IVS (Interactive Video) Chat,aws_ivschat_logging_configuration
+aws,6.68.0,IVS (Interactive Video) Chat,aws_ivschat_room
+aws,6.68.0,Inspector,aws_inspector2_delegated_admin_account
+aws,6.68.0,Inspector,aws_inspector2_enabler
+aws,6.68.0,Inspector,aws_inspector2_filter
+aws,6.68.0,Inspector,aws_inspector2_member_association
+aws,6.68.0,Inspector,aws_inspector2_organization_configuration
+aws,6.68.0,Inspector Classic,aws_inspector_assessment_target
+aws,6.68.0,Inspector Classic,aws_inspector_assessment_template
+aws,6.68.0,Inspector Classic,aws_inspector_resource_group
+aws,6.68.0,Invoicing,aws_invoicing_invoice_unit
+aws,6.68.0,IoT Core,aws_iot_authorizer
+aws,6.68.0,IoT Core,aws_iot_billing_group
+aws,6.68.0,IoT Core,aws_iot_ca_certificate
+aws,6.68.0,IoT Core,aws_iot_certificate
+aws,6.68.0,IoT Core,aws_iot_domain_configuration
+aws,6.68.0,IoT Core,aws_iot_event_configurations
+aws,6.68.0,IoT Core,aws_iot_indexing_configuration
+aws,6.68.0,IoT Core,aws_iot_logging_options
+aws,6.68.0,IoT Core,aws_iot_policy
+aws,6.68.0,IoT Core,aws_iot_policy_attachment
+aws,6.68.0,IoT Core,aws_iot_provisioning_template
+aws,6.68.0,IoT Core,aws_iot_role_alias
+aws,6.68.0,IoT Core,aws_iot_thing
+aws,6.68.0,IoT Core,aws_iot_thing_group
+aws,6.68.0,IoT Core,aws_iot_thing_group_membership
+aws,6.68.0,IoT Core,aws_iot_thing_principal_attachment
+aws,6.68.0,IoT Core,aws_iot_thing_type
+aws,6.68.0,IoT Core,aws_iot_topic_rule
+aws,6.68.0,IoT Core,aws_iot_topic_rule_destination
+aws,6.68.0,KMS (Key Management),aws_kms_alias
+aws,6.68.0,KMS (Key Management),aws_kms_ciphertext
+aws,6.68.0,KMS (Key Management),aws_kms_custom_key_store
+aws,6.68.0,KMS (Key Management),aws_kms_external_key
+aws,6.68.0,KMS (Key Management),aws_kms_grant
+aws,6.68.0,KMS (Key Management),aws_kms_key
+aws,6.68.0,KMS (Key Management),aws_kms_key_policy
+aws,6.68.0,KMS (Key Management),aws_kms_replica_external_key
+aws,6.68.0,KMS (Key Management),aws_kms_replica_key
+aws,6.68.0,Kendra,aws_kendra_data_source
+aws,6.68.0,Kendra,aws_kendra_experience
+aws,6.68.0,Kendra,aws_kendra_faq
+aws,6.68.0,Kendra,aws_kendra_index
+aws,6.68.0,Kendra,aws_kendra_query_suggestions_block_list
+aws,6.68.0,Kendra,aws_kendra_thesaurus
+aws,6.68.0,Keyspaces (for Apache Cassandra),aws_keyspaces_keyspace
+aws,6.68.0,Keyspaces (for Apache Cassandra),aws_keyspaces_table
+aws,6.68.0,Kinesis,aws_kinesis_account_settings
+aws,6.68.0,Kinesis,aws_kinesis_resource_policy
+aws,6.68.0,Kinesis,aws_kinesis_stream
+aws,6.68.0,Kinesis,aws_kinesis_stream_consumer
+aws,6.68.0,Kinesis Analytics,aws_kinesis_analytics_application
+aws,6.68.0,Kinesis Analytics V2,aws_kinesisanalyticsv2_application
+aws,6.68.0,Kinesis Analytics V2,aws_kinesisanalyticsv2_application_snapshot
+aws,6.68.0,Kinesis Firehose,aws_kinesis_firehose_delivery_stream
+aws,6.68.0,Kinesis Video,aws_kinesis_video_stream
+aws,6.68.0,Lake Formation,aws_lakeformation_data_cells_filter
+aws,6.68.0,Lake Formation,aws_lakeformation_data_lake_settings
+aws,6.68.0,Lake Formation,aws_lakeformation_identity_center_configuration
+aws,6.68.0,Lake Formation,aws_lakeformation_lf_tag
+aws,6.68.0,Lake Formation,aws_lakeformation_lf_tag_expression
+aws,6.68.0,Lake Formation,aws_lakeformation_opt_in
+aws,6.68.0,Lake Formation,aws_lakeformation_permissions
+aws,6.68.0,Lake Formation,aws_lakeformation_resource
+aws,6.68.0,Lake Formation,aws_lakeformation_resource_lf_tag
+aws,6.68.0,Lake Formation,aws_lakeformation_resource_lf_tags
+aws,6.68.0,Lambda,aws_lambda_alias
+aws,6.68.0,Lambda,aws_lambda_capacity_provider
+aws,6.68.0,Lambda,aws_lambda_code_signing_config
+aws,6.68.0,Lambda,aws_lambda_event_source_mapping
+aws,6.68.0,Lambda,aws_lambda_function
+aws,6.68.0,Lambda,aws_lambda_function_event_invoke_config
+aws,6.68.0,Lambda,aws_lambda_function_recursion_config
+aws,6.68.0,Lambda,aws_lambda_function_scaling_config
+aws,6.68.0,Lambda,aws_lambda_function_url
+aws,6.68.0,Lambda,aws_lambda_invocation
+aws,6.68.0,Lambda,aws_lambda_layer_version
+aws,6.68.0,Lambda,aws_lambda_layer_version_permission
+aws,6.68.0,Lambda,aws_lambda_permission
+aws,6.68.0,Lambda,aws_lambda_provisioned_concurrency_config
+aws,6.68.0,Lambda,aws_lambda_resource_policy
+aws,6.68.0,Lambda,aws_lambda_runtime_management_config
+aws,6.68.0,Lambda Core,aws_lambdacore_network_connector
+aws,6.68.0,Lambda MicroVMs,aws_lambdamicrovms_image
+aws,6.68.0,Lambda MicroVMs,aws_lambdamicrovms_microvm
+aws,6.68.0,Lex Model Building,aws_lex_bot
+aws,6.68.0,Lex Model Building,aws_lex_bot_alias
+aws,6.68.0,Lex Model Building,aws_lex_intent
+aws,6.68.0,Lex Model Building,aws_lex_slot_type
+aws,6.68.0,Lex V2 Models,aws_lexv2models_bot
+aws,6.68.0,Lex V2 Models,aws_lexv2models_bot_locale
+aws,6.68.0,Lex V2 Models,aws_lexv2models_bot_version
+aws,6.68.0,Lex V2 Models,aws_lexv2models_intent
+aws,6.68.0,Lex V2 Models,aws_lexv2models_slot
+aws,6.68.0,Lex V2 Models,aws_lexv2models_slot_type
+aws,6.68.0,License Manager,aws_licensemanager_association
+aws,6.68.0,License Manager,aws_licensemanager_grant
+aws,6.68.0,License Manager,aws_licensemanager_grant_accepter
+aws,6.68.0,License Manager,aws_licensemanager_license_configuration
+aws,6.68.0,Lightsail,aws_lightsail_bucket
+aws,6.68.0,Lightsail,aws_lightsail_bucket_access_key
+aws,6.68.0,Lightsail,aws_lightsail_bucket_resource_access
+aws,6.68.0,Lightsail,aws_lightsail_certificate
+aws,6.68.0,Lightsail,aws_lightsail_container_service
+aws,6.68.0,Lightsail,aws_lightsail_container_service_deployment_version
+aws,6.68.0,Lightsail,aws_lightsail_database
+aws,6.68.0,Lightsail,aws_lightsail_disk
+aws,6.68.0,Lightsail,aws_lightsail_disk_attachment
+aws,6.68.0,Lightsail,aws_lightsail_distribution
+aws,6.68.0,Lightsail,aws_lightsail_domain
+aws,6.68.0,Lightsail,aws_lightsail_domain_entry
+aws,6.68.0,Lightsail,aws_lightsail_instance
+aws,6.68.0,Lightsail,aws_lightsail_instance_public_ports
+aws,6.68.0,Lightsail,aws_lightsail_key_pair
+aws,6.68.0,Lightsail,aws_lightsail_lb
+aws,6.68.0,Lightsail,aws_lightsail_lb_attachment
+aws,6.68.0,Lightsail,aws_lightsail_lb_certificate
+aws,6.68.0,Lightsail,aws_lightsail_lb_certificate_attachment
+aws,6.68.0,Lightsail,aws_lightsail_lb_https_redirection_policy
+aws,6.68.0,Lightsail,aws_lightsail_lb_stickiness_policy
+aws,6.68.0,Lightsail,aws_lightsail_static_ip
+aws,6.68.0,Lightsail,aws_lightsail_static_ip_attachment
+aws,6.68.0,Location,aws_location_geofence_collection
+aws,6.68.0,Location,aws_location_map
+aws,6.68.0,Location,aws_location_place_index
+aws,6.68.0,Location,aws_location_route_calculator
+aws,6.68.0,Location,aws_location_tracker
+aws,6.68.0,Location,aws_location_tracker_association
+aws,6.68.0,MQ,aws_mq_broker
+aws,6.68.0,MQ,aws_mq_configuration
+aws,6.68.0,MWAA (Managed Workflows for Apache Airflow),aws_mwaa_environment
+aws,6.68.0,Macie,aws_macie2_account
+aws,6.68.0,Macie,aws_macie2_classification_export_configuration
+aws,6.68.0,Macie,aws_macie2_classification_job
+aws,6.68.0,Macie,aws_macie2_custom_data_identifier
+aws,6.68.0,Macie,aws_macie2_findings_filter
+aws,6.68.0,Macie,aws_macie2_invitation_accepter
+aws,6.68.0,Macie,aws_macie2_member
+aws,6.68.0,Macie,aws_macie2_organization_admin_account
+aws,6.68.0,Macie,aws_macie2_organization_configuration
+aws,6.68.0,Mainframe Modernization,aws_m2_application
+aws,6.68.0,Mainframe Modernization,aws_m2_deployment
+aws,6.68.0,Mainframe Modernization,aws_m2_environment
+aws,6.68.0,Managed Grafana,aws_grafana_license_association
+aws,6.68.0,Managed Grafana,aws_grafana_role_association
+aws,6.68.0,Managed Grafana,aws_grafana_workspace
+aws,6.68.0,Managed Grafana,aws_grafana_workspace_api_key
+aws,6.68.0,Managed Grafana,aws_grafana_workspace_saml_configuration
+aws,6.68.0,Managed Grafana,aws_grafana_workspace_service_account
+aws,6.68.0,Managed Grafana,aws_grafana_workspace_service_account_token
+aws,6.68.0,Managed Streaming for Kafka,aws_msk_channel
+aws,6.68.0,Managed Streaming for Kafka,aws_msk_cluster
+aws,6.68.0,Managed Streaming for Kafka,aws_msk_cluster_policy
+aws,6.68.0,Managed Streaming for Kafka,aws_msk_configuration
+aws,6.68.0,Managed Streaming for Kafka,aws_msk_replicator
+aws,6.68.0,Managed Streaming for Kafka,aws_msk_scram_secret_association
+aws,6.68.0,Managed Streaming for Kafka,aws_msk_serverless_cluster
+aws,6.68.0,Managed Streaming for Kafka,aws_msk_single_scram_secret_association
+aws,6.68.0,Managed Streaming for Kafka,aws_msk_topic
+aws,6.68.0,Managed Streaming for Kafka,aws_msk_vpc_connection
+aws,6.68.0,Managed Streaming for Kafka Connect,aws_mskconnect_connector
+aws,6.68.0,Managed Streaming for Kafka Connect,aws_mskconnect_custom_plugin
+aws,6.68.0,Managed Streaming for Kafka Connect,aws_mskconnect_worker_configuration
+aws,6.68.0,MemoryDB,aws_memorydb_acl
+aws,6.68.0,MemoryDB,aws_memorydb_cluster
+aws,6.68.0,MemoryDB,aws_memorydb_multi_region_cluster
+aws,6.68.0,MemoryDB,aws_memorydb_parameter_group
+aws,6.68.0,MemoryDB,aws_memorydb_snapshot
+aws,6.68.0,MemoryDB,aws_memorydb_subnet_group
+aws,6.68.0,MemoryDB,aws_memorydb_user
+aws,6.68.0,Neptune,aws_neptune_cluster
+aws,6.68.0,Neptune,aws_neptune_cluster_endpoint
+aws,6.68.0,Neptune,aws_neptune_cluster_instance
+aws,6.68.0,Neptune,aws_neptune_cluster_parameter_group
+aws,6.68.0,Neptune,aws_neptune_cluster_snapshot
+aws,6.68.0,Neptune,aws_neptune_event_subscription
+aws,6.68.0,Neptune,aws_neptune_global_cluster
+aws,6.68.0,Neptune,aws_neptune_parameter_group
+aws,6.68.0,Neptune,aws_neptune_subnet_group
+aws,6.68.0,Neptune Analytics,aws_neptunegraph_graph
+aws,6.68.0,Neptune Analytics,aws_neptunegraph_private_graph_endpoint
+aws,6.68.0,Network Firewall,aws_networkfirewall_container_association
+aws,6.68.0,Network Firewall,aws_networkfirewall_firewall
+aws,6.68.0,Network Firewall,aws_networkfirewall_firewall_policy
+aws,6.68.0,Network Firewall,aws_networkfirewall_firewall_transit_gateway_attachment_accepter
+aws,6.68.0,Network Firewall,aws_networkfirewall_logging_configuration
+aws,6.68.0,Network Firewall,aws_networkfirewall_resource_policy
+aws,6.68.0,Network Firewall,aws_networkfirewall_rule_group
+aws,6.68.0,Network Firewall,aws_networkfirewall_tls_inspection_configuration
+aws,6.68.0,Network Firewall,aws_networkfirewall_vpc_endpoint_association
+aws,6.68.0,Network Manager,aws_networkmanager_attachment_accepter
+aws,6.68.0,Network Manager,aws_networkmanager_attachment_routing_policy_label
+aws,6.68.0,Network Manager,aws_networkmanager_connect_attachment
+aws,6.68.0,Network Manager,aws_networkmanager_connect_peer
+aws,6.68.0,Network Manager,aws_networkmanager_connection
+aws,6.68.0,Network Manager,aws_networkmanager_core_network
+aws,6.68.0,Network Manager,aws_networkmanager_core_network_policy_attachment
+aws,6.68.0,Network Manager,aws_networkmanager_customer_gateway_association
+aws,6.68.0,Network Manager,aws_networkmanager_device
+aws,6.68.0,Network Manager,aws_networkmanager_dx_gateway_attachment
+aws,6.68.0,Network Manager,aws_networkmanager_global_network
+aws,6.68.0,Network Manager,aws_networkmanager_link
+aws,6.68.0,Network Manager,aws_networkmanager_link_association
+aws,6.68.0,Network Manager,aws_networkmanager_prefix_list_association
+aws,6.68.0,Network Manager,aws_networkmanager_site
+aws,6.68.0,Network Manager,aws_networkmanager_site_to_site_vpn_attachment
+aws,6.68.0,Network Manager,aws_networkmanager_transit_gateway_connect_peer_association
+aws,6.68.0,Network Manager,aws_networkmanager_transit_gateway_peering
+aws,6.68.0,Network Manager,aws_networkmanager_transit_gateway_registration
+aws,6.68.0,Network Manager,aws_networkmanager_transit_gateway_route_table_attachment
+aws,6.68.0,Network Manager,aws_networkmanager_vpc_attachment
+aws,6.68.0,OpenSearch,aws_opensearch_application
+aws,6.68.0,OpenSearch,aws_opensearch_authorize_vpc_endpoint_access
+aws,6.68.0,OpenSearch,aws_opensearch_domain
+aws,6.68.0,OpenSearch,aws_opensearch_domain_policy
+aws,6.68.0,OpenSearch,aws_opensearch_domain_saml_options
+aws,6.68.0,OpenSearch,aws_opensearch_inbound_connection_accepter
+aws,6.68.0,OpenSearch,aws_opensearch_outbound_connection
+aws,6.68.0,OpenSearch,aws_opensearch_package
+aws,6.68.0,OpenSearch,aws_opensearch_package_association
+aws,6.68.0,OpenSearch,aws_opensearch_vpc_endpoint
+aws,6.68.0,OpenSearch Ingestion (OSIS),aws_osis_pipeline
+aws,6.68.0,OpenSearch Ingestion (OSIS),aws_osis_pipeline_endpoint
+aws,6.68.0,OpenSearch Ingestion (OSIS),aws_osis_resource_policy
+aws,6.68.0,OpenSearch Serverless,aws_opensearchserverless_access_policy
+aws,6.68.0,OpenSearch Serverless,aws_opensearchserverless_collection
+aws,6.68.0,OpenSearch Serverless,aws_opensearchserverless_collection_group
+aws,6.68.0,OpenSearch Serverless,aws_opensearchserverless_lifecycle_policy
+aws,6.68.0,OpenSearch Serverless,aws_opensearchserverless_security_config
+aws,6.68.0,OpenSearch Serverless,aws_opensearchserverless_security_policy
+aws,6.68.0,OpenSearch Serverless,aws_opensearchserverless_vpc_endpoint
+aws,6.68.0,Oracle Database@AWS,aws_odb_autonomous_database
+aws,6.68.0,Oracle Database@AWS,aws_odb_autonomous_database_secrets_manager_integration
+aws,6.68.0,Oracle Database@AWS,aws_odb_cloud_autonomous_vm_cluster
+aws,6.68.0,Oracle Database@AWS,aws_odb_cloud_exadata_infrastructure
+aws,6.68.0,Oracle Database@AWS,aws_odb_cloud_vm_cluster
+aws,6.68.0,Oracle Database@AWS,aws_odb_iam_role_association
+aws,6.68.0,Oracle Database@AWS,aws_odb_network
+aws,6.68.0,Oracle Database@AWS,aws_odb_network_peering_connection
+aws,6.68.0,Organizations,aws_organizations_account
+aws,6.68.0,Organizations,aws_organizations_aws_service_access
+aws,6.68.0,Organizations,aws_organizations_delegated_administrator
+aws,6.68.0,Organizations,aws_organizations_organization
+aws,6.68.0,Organizations,aws_organizations_organizational_unit
+aws,6.68.0,Organizations,aws_organizations_policy
+aws,6.68.0,Organizations,aws_organizations_policy_attachment
+aws,6.68.0,Organizations,aws_organizations_resource_policy
+aws,6.68.0,Organizations,aws_organizations_tag
+aws,6.68.0,Outposts,aws_outposts_capacity_task
+aws,6.68.0,Outposts (EC2),aws_ec2_local_gateway_route
+aws,6.68.0,Outposts (EC2),aws_ec2_local_gateway_route_table
+aws,6.68.0,Outposts (EC2),aws_ec2_local_gateway_route_table_virtual_interface_group_association
+aws,6.68.0,Outposts (EC2),aws_ec2_local_gateway_route_table_vpc_association
+aws,6.68.0,Payment Cryptography Control Plane,aws_paymentcryptography_key
+aws,6.68.0,Payment Cryptography Control Plane,aws_paymentcryptography_key_alias
+aws,6.68.0,QLDB (Quantum Ledger Database),aws_qldb_ledger
+aws,6.68.0,QLDB (Quantum Ledger Database),aws_qldb_stream
+aws,6.68.0,QuickSight,aws_quicksight_account_settings
+aws,6.68.0,QuickSight,aws_quicksight_account_subscription
+aws,6.68.0,QuickSight,aws_quicksight_analysis
+aws,6.68.0,QuickSight,aws_quicksight_custom_permissions
+aws,6.68.0,QuickSight,aws_quicksight_dashboard
+aws,6.68.0,QuickSight,aws_quicksight_data_set
+aws,6.68.0,QuickSight,aws_quicksight_data_source
+aws,6.68.0,QuickSight,aws_quicksight_folder
+aws,6.68.0,QuickSight,aws_quicksight_folder_membership
+aws,6.68.0,QuickSight,aws_quicksight_group
+aws,6.68.0,QuickSight,aws_quicksight_group_membership
+aws,6.68.0,QuickSight,aws_quicksight_iam_policy_assignment
+aws,6.68.0,QuickSight,aws_quicksight_ingestion
+aws,6.68.0,QuickSight,aws_quicksight_ip_restriction
+aws,6.68.0,QuickSight,aws_quicksight_key_registration
+aws,6.68.0,QuickSight,aws_quicksight_namespace
+aws,6.68.0,QuickSight,aws_quicksight_refresh_schedule
+aws,6.68.0,QuickSight,aws_quicksight_role_custom_permission
+aws,6.68.0,QuickSight,aws_quicksight_role_membership
+aws,6.68.0,QuickSight,aws_quicksight_template
+aws,6.68.0,QuickSight,aws_quicksight_template_alias
+aws,6.68.0,QuickSight,aws_quicksight_theme
+aws,6.68.0,QuickSight,aws_quicksight_user
+aws,6.68.0,QuickSight,aws_quicksight_user_custom_permission
+aws,6.68.0,QuickSight,aws_quicksight_vpc_connection
+aws,6.68.0,RAM (Resource Access Manager),aws_ram_permission
+aws,6.68.0,RAM (Resource Access Manager),aws_ram_principal_association
+aws,6.68.0,RAM (Resource Access Manager),aws_ram_resource_association
+aws,6.68.0,RAM (Resource Access Manager),aws_ram_resource_share
+aws,6.68.0,RAM (Resource Access Manager),aws_ram_resource_share_accepter
+aws,6.68.0,RAM (Resource Access Manager),aws_ram_resource_share_associations_exclusive
+aws,6.68.0,RAM (Resource Access Manager),aws_ram_sharing_with_organization
+aws,6.68.0,RDS (Relational Database),aws_db_cluster_snapshot
+aws,6.68.0,RDS (Relational Database),aws_db_event_subscription
+aws,6.68.0,RDS (Relational Database),aws_db_instance
+aws,6.68.0,RDS (Relational Database),aws_db_instance_automated_backups_replication
+aws,6.68.0,RDS (Relational Database),aws_db_instance_role_association
+aws,6.68.0,RDS (Relational Database),aws_db_option_group
+aws,6.68.0,RDS (Relational Database),aws_db_parameter_group
+aws,6.68.0,RDS (Relational Database),aws_db_proxy
+aws,6.68.0,RDS (Relational Database),aws_db_proxy_default_target_group
+aws,6.68.0,RDS (Relational Database),aws_db_proxy_endpoint
+aws,6.68.0,RDS (Relational Database),aws_db_proxy_target
+aws,6.68.0,RDS (Relational Database),aws_db_snapshot
+aws,6.68.0,RDS (Relational Database),aws_db_snapshot_copy
+aws,6.68.0,RDS (Relational Database),aws_db_subnet_group
+aws,6.68.0,RDS (Relational Database),aws_rds_certificate
+aws,6.68.0,RDS (Relational Database),aws_rds_cluster
+aws,6.68.0,RDS (Relational Database),aws_rds_cluster_activity_stream
+aws,6.68.0,RDS (Relational Database),aws_rds_cluster_endpoint
+aws,6.68.0,RDS (Relational Database),aws_rds_cluster_instance
+aws,6.68.0,RDS (Relational Database),aws_rds_cluster_parameter_group
+aws,6.68.0,RDS (Relational Database),aws_rds_cluster_role_association
+aws,6.68.0,RDS (Relational Database),aws_rds_cluster_snapshot_copy
+aws,6.68.0,RDS (Relational Database),aws_rds_custom_db_engine_version
+aws,6.68.0,RDS (Relational Database),aws_rds_export_task
+aws,6.68.0,RDS (Relational Database),aws_rds_global_cluster
+aws,6.68.0,RDS (Relational Database),aws_rds_instance_state
+aws,6.68.0,RDS (Relational Database),aws_rds_integration
+aws,6.68.0,RDS (Relational Database),aws_rds_reserved_instance
+aws,6.68.0,RDS (Relational Database),aws_rds_shard_group
+aws,6.68.0,Recycle Bin (RBin),aws_rbin_rule
+aws,6.68.0,Redshift,aws_redshift_authentication_profile
+aws,6.68.0,Redshift,aws_redshift_cluster
+aws,6.68.0,Redshift,aws_redshift_cluster_iam_roles
+aws,6.68.0,Redshift,aws_redshift_cluster_snapshot
+aws,6.68.0,Redshift,aws_redshift_data_share_authorization
+aws,6.68.0,Redshift,aws_redshift_data_share_consumer_association
+aws,6.68.0,Redshift,aws_redshift_endpoint_access
+aws,6.68.0,Redshift,aws_redshift_endpoint_authorization
+aws,6.68.0,Redshift,aws_redshift_event_subscription
+aws,6.68.0,Redshift,aws_redshift_hsm_client_certificate
+aws,6.68.0,Redshift,aws_redshift_hsm_configuration
+aws,6.68.0,Redshift,aws_redshift_idc_application
+aws,6.68.0,Redshift,aws_redshift_integration
+aws,6.68.0,Redshift,aws_redshift_logging
+aws,6.68.0,Redshift,aws_redshift_namespace_registration
+aws,6.68.0,Redshift,aws_redshift_parameter_group
+aws,6.68.0,Redshift,aws_redshift_partner
+aws,6.68.0,Redshift,aws_redshift_resource_policy
+aws,6.68.0,Redshift,aws_redshift_scheduled_action
+aws,6.68.0,Redshift,aws_redshift_snapshot_copy
+aws,6.68.0,Redshift,aws_redshift_snapshot_copy_grant
+aws,6.68.0,Redshift,aws_redshift_snapshot_schedule
+aws,6.68.0,Redshift,aws_redshift_snapshot_schedule_association
+aws,6.68.0,Redshift,aws_redshift_subnet_group
+aws,6.68.0,Redshift,aws_redshift_usage_limit
+aws,6.68.0,Redshift Data,aws_redshiftdata_statement
+aws,6.68.0,Redshift Serverless,aws_redshiftserverless_custom_domain_association
+aws,6.68.0,Redshift Serverless,aws_redshiftserverless_endpoint_access
+aws,6.68.0,Redshift Serverless,aws_redshiftserverless_namespace
+aws,6.68.0,Redshift Serverless,aws_redshiftserverless_resource_policy
+aws,6.68.0,Redshift Serverless,aws_redshiftserverless_snapshot
+aws,6.68.0,Redshift Serverless,aws_redshiftserverless_usage_limit
+aws,6.68.0,Redshift Serverless,aws_redshiftserverless_workgroup
+aws,6.68.0,Rekognition,aws_rekognition_collection
+aws,6.68.0,Rekognition,aws_rekognition_project
+aws,6.68.0,Rekognition,aws_rekognition_stream_processor
+aws,6.68.0,Resilience Hub,aws_resiliencehub_resiliency_policy
+aws,6.68.0,Resilience Hub V2,aws_resiliencehubv2_assertion
+aws,6.68.0,Resilience Hub V2,aws_resiliencehubv2_input_source
+aws,6.68.0,Resilience Hub V2,aws_resiliencehubv2_policy
+aws,6.68.0,Resilience Hub V2,aws_resiliencehubv2_service
+aws,6.68.0,Resilience Hub V2,aws_resiliencehubv2_service_function
+aws,6.68.0,Resilience Hub V2,aws_resiliencehubv2_system
+aws,6.68.0,Resilience Hub V2,aws_resiliencehubv2_user_journey
+aws,6.68.0,Resource Explorer,aws_resourceexplorer2_index
+aws,6.68.0,Resource Explorer,aws_resourceexplorer2_view
+aws,6.68.0,Resource Groups,aws_resourcegroups_group
+aws,6.68.0,Resource Groups,aws_resourcegroups_resource
+aws,6.68.0,Roles Anywhere,aws_rolesanywhere_profile
+aws,6.68.0,Roles Anywhere,aws_rolesanywhere_trust_anchor
+aws,6.68.0,Route 53,aws_route53_cidr_collection
+aws,6.68.0,Route 53,aws_route53_cidr_location
+aws,6.68.0,Route 53,aws_route53_delegation_set
+aws,6.68.0,Route 53,aws_route53_health_check
+aws,6.68.0,Route 53,aws_route53_hosted_zone_dnssec
+aws,6.68.0,Route 53,aws_route53_key_signing_key
+aws,6.68.0,Route 53,aws_route53_query_log
+aws,6.68.0,Route 53,aws_route53_record
+aws,6.68.0,Route 53,aws_route53_records_exclusive
+aws,6.68.0,Route 53,aws_route53_traffic_policy
+aws,6.68.0,Route 53,aws_route53_traffic_policy_instance
+aws,6.68.0,Route 53,aws_route53_vpc_association_authorization
+aws,6.68.0,Route 53,aws_route53_zone
+aws,6.68.0,Route 53,aws_route53_zone_association
+aws,6.68.0,Route 53 Domains,aws_route53domains_delegation_signer_record
+aws,6.68.0,Route 53 Domains,aws_route53domains_domain
+aws,6.68.0,Route 53 Domains,aws_route53domains_registered_domain
+aws,6.68.0,Route 53 Profiles,aws_route53profiles_association
+aws,6.68.0,Route 53 Profiles,aws_route53profiles_profile
+aws,6.68.0,Route 53 Profiles,aws_route53profiles_resource_association
+aws,6.68.0,Route 53 Recovery Control Config,aws_route53recoverycontrolconfig_cluster
+aws,6.68.0,Route 53 Recovery Control Config,aws_route53recoverycontrolconfig_control_panel
+aws,6.68.0,Route 53 Recovery Control Config,aws_route53recoverycontrolconfig_routing_control
+aws,6.68.0,Route 53 Recovery Control Config,aws_route53recoverycontrolconfig_safety_rule
+aws,6.68.0,Route 53 Recovery Readiness,aws_route53recoveryreadiness_cell
+aws,6.68.0,Route 53 Recovery Readiness,aws_route53recoveryreadiness_readiness_check
+aws,6.68.0,Route 53 Recovery Readiness,aws_route53recoveryreadiness_recovery_group
+aws,6.68.0,Route 53 Recovery Readiness,aws_route53recoveryreadiness_resource_set
+aws,6.68.0,Route 53 Resolver,aws_route53_resolver_config
+aws,6.68.0,Route 53 Resolver,aws_route53_resolver_dnssec_config
+aws,6.68.0,Route 53 Resolver,aws_route53_resolver_endpoint
+aws,6.68.0,Route 53 Resolver,aws_route53_resolver_firewall_config
+aws,6.68.0,Route 53 Resolver,aws_route53_resolver_firewall_domain_list
+aws,6.68.0,Route 53 Resolver,aws_route53_resolver_firewall_rule
+aws,6.68.0,Route 53 Resolver,aws_route53_resolver_firewall_rule_group
+aws,6.68.0,Route 53 Resolver,aws_route53_resolver_firewall_rule_group_association
+aws,6.68.0,Route 53 Resolver,aws_route53_resolver_query_log_config
+aws,6.68.0,Route 53 Resolver,aws_route53_resolver_query_log_config_association
+aws,6.68.0,Route 53 Resolver,aws_route53_resolver_rule
+aws,6.68.0,Route 53 Resolver,aws_route53_resolver_rule_association
+aws,6.68.0,S3 (Simple Storage),aws_s3_bucket
+aws,6.68.0,S3 (Simple Storage),aws_s3_bucket_abac
+aws,6.68.0,S3 (Simple Storage),aws_s3_bucket_accelerate_configuration
+aws,6.68.0,S3 (Simple Storage),aws_s3_bucket_acl
+aws,6.68.0,S3 (Simple Storage),aws_s3_bucket_analytics_configuration
+aws,6.68.0,S3 (Simple Storage),aws_s3_bucket_cors_configuration
+aws,6.68.0,S3 (Simple Storage),aws_s3_bucket_intelligent_tiering_configuration
+aws,6.68.0,S3 (Simple Storage),aws_s3_bucket_inventory
+aws,6.68.0,S3 (Simple Storage),aws_s3_bucket_lifecycle_configuration
+aws,6.68.0,S3 (Simple Storage),aws_s3_bucket_logging
+aws,6.68.0,S3 (Simple Storage),aws_s3_bucket_metadata_configuration
+aws,6.68.0,S3 (Simple Storage),aws_s3_bucket_metric
+aws,6.68.0,S3 (Simple Storage),aws_s3_bucket_notification
+aws,6.68.0,S3 (Simple Storage),aws_s3_bucket_object
+aws,6.68.0,S3 (Simple Storage),aws_s3_bucket_object_lock_configuration
+aws,6.68.0,S3 (Simple Storage),aws_s3_bucket_ownership_controls
+aws,6.68.0,S3 (Simple Storage),aws_s3_bucket_policy
+aws,6.68.0,S3 (Simple Storage),aws_s3_bucket_public_access_block
+aws,6.68.0,S3 (Simple Storage),aws_s3_bucket_replication_configuration
+aws,6.68.0,S3 (Simple Storage),aws_s3_bucket_request_payment_configuration
+aws,6.68.0,S3 (Simple Storage),aws_s3_bucket_server_side_encryption_configuration
+aws,6.68.0,S3 (Simple Storage),aws_s3_bucket_versioning
+aws,6.68.0,S3 (Simple Storage),aws_s3_bucket_website_configuration
+aws,6.68.0,S3 (Simple Storage),aws_s3_directory_bucket
+aws,6.68.0,S3 (Simple Storage),aws_s3_object
+aws,6.68.0,S3 (Simple Storage),aws_s3_object_copy
+aws,6.68.0,S3 Control,aws_s3_access_point
+aws,6.68.0,S3 Control,aws_s3_account_public_access_block
+aws,6.68.0,S3 Control,aws_s3control_access_grant
+aws,6.68.0,S3 Control,aws_s3control_access_grants_instance
+aws,6.68.0,S3 Control,aws_s3control_access_grants_instance_resource_policy
+aws,6.68.0,S3 Control,aws_s3control_access_grants_location
+aws,6.68.0,S3 Control,aws_s3control_access_point_policy
+aws,6.68.0,S3 Control,aws_s3control_bucket
+aws,6.68.0,S3 Control,aws_s3control_bucket_lifecycle_configuration
+aws,6.68.0,S3 Control,aws_s3control_bucket_policy
+aws,6.68.0,S3 Control,aws_s3control_directory_bucket_access_point_scope
+aws,6.68.0,S3 Control,aws_s3control_multi_region_access_point
+aws,6.68.0,S3 Control,aws_s3control_multi_region_access_point_policy
+aws,6.68.0,S3 Control,aws_s3control_multi_region_access_point_routes
+aws,6.68.0,S3 Control,aws_s3control_object_lambda_access_point
+aws,6.68.0,S3 Control,aws_s3control_object_lambda_access_point_policy
+aws,6.68.0,S3 Control,aws_s3control_storage_lens_configuration
+aws,6.68.0,S3 Files,aws_s3files_access_point
+aws,6.68.0,S3 Files,aws_s3files_file_system
+aws,6.68.0,S3 Files,aws_s3files_file_system_policy
+aws,6.68.0,S3 Files,aws_s3files_mount_target
+aws,6.68.0,S3 Files,aws_s3files_synchronization_configuration
+aws,6.68.0,S3 Glacier,aws_glacier_vault
+aws,6.68.0,S3 Glacier,aws_glacier_vault_lock
+aws,6.68.0,S3 Tables,aws_s3tables_namespace
+aws,6.68.0,S3 Tables,aws_s3tables_table
+aws,6.68.0,S3 Tables,aws_s3tables_table_bucket
+aws,6.68.0,S3 Tables,aws_s3tables_table_bucket_policy
+aws,6.68.0,S3 Tables,aws_s3tables_table_bucket_replication
+aws,6.68.0,S3 Tables,aws_s3tables_table_policy
+aws,6.68.0,S3 Tables,aws_s3tables_table_replication
+aws,6.68.0,S3 Vectors,aws_s3vectors_index
+aws,6.68.0,S3 Vectors,aws_s3vectors_vector_bucket
+aws,6.68.0,S3 Vectors,aws_s3vectors_vector_bucket_policy
+aws,6.68.0,S3 on Outposts,aws_s3outposts_endpoint
+aws,6.68.0,SES (Simple Email),aws_ses_active_receipt_rule_set
+aws,6.68.0,SES (Simple Email),aws_ses_configuration_set
+aws,6.68.0,SES (Simple Email),aws_ses_domain_dkim
+aws,6.68.0,SES (Simple Email),aws_ses_domain_identity
+aws,6.68.0,SES (Simple Email),aws_ses_domain_identity_verification
+aws,6.68.0,SES (Simple Email),aws_ses_domain_mail_from
+aws,6.68.0,SES (Simple Email),aws_ses_email_identity
+aws,6.68.0,SES (Simple Email),aws_ses_event_destination
+aws,6.68.0,SES (Simple Email),aws_ses_identity_notification_topic
+aws,6.68.0,SES (Simple Email),aws_ses_identity_policy
+aws,6.68.0,SES (Simple Email),aws_ses_receipt_filter
+aws,6.68.0,SES (Simple Email),aws_ses_receipt_rule
+aws,6.68.0,SES (Simple Email),aws_ses_receipt_rule_set
+aws,6.68.0,SES (Simple Email),aws_ses_template
+aws,6.68.0,SES Mail Manager,aws_mailmanager_archive
+aws,6.68.0,SES Mail Manager,aws_mailmanager_ingress_point
+aws,6.68.0,SES Mail Manager,aws_mailmanager_relay
+aws,6.68.0,SES Mail Manager,aws_mailmanager_rule_set
+aws,6.68.0,SES Mail Manager,aws_mailmanager_traffic_policy
+aws,6.68.0,SESv2 (Simple Email V2),aws_sesv2_account_suppression_attributes
+aws,6.68.0,SESv2 (Simple Email V2),aws_sesv2_account_vdm_attributes
+aws,6.68.0,SESv2 (Simple Email V2),aws_sesv2_configuration_set
+aws,6.68.0,SESv2 (Simple Email V2),aws_sesv2_configuration_set_event_destination
+aws,6.68.0,SESv2 (Simple Email V2),aws_sesv2_contact_list
+aws,6.68.0,SESv2 (Simple Email V2),aws_sesv2_dedicated_ip_assignment
+aws,6.68.0,SESv2 (Simple Email V2),aws_sesv2_dedicated_ip_pool
+aws,6.68.0,SESv2 (Simple Email V2),aws_sesv2_email_identity
+aws,6.68.0,SESv2 (Simple Email V2),aws_sesv2_email_identity_feedback_attributes
+aws,6.68.0,SESv2 (Simple Email V2),aws_sesv2_email_identity_mail_from_attributes
+aws,6.68.0,SESv2 (Simple Email V2),aws_sesv2_email_identity_policy
+aws,6.68.0,SESv2 (Simple Email V2),aws_sesv2_multi_region_endpoint
+aws,6.68.0,SESv2 (Simple Email V2),aws_sesv2_tenant
+aws,6.68.0,SESv2 (Simple Email V2),aws_sesv2_tenant_resource_association
+aws,6.68.0,SFN (Step Functions),aws_sfn_activity
+aws,6.68.0,SFN (Step Functions),aws_sfn_alias
+aws,6.68.0,SFN (Step Functions),aws_sfn_state_machine
+aws,6.68.0,SNS (Simple Notification),aws_sns_platform_application
+aws,6.68.0,SNS (Simple Notification),aws_sns_sms_preferences
+aws,6.68.0,SNS (Simple Notification),aws_sns_topic
+aws,6.68.0,SNS (Simple Notification),aws_sns_topic_data_protection_policy
+aws,6.68.0,SNS (Simple Notification),aws_sns_topic_policy
+aws,6.68.0,SNS (Simple Notification),aws_sns_topic_subscription
+aws,6.68.0,SQS (Simple Queue),aws_sqs_queue
+aws,6.68.0,SQS (Simple Queue),aws_sqs_queue_policy
+aws,6.68.0,SQS (Simple Queue),aws_sqs_queue_redrive_allow_policy
+aws,6.68.0,SQS (Simple Queue),aws_sqs_queue_redrive_policy
+aws,6.68.0,SSM (Systems Manager),aws_ssm_activation
+aws,6.68.0,SSM (Systems Manager),aws_ssm_association
+aws,6.68.0,SSM (Systems Manager),aws_ssm_default_patch_baseline
+aws,6.68.0,SSM (Systems Manager),aws_ssm_document
+aws,6.68.0,SSM (Systems Manager),aws_ssm_maintenance_window
+aws,6.68.0,SSM (Systems Manager),aws_ssm_maintenance_window_target
+aws,6.68.0,SSM (Systems Manager),aws_ssm_maintenance_window_task
+aws,6.68.0,SSM (Systems Manager),aws_ssm_parameter
+aws,6.68.0,SSM (Systems Manager),aws_ssm_patch_baseline
+aws,6.68.0,SSM (Systems Manager),aws_ssm_patch_group
+aws,6.68.0,SSM (Systems Manager),aws_ssm_resource_data_sync
+aws,6.68.0,SSM (Systems Manager),aws_ssm_service_setting
+aws,6.68.0,SSM Contacts,aws_ssmcontacts_contact
+aws,6.68.0,SSM Contacts,aws_ssmcontacts_contact_channel
+aws,6.68.0,SSM Contacts,aws_ssmcontacts_plan
+aws,6.68.0,SSM Contacts,aws_ssmcontacts_rotation
+aws,6.68.0,SSM Incident Manager Incidents,aws_ssmincidents_replication_set
+aws,6.68.0,SSM Incident Manager Incidents,aws_ssmincidents_response_plan
+aws,6.68.0,SSM Quick Setup,aws_ssmquicksetup_configuration_manager
+aws,6.68.0,SSO Admin,aws_ssoadmin_account_assignment
+aws,6.68.0,SSO Admin,aws_ssoadmin_application
+aws,6.68.0,SSO Admin,aws_ssoadmin_application_access_scope
+aws,6.68.0,SSO Admin,aws_ssoadmin_application_assignment
+aws,6.68.0,SSO Admin,aws_ssoadmin_application_assignment_configuration
+aws,6.68.0,SSO Admin,aws_ssoadmin_customer_managed_policy_attachment
+aws,6.68.0,SSO Admin,aws_ssoadmin_customer_managed_policy_attachments_exclusive
+aws,6.68.0,SSO Admin,aws_ssoadmin_instance_access_control_attributes
+aws,6.68.0,SSO Admin,aws_ssoadmin_managed_policy_attachment
+aws,6.68.0,SSO Admin,aws_ssoadmin_managed_policy_attachments_exclusive
+aws,6.68.0,SSO Admin,aws_ssoadmin_permission_set
+aws,6.68.0,SSO Admin,aws_ssoadmin_permission_set_inline_policy
+aws,6.68.0,SSO Admin,aws_ssoadmin_permissions_boundary_attachment
+aws,6.68.0,SSO Admin,aws_ssoadmin_region
+aws,6.68.0,SSO Admin,aws_ssoadmin_trusted_token_issuer
+aws,6.68.0,SSO Identity Store,aws_identitystore_group
+aws,6.68.0,SSO Identity Store,aws_identitystore_group_membership
+aws,6.68.0,SSO Identity Store,aws_identitystore_user
+aws,6.68.0,SWF (Simple Workflow),aws_swf_domain
+aws,6.68.0,SageMaker AI,aws_sagemaker_algorithm
+aws,6.68.0,SageMaker AI,aws_sagemaker_app
+aws,6.68.0,SageMaker AI,aws_sagemaker_app_image_config
+aws,6.68.0,SageMaker AI,aws_sagemaker_code_repository
+aws,6.68.0,SageMaker AI,aws_sagemaker_data_quality_job_definition
+aws,6.68.0,SageMaker AI,aws_sagemaker_device
+aws,6.68.0,SageMaker AI,aws_sagemaker_device_fleet
+aws,6.68.0,SageMaker AI,aws_sagemaker_domain
+aws,6.68.0,SageMaker AI,aws_sagemaker_endpoint
+aws,6.68.0,SageMaker AI,aws_sagemaker_endpoint_configuration
+aws,6.68.0,SageMaker AI,aws_sagemaker_feature_group
+aws,6.68.0,SageMaker AI,aws_sagemaker_flow_definition
+aws,6.68.0,SageMaker AI,aws_sagemaker_hub
+aws,6.68.0,SageMaker AI,aws_sagemaker_hub_content_reference
+aws,6.68.0,SageMaker AI,aws_sagemaker_human_task_ui
+aws,6.68.0,SageMaker AI,aws_sagemaker_hyper_parameter_tuning_job
+aws,6.68.0,SageMaker AI,aws_sagemaker_image
+aws,6.68.0,SageMaker AI,aws_sagemaker_image_version
+aws,6.68.0,SageMaker AI,aws_sagemaker_labeling_job
+aws,6.68.0,SageMaker AI,aws_sagemaker_mlflow_app
+aws,6.68.0,SageMaker AI,aws_sagemaker_mlflow_tracking_server
+aws,6.68.0,SageMaker AI,aws_sagemaker_model
+aws,6.68.0,SageMaker AI,aws_sagemaker_model_card
+aws,6.68.0,SageMaker AI,aws_sagemaker_model_card_export_job
+aws,6.68.0,SageMaker AI,aws_sagemaker_model_package_group
+aws,6.68.0,SageMaker AI,aws_sagemaker_model_package_group_policy
+aws,6.68.0,SageMaker AI,aws_sagemaker_monitoring_schedule
+aws,6.68.0,SageMaker AI,aws_sagemaker_notebook_instance
+aws,6.68.0,SageMaker AI,aws_sagemaker_notebook_instance_lifecycle_configuration
+aws,6.68.0,SageMaker AI,aws_sagemaker_pipeline
+aws,6.68.0,SageMaker AI,aws_sagemaker_project
+aws,6.68.0,SageMaker AI,aws_sagemaker_servicecatalog_portfolio_status
+aws,6.68.0,SageMaker AI,aws_sagemaker_space
+aws,6.68.0,SageMaker AI,aws_sagemaker_studio_lifecycle_config
+aws,6.68.0,SageMaker AI,aws_sagemaker_training_job
+aws,6.68.0,SageMaker AI,aws_sagemaker_user_profile
+aws,6.68.0,SageMaker AI,aws_sagemaker_workforce
+aws,6.68.0,SageMaker AI,aws_sagemaker_workteam
+aws,6.68.0,Savings Plans,aws_savingsplans_savings_plan
+aws,6.68.0,Secrets Manager,aws_secretsmanager_secret
+aws,6.68.0,Secrets Manager,aws_secretsmanager_secret_policy
+aws,6.68.0,Secrets Manager,aws_secretsmanager_secret_rotation
+aws,6.68.0,Secrets Manager,aws_secretsmanager_secret_version
+aws,6.68.0,Secrets Manager,aws_secretsmanager_tag
+aws,6.68.0,Security Hub,aws_securityhub_account
+aws,6.68.0,Security Hub,aws_securityhub_account_v2
+aws,6.68.0,Security Hub,aws_securityhub_action_target
+aws,6.68.0,Security Hub,aws_securityhub_aggregator_v2
+aws,6.68.0,Security Hub,aws_securityhub_automation_rule
+aws,6.68.0,Security Hub,aws_securityhub_automation_rule_v2
+aws,6.68.0,Security Hub,aws_securityhub_configuration_policy
+aws,6.68.0,Security Hub,aws_securityhub_configuration_policy_association
+aws,6.68.0,Security Hub,aws_securityhub_connector_v2
+aws,6.68.0,Security Hub,aws_securityhub_feature_v2
+aws,6.68.0,Security Hub,aws_securityhub_finding_aggregator
+aws,6.68.0,Security Hub,aws_securityhub_insight
+aws,6.68.0,Security Hub,aws_securityhub_invite_accepter
+aws,6.68.0,Security Hub,aws_securityhub_member
+aws,6.68.0,Security Hub,aws_securityhub_organization_admin_account
+aws,6.68.0,Security Hub,aws_securityhub_organization_configuration
+aws,6.68.0,Security Hub,aws_securityhub_product_subscription
+aws,6.68.0,Security Hub,aws_securityhub_standards_control
+aws,6.68.0,Security Hub,aws_securityhub_standards_control_association
+aws,6.68.0,Security Hub,aws_securityhub_standards_subscription
+aws,6.68.0,Security Lake,aws_securitylake_aws_log_source
+aws,6.68.0,Security Lake,aws_securitylake_custom_log_source
+aws,6.68.0,Security Lake,aws_securitylake_data_lake
+aws,6.68.0,Security Lake,aws_securitylake_subscriber
+aws,6.68.0,Security Lake,aws_securitylake_subscriber_notification
+aws,6.68.0,Serverless Application Repository,aws_serverlessapplicationrepository_cloudformation_stack
+aws,6.68.0,Service Catalog,aws_servicecatalog_budget_resource_association
+aws,6.68.0,Service Catalog,aws_servicecatalog_constraint
+aws,6.68.0,Service Catalog,aws_servicecatalog_organizations_access
+aws,6.68.0,Service Catalog,aws_servicecatalog_portfolio
+aws,6.68.0,Service Catalog,aws_servicecatalog_portfolio_share
+aws,6.68.0,Service Catalog,aws_servicecatalog_principal_portfolio_association
+aws,6.68.0,Service Catalog,aws_servicecatalog_product
+aws,6.68.0,Service Catalog,aws_servicecatalog_product_portfolio_association
+aws,6.68.0,Service Catalog,aws_servicecatalog_provisioned_product
+aws,6.68.0,Service Catalog,aws_servicecatalog_provisioning_artifact
+aws,6.68.0,Service Catalog,aws_servicecatalog_service_action
+aws,6.68.0,Service Catalog,aws_servicecatalog_tag_option
+aws,6.68.0,Service Catalog,aws_servicecatalog_tag_option_resource_association
+aws,6.68.0,Service Catalog AppRegistry,aws_servicecatalogappregistry_application
+aws,6.68.0,Service Catalog AppRegistry,aws_servicecatalogappregistry_attribute_group
+aws,6.68.0,Service Catalog AppRegistry,aws_servicecatalogappregistry_attribute_group_association
+aws,6.68.0,Service Quotas,aws_servicequotas_auto_management
+aws,6.68.0,Service Quotas,aws_servicequotas_service_quota
+aws,6.68.0,Service Quotas,aws_servicequotas_template
+aws,6.68.0,Service Quotas,aws_servicequotas_template_association
+aws,6.68.0,Shield,aws_shield_application_layer_automatic_response
+aws,6.68.0,Shield,aws_shield_drt_access_log_bucket_association
+aws,6.68.0,Shield,aws_shield_drt_access_role_arn_association
+aws,6.68.0,Shield,aws_shield_proactive_engagement
+aws,6.68.0,Shield,aws_shield_protection
+aws,6.68.0,Shield,aws_shield_protection_group
+aws,6.68.0,Shield,aws_shield_protection_health_check_association
+aws,6.68.0,Shield,aws_shield_subscription
+aws,6.68.0,Signer,aws_signer_signing_job
+aws,6.68.0,Signer,aws_signer_signing_profile
+aws,6.68.0,Signer,aws_signer_signing_profile_permission
+aws,6.68.0,Storage Gateway,aws_storagegateway_cache
+aws,6.68.0,Storage Gateway,aws_storagegateway_cached_iscsi_volume
+aws,6.68.0,Storage Gateway,aws_storagegateway_file_system_association
+aws,6.68.0,Storage Gateway,aws_storagegateway_gateway
+aws,6.68.0,Storage Gateway,aws_storagegateway_nfs_file_share
+aws,6.68.0,Storage Gateway,aws_storagegateway_smb_file_share
+aws,6.68.0,Storage Gateway,aws_storagegateway_stored_iscsi_volume
+aws,6.68.0,Storage Gateway,aws_storagegateway_tape_pool
+aws,6.68.0,Storage Gateway,aws_storagegateway_upload_buffer
+aws,6.68.0,Storage Gateway,aws_storagegateway_working_storage
+aws,6.68.0,Timestream Query,aws_timestreamquery_scheduled_query
+aws,6.68.0,Timestream Write,aws_timestreamwrite_database
+aws,6.68.0,Timestream Write,aws_timestreamwrite_table
+aws,6.68.0,Timestream for InfluxDB,aws_timestreaminfluxdb_db_cluster
+aws,6.68.0,Timestream for InfluxDB,aws_timestreaminfluxdb_db_instance
+aws,6.68.0,Transcribe,aws_transcribe_language_model
+aws,6.68.0,Transcribe,aws_transcribe_medical_vocabulary
+aws,6.68.0,Transcribe,aws_transcribe_vocabulary
+aws,6.68.0,Transcribe,aws_transcribe_vocabulary_filter
+aws,6.68.0,Transfer Family,aws_transfer_access
+aws,6.68.0,Transfer Family,aws_transfer_agreement
+aws,6.68.0,Transfer Family,aws_transfer_certificate
+aws,6.68.0,Transfer Family,aws_transfer_connector
+aws,6.68.0,Transfer Family,aws_transfer_host_key
+aws,6.68.0,Transfer Family,aws_transfer_profile
+aws,6.68.0,Transfer Family,aws_transfer_server
+aws,6.68.0,Transfer Family,aws_transfer_ssh_key
+aws,6.68.0,Transfer Family,aws_transfer_tag
+aws,6.68.0,Transfer Family,aws_transfer_user
+aws,6.68.0,Transfer Family,aws_transfer_web_app
+aws,6.68.0,Transfer Family,aws_transfer_web_app_customization
+aws,6.68.0,Transfer Family,aws_transfer_workflow
+aws,6.68.0,Transit Gateway,aws_ec2_transit_gateway
+aws,6.68.0,Transit Gateway,aws_ec2_transit_gateway_connect
+aws,6.68.0,Transit Gateway,aws_ec2_transit_gateway_connect_peer
+aws,6.68.0,Transit Gateway,aws_ec2_transit_gateway_default_route_table_association
+aws,6.68.0,Transit Gateway,aws_ec2_transit_gateway_default_route_table_propagation
+aws,6.68.0,Transit Gateway,aws_ec2_transit_gateway_metering_policy
+aws,6.68.0,Transit Gateway,aws_ec2_transit_gateway_metering_policy_entry
+aws,6.68.0,Transit Gateway,aws_ec2_transit_gateway_multicast_domain
+aws,6.68.0,Transit Gateway,aws_ec2_transit_gateway_multicast_domain_association
+aws,6.68.0,Transit Gateway,aws_ec2_transit_gateway_multicast_group_member
+aws,6.68.0,Transit Gateway,aws_ec2_transit_gateway_multicast_group_source
+aws,6.68.0,Transit Gateway,aws_ec2_transit_gateway_peering_attachment
+aws,6.68.0,Transit Gateway,aws_ec2_transit_gateway_peering_attachment_accepter
+aws,6.68.0,Transit Gateway,aws_ec2_transit_gateway_policy_table
+aws,6.68.0,Transit Gateway,aws_ec2_transit_gateway_policy_table_association
+aws,6.68.0,Transit Gateway,aws_ec2_transit_gateway_policy_table_entry
+aws,6.68.0,Transit Gateway,aws_ec2_transit_gateway_prefix_list_reference
+aws,6.68.0,Transit Gateway,aws_ec2_transit_gateway_route
+aws,6.68.0,Transit Gateway,aws_ec2_transit_gateway_route_table
+aws,6.68.0,Transit Gateway,aws_ec2_transit_gateway_route_table_association
+aws,6.68.0,Transit Gateway,aws_ec2_transit_gateway_route_table_propagation
+aws,6.68.0,Transit Gateway,aws_ec2_transit_gateway_vpc_attachment
+aws,6.68.0,Transit Gateway,aws_ec2_transit_gateway_vpc_attachment_accepter
+aws,6.68.0,User Experience Customization,aws_uxc_account_customizations
+aws,6.68.0,User Notifications,aws_notifications_channel_association
+aws,6.68.0,User Notifications,aws_notifications_event_rule
+aws,6.68.0,User Notifications,aws_notifications_managed_notification_account_contact_association
+aws,6.68.0,User Notifications,aws_notifications_managed_notification_additional_channel_association
+aws,6.68.0,User Notifications,aws_notifications_notification_configuration
+aws,6.68.0,User Notifications,aws_notifications_notification_hub
+aws,6.68.0,User Notifications,aws_notifications_organizational_unit_association
+aws,6.68.0,User Notifications,aws_notifications_organizations_access
+aws,6.68.0,User Notifications Contacts,aws_notificationscontacts_email_contact
+aws,6.68.0,VPC (Virtual Private Cloud),aws_default_network_acl
+aws,6.68.0,VPC (Virtual Private Cloud),aws_default_route_table
+aws,6.68.0,VPC (Virtual Private Cloud),aws_default_security_group
+aws,6.68.0,VPC (Virtual Private Cloud),aws_default_subnet
+aws,6.68.0,VPC (Virtual Private Cloud),aws_default_vpc
+aws,6.68.0,VPC (Virtual Private Cloud),aws_default_vpc_dhcp_options
+aws,6.68.0,VPC (Virtual Private Cloud),aws_ec2_managed_prefix_list
+aws,6.68.0,VPC (Virtual Private Cloud),aws_ec2_managed_prefix_list_entry
+aws,6.68.0,VPC (Virtual Private Cloud),aws_ec2_network_insights_access_scope
+aws,6.68.0,VPC (Virtual Private Cloud),aws_ec2_network_insights_analysis
+aws,6.68.0,VPC (Virtual Private Cloud),aws_ec2_network_insights_path
+aws,6.68.0,VPC (Virtual Private Cloud),aws_ec2_subnet_cidr_reservation
+aws,6.68.0,VPC (Virtual Private Cloud),aws_ec2_traffic_mirror_filter
+aws,6.68.0,VPC (Virtual Private Cloud),aws_ec2_traffic_mirror_filter_rule
+aws,6.68.0,VPC (Virtual Private Cloud),aws_ec2_traffic_mirror_session
+aws,6.68.0,VPC (Virtual Private Cloud),aws_ec2_traffic_mirror_target
+aws,6.68.0,VPC (Virtual Private Cloud),aws_egress_only_internet_gateway
+aws,6.68.0,VPC (Virtual Private Cloud),aws_flow_log
+aws,6.68.0,VPC (Virtual Private Cloud),aws_internet_gateway
+aws,6.68.0,VPC (Virtual Private Cloud),aws_internet_gateway_attachment
+aws,6.68.0,VPC (Virtual Private Cloud),aws_main_route_table_association
+aws,6.68.0,VPC (Virtual Private Cloud),aws_nat_gateway
+aws,6.68.0,VPC (Virtual Private Cloud),aws_nat_gateway_eip_association
+aws,6.68.0,VPC (Virtual Private Cloud),aws_network_acl
+aws,6.68.0,VPC (Virtual Private Cloud),aws_network_acl_association
+aws,6.68.0,VPC (Virtual Private Cloud),aws_network_acl_rule
+aws,6.68.0,VPC (Virtual Private Cloud),aws_network_interface
+aws,6.68.0,VPC (Virtual Private Cloud),aws_network_interface_attachment
+aws,6.68.0,VPC (Virtual Private Cloud),aws_network_interface_permission
+aws,6.68.0,VPC (Virtual Private Cloud),aws_network_interface_sg_attachment
+aws,6.68.0,VPC (Virtual Private Cloud),aws_route
+aws,6.68.0,VPC (Virtual Private Cloud),aws_route_table
+aws,6.68.0,VPC (Virtual Private Cloud),aws_route_table_association
+aws,6.68.0,VPC (Virtual Private Cloud),aws_security_group
+aws,6.68.0,VPC (Virtual Private Cloud),aws_security_group_rule
+aws,6.68.0,VPC (Virtual Private Cloud),aws_subnet
+aws,6.68.0,VPC (Virtual Private Cloud),aws_vpc
+aws,6.68.0,VPC (Virtual Private Cloud),aws_vpc_block_public_access_exclusion
+aws,6.68.0,VPC (Virtual Private Cloud),aws_vpc_block_public_access_options
+aws,6.68.0,VPC (Virtual Private Cloud),aws_vpc_dhcp_options
+aws,6.68.0,VPC (Virtual Private Cloud),aws_vpc_dhcp_options_association
+aws,6.68.0,VPC (Virtual Private Cloud),aws_vpc_encryption_control
+aws,6.68.0,VPC (Virtual Private Cloud),aws_vpc_endpoint
+aws,6.68.0,VPC (Virtual Private Cloud),aws_vpc_endpoint_connection_accepter
+aws,6.68.0,VPC (Virtual Private Cloud),aws_vpc_endpoint_connection_notification
+aws,6.68.0,VPC (Virtual Private Cloud),aws_vpc_endpoint_policy
+aws,6.68.0,VPC (Virtual Private Cloud),aws_vpc_endpoint_private_dns
+aws,6.68.0,VPC (Virtual Private Cloud),aws_vpc_endpoint_route_table_association
+aws,6.68.0,VPC (Virtual Private Cloud),aws_vpc_endpoint_security_group_association
+aws,6.68.0,VPC (Virtual Private Cloud),aws_vpc_endpoint_service
+aws,6.68.0,VPC (Virtual Private Cloud),aws_vpc_endpoint_service_allowed_principal
+aws,6.68.0,VPC (Virtual Private Cloud),aws_vpc_endpoint_service_private_dns_verification
+aws,6.68.0,VPC (Virtual Private Cloud),aws_vpc_endpoint_subnet_association
+aws,6.68.0,VPC (Virtual Private Cloud),aws_vpc_ipv4_cidr_block_association
+aws,6.68.0,VPC (Virtual Private Cloud),aws_vpc_ipv6_cidr_block_association
+aws,6.68.0,VPC (Virtual Private Cloud),aws_vpc_network_performance_metric_subscription
+aws,6.68.0,VPC (Virtual Private Cloud),aws_vpc_peering_connection
+aws,6.68.0,VPC (Virtual Private Cloud),aws_vpc_peering_connection_accepter
+aws,6.68.0,VPC (Virtual Private Cloud),aws_vpc_peering_connection_options
+aws,6.68.0,VPC (Virtual Private Cloud),aws_vpc_route_server
+aws,6.68.0,VPC (Virtual Private Cloud),aws_vpc_route_server_endpoint
+aws,6.68.0,VPC (Virtual Private Cloud),aws_vpc_route_server_peer
+aws,6.68.0,VPC (Virtual Private Cloud),aws_vpc_route_server_propagation
+aws,6.68.0,VPC (Virtual Private Cloud),aws_vpc_route_server_vpc_association
+aws,6.68.0,VPC (Virtual Private Cloud),aws_vpc_security_group_egress_rule
+aws,6.68.0,VPC (Virtual Private Cloud),aws_vpc_security_group_ingress_rule
+aws,6.68.0,VPC (Virtual Private Cloud),aws_vpc_security_group_rules_exclusive
+aws,6.68.0,VPC (Virtual Private Cloud),aws_vpc_security_group_vpc_association
+aws,6.68.0,VPC IPAM (IP Address Manager),aws_vpc_ipam
+aws,6.68.0,VPC IPAM (IP Address Manager),aws_vpc_ipam_organization_admin_account
+aws,6.68.0,VPC IPAM (IP Address Manager),aws_vpc_ipam_pool
+aws,6.68.0,VPC IPAM (IP Address Manager),aws_vpc_ipam_pool_cidr
+aws,6.68.0,VPC IPAM (IP Address Manager),aws_vpc_ipam_pool_cidr_allocation
+aws,6.68.0,VPC IPAM (IP Address Manager),aws_vpc_ipam_preview_next_cidr
+aws,6.68.0,VPC IPAM (IP Address Manager),aws_vpc_ipam_resource_discovery
+aws,6.68.0,VPC IPAM (IP Address Manager),aws_vpc_ipam_resource_discovery_association
+aws,6.68.0,VPC IPAM (IP Address Manager),aws_vpc_ipam_scope
+aws,6.68.0,VPC Lattice,aws_vpclattice_access_log_subscription
+aws,6.68.0,VPC Lattice,aws_vpclattice_auth_policy
+aws,6.68.0,VPC Lattice,aws_vpclattice_domain_verification
+aws,6.68.0,VPC Lattice,aws_vpclattice_listener
+aws,6.68.0,VPC Lattice,aws_vpclattice_listener_rule
+aws,6.68.0,VPC Lattice,aws_vpclattice_resource_configuration
+aws,6.68.0,VPC Lattice,aws_vpclattice_resource_gateway
+aws,6.68.0,VPC Lattice,aws_vpclattice_resource_policy
+aws,6.68.0,VPC Lattice,aws_vpclattice_service
+aws,6.68.0,VPC Lattice,aws_vpclattice_service_network
+aws,6.68.0,VPC Lattice,aws_vpclattice_service_network_resource_association
+aws,6.68.0,VPC Lattice,aws_vpclattice_service_network_service_association
+aws,6.68.0,VPC Lattice,aws_vpclattice_service_network_vpc_association
+aws,6.68.0,VPC Lattice,aws_vpclattice_target_group
+aws,6.68.0,VPC Lattice,aws_vpclattice_target_group_attachment
+aws,6.68.0,VPN (Client),aws_ec2_client_vpn_authorization_rule
+aws,6.68.0,VPN (Client),aws_ec2_client_vpn_endpoint
+aws,6.68.0,VPN (Client),aws_ec2_client_vpn_network_association
+aws,6.68.0,VPN (Client),aws_ec2_client_vpn_route
+aws,6.68.0,VPN (Site-to-Site),aws_customer_gateway
+aws,6.68.0,VPN (Site-to-Site),aws_vpn_concentrator
+aws,6.68.0,VPN (Site-to-Site),aws_vpn_connection
+aws,6.68.0,VPN (Site-to-Site),aws_vpn_connection_route
+aws,6.68.0,VPN (Site-to-Site),aws_vpn_gateway
+aws,6.68.0,VPN (Site-to-Site),aws_vpn_gateway_attachment
+aws,6.68.0,VPN (Site-to-Site),aws_vpn_gateway_route_propagation
+aws,6.68.0,Verified Access,aws_verifiedaccess_endpoint
+aws,6.68.0,Verified Access,aws_verifiedaccess_group
+aws,6.68.0,Verified Access,aws_verifiedaccess_instance
+aws,6.68.0,Verified Access,aws_verifiedaccess_instance_logging_configuration
+aws,6.68.0,Verified Access,aws_verifiedaccess_instance_trust_provider_attachment
+aws,6.68.0,Verified Access,aws_verifiedaccess_trust_provider
+aws,6.68.0,Verified Permissions,aws_verifiedpermissions_identity_source
+aws,6.68.0,Verified Permissions,aws_verifiedpermissions_policy
+aws,6.68.0,Verified Permissions,aws_verifiedpermissions_policy_store
+aws,6.68.0,Verified Permissions,aws_verifiedpermissions_policy_template
+aws,6.68.0,Verified Permissions,aws_verifiedpermissions_schema
+aws,6.68.0,WAF,aws_wafv2_api_key
+aws,6.68.0,WAF,aws_wafv2_ip_set
+aws,6.68.0,WAF,aws_wafv2_regex_pattern_set
+aws,6.68.0,WAF,aws_wafv2_rule_group
+aws,6.68.0,WAF,aws_wafv2_web_acl
+aws,6.68.0,WAF,aws_wafv2_web_acl_association
+aws,6.68.0,WAF,aws_wafv2_web_acl_logging_configuration
+aws,6.68.0,WAF,aws_wafv2_web_acl_rule
+aws,6.68.0,WAF,aws_wafv2_web_acl_rule_group_association
+aws,6.68.0,WAF Classic,aws_waf_byte_match_set
+aws,6.68.0,WAF Classic,aws_waf_geo_match_set
+aws,6.68.0,WAF Classic,aws_waf_ipset
+aws,6.68.0,WAF Classic,aws_waf_rate_based_rule
+aws,6.68.0,WAF Classic,aws_waf_regex_match_set
+aws,6.68.0,WAF Classic,aws_waf_regex_pattern_set
+aws,6.68.0,WAF Classic,aws_waf_rule
+aws,6.68.0,WAF Classic,aws_waf_rule_group
+aws,6.68.0,WAF Classic,aws_waf_size_constraint_set
+aws,6.68.0,WAF Classic,aws_waf_sql_injection_match_set
+aws,6.68.0,WAF Classic,aws_waf_web_acl
+aws,6.68.0,WAF Classic,aws_waf_xss_match_set
+aws,6.68.0,WAF Classic Regional,aws_wafregional_byte_match_set
+aws,6.68.0,WAF Classic Regional,aws_wafregional_geo_match_set
+aws,6.68.0,WAF Classic Regional,aws_wafregional_ipset
+aws,6.68.0,WAF Classic Regional,aws_wafregional_rate_based_rule
+aws,6.68.0,WAF Classic Regional,aws_wafregional_regex_match_set
+aws,6.68.0,WAF Classic Regional,aws_wafregional_regex_pattern_set
+aws,6.68.0,WAF Classic Regional,aws_wafregional_rule
+aws,6.68.0,WAF Classic Regional,aws_wafregional_rule_group
+aws,6.68.0,WAF Classic Regional,aws_wafregional_size_constraint_set
+aws,6.68.0,WAF Classic Regional,aws_wafregional_sql_injection_match_set
+aws,6.68.0,WAF Classic Regional,aws_wafregional_web_acl
+aws,6.68.0,WAF Classic Regional,aws_wafregional_web_acl_association
+aws,6.68.0,WAF Classic Regional,aws_wafregional_xss_match_set
+aws,6.68.0,Wavelength,aws_ec2_carrier_gateway
+aws,6.68.0,Web Services Budgets,aws_budgets_budget
+aws,6.68.0,Web Services Budgets,aws_budgets_budget_action
+aws,6.68.0,WorkMail,aws_workmail_default_domain
+aws,6.68.0,WorkMail,aws_workmail_domain
+aws,6.68.0,WorkMail,aws_workmail_group
+aws,6.68.0,WorkMail,aws_workmail_organization
+aws,6.68.0,WorkMail,aws_workmail_user
+aws,6.68.0,WorkSpaces,aws_workspaces_connection_alias
+aws,6.68.0,WorkSpaces,aws_workspaces_directory
+aws,6.68.0,WorkSpaces,aws_workspaces_ip_group
+aws,6.68.0,WorkSpaces,aws_workspaces_pool
+aws,6.68.0,WorkSpaces,aws_workspaces_workspace
+aws,6.68.0,WorkSpaces Web,aws_workspacesweb_browser_settings
+aws,6.68.0,WorkSpaces Web,aws_workspacesweb_browser_settings_association
+aws,6.68.0,WorkSpaces Web,aws_workspacesweb_data_protection_settings
+aws,6.68.0,WorkSpaces Web,aws_workspacesweb_data_protection_settings_association
+aws,6.68.0,WorkSpaces Web,aws_workspacesweb_identity_provider
+aws,6.68.0,WorkSpaces Web,aws_workspacesweb_ip_access_settings
+aws,6.68.0,WorkSpaces Web,aws_workspacesweb_ip_access_settings_association
+aws,6.68.0,WorkSpaces Web,aws_workspacesweb_network_settings
+aws,6.68.0,WorkSpaces Web,aws_workspacesweb_network_settings_association
+aws,6.68.0,WorkSpaces Web,aws_workspacesweb_portal
+aws,6.68.0,WorkSpaces Web,aws_workspacesweb_session_logger
+aws,6.68.0,WorkSpaces Web,aws_workspacesweb_session_logger_association
+aws,6.68.0,WorkSpaces Web,aws_workspacesweb_trust_store
+aws,6.68.0,WorkSpaces Web,aws_workspacesweb_trust_store_association
+aws,6.68.0,WorkSpaces Web,aws_workspacesweb_user_access_logging_settings
+aws,6.68.0,WorkSpaces Web,aws_workspacesweb_user_access_logging_settings_association
+aws,6.68.0,WorkSpaces Web,aws_workspacesweb_user_settings
+aws,6.68.0,WorkSpaces Web,aws_workspacesweb_user_settings_association
+aws,6.68.0,X-Ray,aws_xray_encryption_config
+aws,6.68.0,X-Ray,aws_xray_group
+aws,6.68.0,X-Ray,aws_xray_indexing_rule
+aws,6.68.0,X-Ray,aws_xray_resource_policy
+aws,6.68.0,X-Ray,aws_xray_sampling_rule
+aws,6.68.0,X-Ray,aws_xray_trace_segment_destination
+awscc,1.105.0,accessanalyzer,awscc_accessanalyzer_analyzer
+awscc,1.105.0,accessanalyzer,awscc_accessanalyzer_archive_rule
+awscc,1.105.0,accountaccess,awscc_accountaccess_application
+awscc,1.105.0,accountaccess,awscc_accountaccess_entitlement
+awscc,1.105.0,acmpca,awscc_acmpca_certificate
+awscc,1.105.0,acmpca,awscc_acmpca_certificate_authority
+awscc,1.105.0,acmpca,awscc_acmpca_certificate_authority_activation
+awscc,1.105.0,acmpca,awscc_acmpca_permission
+awscc,1.105.0,agentregistry,awscc_agentregistry_registry
+awscc,1.105.0,agentregistry,awscc_agentregistry_registry_record
+awscc,1.105.0,aiops,awscc_aiops_investigation_group
+awscc,1.105.0,amazonmq,awscc_amazonmq_configuration
+awscc,1.105.0,amplify,awscc_amplify_app
+awscc,1.105.0,amplify,awscc_amplify_branch
+awscc,1.105.0,amplify,awscc_amplify_domain
+awscc,1.105.0,amplify,awscc_amplify_webhook
+awscc,1.105.0,apigateway,awscc_apigateway_account
+awscc,1.105.0,apigateway,awscc_apigateway_api_key
+awscc,1.105.0,apigateway,awscc_apigateway_authorizer
+awscc,1.105.0,apigateway,awscc_apigateway_base_path_mapping
+awscc,1.105.0,apigateway,awscc_apigateway_base_path_mapping_v2
+awscc,1.105.0,apigateway,awscc_apigateway_client_certificate
+awscc,1.105.0,apigateway,awscc_apigateway_deployment
+awscc,1.105.0,apigateway,awscc_apigateway_documentation_part
+awscc,1.105.0,apigateway,awscc_apigateway_documentation_version
+awscc,1.105.0,apigateway,awscc_apigateway_domain_name
+awscc,1.105.0,apigateway,awscc_apigateway_domain_name_access_association
+awscc,1.105.0,apigateway,awscc_apigateway_domain_name_v2
+awscc,1.105.0,apigateway,awscc_apigateway_gateway_response
+awscc,1.105.0,apigateway,awscc_apigateway_method
+awscc,1.105.0,apigateway,awscc_apigateway_model
+awscc,1.105.0,apigateway,awscc_apigateway_request_validator
+awscc,1.105.0,apigateway,awscc_apigateway_resource
+awscc,1.105.0,apigateway,awscc_apigateway_rest_api
+awscc,1.105.0,apigateway,awscc_apigateway_stage
+awscc,1.105.0,apigateway,awscc_apigateway_usage_plan
+awscc,1.105.0,apigateway,awscc_apigateway_usage_plan_key
+awscc,1.105.0,apigateway,awscc_apigateway_vpc_link
+awscc,1.105.0,apigatewayv2,awscc_apigatewayv2_api
+awscc,1.105.0,apigatewayv2,awscc_apigatewayv2_api_gateway_managed_overrides
+awscc,1.105.0,apigatewayv2,awscc_apigatewayv2_api_mapping
+awscc,1.105.0,apigatewayv2,awscc_apigatewayv2_authorizer
+awscc,1.105.0,apigatewayv2,awscc_apigatewayv2_deployment
+awscc,1.105.0,apigatewayv2,awscc_apigatewayv2_domain_name
+awscc,1.105.0,apigatewayv2,awscc_apigatewayv2_integration
+awscc,1.105.0,apigatewayv2,awscc_apigatewayv2_integration_response
+awscc,1.105.0,apigatewayv2,awscc_apigatewayv2_model
+awscc,1.105.0,apigatewayv2,awscc_apigatewayv2_portal_product
+awscc,1.105.0,apigatewayv2,awscc_apigatewayv2_route
+awscc,1.105.0,apigatewayv2,awscc_apigatewayv2_route_response
+awscc,1.105.0,apigatewayv2,awscc_apigatewayv2_routing_rule
+awscc,1.105.0,apigatewayv2,awscc_apigatewayv2_stage
+awscc,1.105.0,apigatewayv2,awscc_apigatewayv2_vpc_link
+awscc,1.105.0,appconfig,awscc_appconfig_application
+awscc,1.105.0,appconfig,awscc_appconfig_configuration_profile
+awscc,1.105.0,appconfig,awscc_appconfig_deployment
+awscc,1.105.0,appconfig,awscc_appconfig_deployment_strategy
+awscc,1.105.0,appconfig,awscc_appconfig_environment
+awscc,1.105.0,appconfig,awscc_appconfig_experiment_definition
+awscc,1.105.0,appconfig,awscc_appconfig_experiment_run
+awscc,1.105.0,appconfig,awscc_appconfig_extension
+awscc,1.105.0,appconfig,awscc_appconfig_extension_association
+awscc,1.105.0,appconfig,awscc_appconfig_hosted_configuration_version
+awscc,1.105.0,appflow,awscc_appflow_connector
+awscc,1.105.0,appflow,awscc_appflow_connector_profile
+awscc,1.105.0,appflow,awscc_appflow_flow
+awscc,1.105.0,appintegrations,awscc_appintegrations_application
+awscc,1.105.0,appintegrations,awscc_appintegrations_data_integration
+awscc,1.105.0,appintegrations,awscc_appintegrations_event_integration
+awscc,1.105.0,applicationautoscaling,awscc_applicationautoscaling_scalable_target
+awscc,1.105.0,applicationautoscaling,awscc_applicationautoscaling_scaling_policy
+awscc,1.105.0,applicationinsights,awscc_applicationinsights_application
+awscc,1.105.0,applicationsignals,awscc_applicationsignals_discovery
+awscc,1.105.0,applicationsignals,awscc_applicationsignals_grouping_configuration
+awscc,1.105.0,applicationsignals,awscc_applicationsignals_instrumentation_config
+awscc,1.105.0,applicationsignals,awscc_applicationsignals_service_level_objective
+awscc,1.105.0,apprunner,awscc_apprunner_auto_scaling_configuration
+awscc,1.105.0,apprunner,awscc_apprunner_observability_configuration
+awscc,1.105.0,apprunner,awscc_apprunner_service
+awscc,1.105.0,apprunner,awscc_apprunner_vpc_connector
+awscc,1.105.0,apprunner,awscc_apprunner_vpc_ingress_connection
+awscc,1.105.0,appstream,awscc_appstream_app_block
+awscc,1.105.0,appstream,awscc_appstream_app_block_builder
+awscc,1.105.0,appstream,awscc_appstream_application
+awscc,1.105.0,appstream,awscc_appstream_application_entitlement_association
+awscc,1.105.0,appstream,awscc_appstream_application_fleet_association
+awscc,1.105.0,appstream,awscc_appstream_directory_config
+awscc,1.105.0,appstream,awscc_appstream_entitlement
+awscc,1.105.0,appstream,awscc_appstream_fleet
+awscc,1.105.0,appstream,awscc_appstream_image_builder
+awscc,1.105.0,appstream,awscc_appstream_stack
+awscc,1.105.0,appstream,awscc_appstream_stack_fleet_association
+awscc,1.105.0,appstream,awscc_appstream_stack_user_association
+awscc,1.105.0,appstream,awscc_appstream_user
+awscc,1.105.0,appsync,awscc_appsync_api
+awscc,1.105.0,appsync,awscc_appsync_api_cache
+awscc,1.105.0,appsync,awscc_appsync_api_key
+awscc,1.105.0,appsync,awscc_appsync_channel_namespace
+awscc,1.105.0,appsync,awscc_appsync_data_source
+awscc,1.105.0,appsync,awscc_appsync_domain_name
+awscc,1.105.0,appsync,awscc_appsync_domain_name_api_association
+awscc,1.105.0,appsync,awscc_appsync_function_configuration
+awscc,1.105.0,appsync,awscc_appsync_graph_ql_api
+awscc,1.105.0,appsync,awscc_appsync_resolver
+awscc,1.105.0,appsync,awscc_appsync_source_api_association
+awscc,1.105.0,appsync,awscc_appsync_type
+awscc,1.105.0,apptest,awscc_apptest_test_case
+awscc,1.105.0,aps,awscc_aps_anomaly_detector
+awscc,1.105.0,aps,awscc_aps_resource_policy
+awscc,1.105.0,aps,awscc_aps_rule_groups_namespace
+awscc,1.105.0,aps,awscc_aps_scraper
+awscc,1.105.0,aps,awscc_aps_workspace
+awscc,1.105.0,arczonalshift,awscc_arczonalshift_autoshift_observer_notification_status
+awscc,1.105.0,arczonalshift,awscc_arczonalshift_zonal_autoshift_configuration
+awscc,1.105.0,athena,awscc_athena_capacity_reservation
+awscc,1.105.0,athena,awscc_athena_data_catalog
+awscc,1.105.0,athena,awscc_athena_named_query
+awscc,1.105.0,athena,awscc_athena_prepared_statement
+awscc,1.105.0,athena,awscc_athena_work_group
+awscc,1.105.0,auditmanager,awscc_auditmanager_assessment
+awscc,1.105.0,auditmanager,awscc_auditmanager_assessment_framework
+awscc,1.105.0,autoscaling,awscc_autoscaling_auto_scaling_group
+awscc,1.105.0,autoscaling,awscc_autoscaling_launch_configuration
+awscc,1.105.0,autoscaling,awscc_autoscaling_lifecycle_hook
+awscc,1.105.0,autoscaling,awscc_autoscaling_scaling_policy
+awscc,1.105.0,autoscaling,awscc_autoscaling_scheduled_action
+awscc,1.105.0,autoscaling,awscc_autoscaling_warm_pool
+awscc,1.105.0,awsexternalanthropic,awscc_awsexternalanthropic_workspace
+awscc,1.105.0,b2bi,awscc_b2bi_capability
+awscc,1.105.0,b2bi,awscc_b2bi_partnership
+awscc,1.105.0,b2bi,awscc_b2bi_profile
+awscc,1.105.0,b2bi,awscc_b2bi_transformer
+awscc,1.105.0,backup,awscc_backup_backup_plan
+awscc,1.105.0,backup,awscc_backup_backup_selection
+awscc,1.105.0,backup,awscc_backup_backup_vault
+awscc,1.105.0,backup,awscc_backup_framework
+awscc,1.105.0,backup,awscc_backup_legal_hold
+awscc,1.105.0,backup,awscc_backup_logically_air_gapped_backup_vault
+awscc,1.105.0,backup,awscc_backup_report_plan
+awscc,1.105.0,backup,awscc_backup_restore_testing_plan
+awscc,1.105.0,backup,awscc_backup_restore_testing_selection
+awscc,1.105.0,backup,awscc_backup_tiering_configuration
+awscc,1.105.0,backupgateway,awscc_backupgateway_hypervisor
+awscc,1.105.0,batch,awscc_batch_compute_environment
+awscc,1.105.0,batch,awscc_batch_consumable_resource
+awscc,1.105.0,batch,awscc_batch_job_definition
+awscc,1.105.0,batch,awscc_batch_job_queue
+awscc,1.105.0,batch,awscc_batch_quota_share
+awscc,1.105.0,batch,awscc_batch_scheduling_policy
+awscc,1.105.0,batch,awscc_batch_service_environment
+awscc,1.105.0,bcm,awscc_bcm_scheduled_report
+awscc,1.105.0,bcmdataexports,awscc_bcmdataexports_export
+awscc,1.105.0,bcmpricingcalculator,awscc_bcmpricingcalculator_bill_scenario
+awscc,1.105.0,bcmpricingcalculator,awscc_bcmpricingcalculator_workload_estimate
+awscc,1.105.0,bedrock,awscc_bedrock_agent
+awscc,1.105.0,bedrock,awscc_bedrock_agent_alias
+awscc,1.105.0,bedrock,awscc_bedrock_application_inference_profile
+awscc,1.105.0,bedrock,awscc_bedrock_automated_reasoning_policy
+awscc,1.105.0,bedrock,awscc_bedrock_automated_reasoning_policy_version
+awscc,1.105.0,bedrock,awscc_bedrock_blueprint
+awscc,1.105.0,bedrock,awscc_bedrock_data_automation_library
+awscc,1.105.0,bedrock,awscc_bedrock_data_automation_project
+awscc,1.105.0,bedrock,awscc_bedrock_data_source
+awscc,1.105.0,bedrock,awscc_bedrock_enforced_guardrail_configuration
+awscc,1.105.0,bedrock,awscc_bedrock_flow_alias
+awscc,1.105.0,bedrock,awscc_bedrock_flow_version
+awscc,1.105.0,bedrock,awscc_bedrock_guardrail
+awscc,1.105.0,bedrock,awscc_bedrock_guardrail_version
+awscc,1.105.0,bedrock,awscc_bedrock_intelligent_prompt_router
+awscc,1.105.0,bedrock,awscc_bedrock_knowledge_base
+awscc,1.105.0,bedrock,awscc_bedrock_knowledge_base_policy
+awscc,1.105.0,bedrock,awscc_bedrock_prompt
+awscc,1.105.0,bedrock,awscc_bedrock_prompt_version
+awscc,1.105.0,bedrock,awscc_bedrock_resource_policy
+awscc,1.105.0,bedrock,awscc_bedrock_session
+awscc,1.105.0,bedrockagentcore,awscc_bedrockagentcore_api_key_credential_provider
+awscc,1.105.0,bedrockagentcore,awscc_bedrockagentcore_browser_custom
+awscc,1.105.0,bedrockagentcore,awscc_bedrockagentcore_browser_profile
+awscc,1.105.0,bedrockagentcore,awscc_bedrockagentcore_capacity_provider
+awscc,1.105.0,bedrockagentcore,awscc_bedrockagentcore_code_interpreter_custom
+awscc,1.105.0,bedrockagentcore,awscc_bedrockagentcore_configuration_bundle
+awscc,1.105.0,bedrockagentcore,awscc_bedrockagentcore_evaluator
+awscc,1.105.0,bedrockagentcore,awscc_bedrockagentcore_gateway
+awscc,1.105.0,bedrockagentcore,awscc_bedrockagentcore_gateway_rate_limit
+awscc,1.105.0,bedrockagentcore,awscc_bedrockagentcore_gateway_rule
+awscc,1.105.0,bedrockagentcore,awscc_bedrockagentcore_harness
+awscc,1.105.0,bedrockagentcore,awscc_bedrockagentcore_harness_endpoint
+awscc,1.105.0,bedrockagentcore,awscc_bedrockagentcore_memory
+awscc,1.105.0,bedrockagentcore,awscc_bedrockagentcore_o_auth_2_credential_provider
+awscc,1.105.0,bedrockagentcore,awscc_bedrockagentcore_online_evaluation_config
+awscc,1.105.0,bedrockagentcore,awscc_bedrockagentcore_payment_connector
+awscc,1.105.0,bedrockagentcore,awscc_bedrockagentcore_payment_credential_provider
+awscc,1.105.0,bedrockagentcore,awscc_bedrockagentcore_payment_manager
+awscc,1.105.0,bedrockagentcore,awscc_bedrockagentcore_policy
+awscc,1.105.0,bedrockagentcore,awscc_bedrockagentcore_policy_engine
+awscc,1.105.0,bedrockagentcore,awscc_bedrockagentcore_resource_policy
+awscc,1.105.0,bedrockagentcore,awscc_bedrockagentcore_runtime
+awscc,1.105.0,bedrockagentcore,awscc_bedrockagentcore_runtime_endpoint
+awscc,1.105.0,bedrockagentcore,awscc_bedrockagentcore_workload_identity
+awscc,1.105.0,bedrockmantle,awscc_bedrockmantle_project
+awscc,1.105.0,billing,awscc_billing_billing_view
+awscc,1.105.0,billingconductor,awscc_billingconductor_billing_group
+awscc,1.105.0,billingconductor,awscc_billingconductor_custom_line_item
+awscc,1.105.0,billingconductor,awscc_billingconductor_pricing_plan
+awscc,1.105.0,billingconductor,awscc_billingconductor_pricing_rule
+awscc,1.105.0,braket,awscc_braket_spending_limit
+awscc,1.105.0,budgets,awscc_budgets_budgets_action
+awscc,1.105.0,cases,awscc_cases_case
+awscc,1.105.0,cases,awscc_cases_case_rule
+awscc,1.105.0,cases,awscc_cases_domain
+awscc,1.105.0,cases,awscc_cases_field
+awscc,1.105.0,cases,awscc_cases_layout
+awscc,1.105.0,cases,awscc_cases_related_item
+awscc,1.105.0,cases,awscc_cases_template
+awscc,1.105.0,cassandra,awscc_cassandra_keyspace
+awscc,1.105.0,cassandra,awscc_cassandra_table
+awscc,1.105.0,cassandra,awscc_cassandra_type
+awscc,1.105.0,ce,awscc_ce_anomaly_monitor
+awscc,1.105.0,ce,awscc_ce_anomaly_subscription
+awscc,1.105.0,ce,awscc_ce_cost_category
+awscc,1.105.0,certificatemanager,awscc_certificatemanager_account
+awscc,1.105.0,certificatemanager,awscc_certificatemanager_acme_domain_validation
+awscc,1.105.0,certificatemanager,awscc_certificatemanager_acme_endpoint
+awscc,1.105.0,certificatemanager,awscc_certificatemanager_acme_external_account_binding
+awscc,1.105.0,certificatemanager,awscc_certificatemanager_certificate
+awscc,1.105.0,chatbot,awscc_chatbot_custom_action
+awscc,1.105.0,chatbot,awscc_chatbot_microsoft_teams_channel_configuration
+awscc,1.105.0,chatbot,awscc_chatbot_slack_channel_configuration
+awscc,1.105.0,chime,awscc_chime_app_instance
+awscc,1.105.0,chime,awscc_chime_app_instance_bot
+awscc,1.105.0,chime,awscc_chime_app_instance_user
+awscc,1.105.0,chime,awscc_chime_channel
+awscc,1.105.0,chime,awscc_chime_channel_flow
+awscc,1.105.0,chime,awscc_chime_media_insights_pipeline_configuration
+awscc,1.105.0,chime,awscc_chime_media_pipeline_kinesis_video_stream_pool
+awscc,1.105.0,chime,awscc_chime_sip_media_application
+awscc,1.105.0,chime,awscc_chime_voice_connector
+awscc,1.105.0,cleanrooms,awscc_cleanrooms_analysis_template
+awscc,1.105.0,cleanrooms,awscc_cleanrooms_collaboration
+awscc,1.105.0,cleanrooms,awscc_cleanrooms_configured_table
+awscc,1.105.0,cleanrooms,awscc_cleanrooms_configured_table_association
+awscc,1.105.0,cleanrooms,awscc_cleanrooms_id_mapping_table
+awscc,1.105.0,cleanrooms,awscc_cleanrooms_intermediate_table
+awscc,1.105.0,cleanrooms,awscc_cleanrooms_membership
+awscc,1.105.0,cleanrooms,awscc_cleanrooms_privacy_budget_template
+awscc,1.105.0,cleanroomsml,awscc_cleanroomsml_configured_model_algorithm
+awscc,1.105.0,cleanroomsml,awscc_cleanroomsml_configured_model_algorithm_association
+awscc,1.105.0,cleanroomsml,awscc_cleanroomsml_training_dataset
+awscc,1.105.0,cloud9,awscc_cloud9_environment_ec2
+awscc,1.105.0,cloudformation,awscc_cloudformation_change_set
+awscc,1.105.0,cloudformation,awscc_cloudformation_generated_template
+awscc,1.105.0,cloudformation,awscc_cloudformation_guard_hook
+awscc,1.105.0,cloudformation,awscc_cloudformation_hook_default_version
+awscc,1.105.0,cloudformation,awscc_cloudformation_hook_type_config
+awscc,1.105.0,cloudformation,awscc_cloudformation_hook_version
+awscc,1.105.0,cloudformation,awscc_cloudformation_lambda_hook
+awscc,1.105.0,cloudformation,awscc_cloudformation_module_default_version
+awscc,1.105.0,cloudformation,awscc_cloudformation_module_version
+awscc,1.105.0,cloudformation,awscc_cloudformation_public_type_version
+awscc,1.105.0,cloudformation,awscc_cloudformation_publisher
+awscc,1.105.0,cloudformation,awscc_cloudformation_resource_default_version
+awscc,1.105.0,cloudformation,awscc_cloudformation_resource_version
+awscc,1.105.0,cloudformation,awscc_cloudformation_stack
+awscc,1.105.0,cloudformation,awscc_cloudformation_stack_set
+awscc,1.105.0,cloudformation,awscc_cloudformation_type_activation
+awscc,1.105.0,cloudfront,awscc_cloudfront_cache_policy
+awscc,1.105.0,cloudfront,awscc_cloudfront_cloudfront_origin_access_identity
+awscc,1.105.0,cloudfront,awscc_cloudfront_connection_function
+awscc,1.105.0,cloudfront,awscc_cloudfront_connection_group
+awscc,1.105.0,cloudfront,awscc_cloudfront_continuous_deployment_policy
+awscc,1.105.0,cloudfront,awscc_cloudfront_distribution_tenant
+awscc,1.105.0,cloudfront,awscc_cloudfront_field_level_encryption_profile
+awscc,1.105.0,cloudfront,awscc_cloudfront_function
+awscc,1.105.0,cloudfront,awscc_cloudfront_key_group
+awscc,1.105.0,cloudfront,awscc_cloudfront_key_value_store
+awscc,1.105.0,cloudfront,awscc_cloudfront_monitoring_subscription
+awscc,1.105.0,cloudfront,awscc_cloudfront_origin_access_control
+awscc,1.105.0,cloudfront,awscc_cloudfront_origin_request_policy
+awscc,1.105.0,cloudfront,awscc_cloudfront_public_key
+awscc,1.105.0,cloudfront,awscc_cloudfront_realtime_log_config
+awscc,1.105.0,cloudfront,awscc_cloudfront_response_headers_policy
+awscc,1.105.0,cloudfront,awscc_cloudfront_trust_store
+awscc,1.105.0,cloudfront,awscc_cloudfront_vpc_origin
+awscc,1.105.0,cloudhsm,awscc_cloudhsm_cluster
+awscc,1.105.0,cloudtrail,awscc_cloudtrail_channel
+awscc,1.105.0,cloudtrail,awscc_cloudtrail_dashboard
+awscc,1.105.0,cloudtrail,awscc_cloudtrail_event_data_store
+awscc,1.105.0,cloudtrail,awscc_cloudtrail_resource_policy
+awscc,1.105.0,cloudtrail,awscc_cloudtrail_trail
+awscc,1.105.0,cloudwatch,awscc_cloudwatch_alarm
+awscc,1.105.0,cloudwatch,awscc_cloudwatch_alarm_mute_rule
+awscc,1.105.0,cloudwatch,awscc_cloudwatch_anomaly_detector
+awscc,1.105.0,cloudwatch,awscc_cloudwatch_composite_alarm
+awscc,1.105.0,cloudwatch,awscc_cloudwatch_dashboard
+awscc,1.105.0,cloudwatch,awscc_cloudwatch_insight_rule
+awscc,1.105.0,cloudwatch,awscc_cloudwatch_log_alarm
+awscc,1.105.0,cloudwatch,awscc_cloudwatch_metric_stream
+awscc,1.105.0,cloudwatch,awscc_cloudwatch_otel_enrichment
+awscc,1.105.0,cloudwatch,awscc_cloudwatch_resource_metrics_configuration
+awscc,1.105.0,cloudwatch,awscc_cloudwatch_view
+awscc,1.105.0,codeartifact,awscc_codeartifact_domain
+awscc,1.105.0,codeartifact,awscc_codeartifact_package_group
+awscc,1.105.0,codeartifact,awscc_codeartifact_repository
+awscc,1.105.0,codebuild,awscc_codebuild_fleet
+awscc,1.105.0,codebuild,awscc_codebuild_report_group
+awscc,1.105.0,codebuild,awscc_codebuild_source_credential
+awscc,1.105.0,codecommit,awscc_codecommit_repository
+awscc,1.105.0,codeconnections,awscc_codeconnections_connection
+awscc,1.105.0,codeconnections,awscc_codeconnections_host
+awscc,1.105.0,codedeploy,awscc_codedeploy_application
+awscc,1.105.0,codedeploy,awscc_codedeploy_deployment_config
+awscc,1.105.0,codedeploy,awscc_codedeploy_deployment_group
+awscc,1.105.0,codeguruprofiler,awscc_codeguruprofiler_profiling_group
+awscc,1.105.0,codegurureviewer,awscc_codegurureviewer_repository_association
+awscc,1.105.0,codepipeline,awscc_codepipeline_custom_action_type
+awscc,1.105.0,codepipeline,awscc_codepipeline_pipeline
+awscc,1.105.0,codepipeline,awscc_codepipeline_webhook
+awscc,1.105.0,codestarconnections,awscc_codestarconnections_connection
+awscc,1.105.0,codestarconnections,awscc_codestarconnections_repository_link
+awscc,1.105.0,codestarconnections,awscc_codestarconnections_sync_configuration
+awscc,1.105.0,codestarnotifications,awscc_codestarnotifications_notification_rule
+awscc,1.105.0,cognito,awscc_cognito_identity_pool
+awscc,1.105.0,cognito,awscc_cognito_identity_pool_principal_tag
+awscc,1.105.0,cognito,awscc_cognito_identity_pool_role_attachment
+awscc,1.105.0,cognito,awscc_cognito_log_delivery_configuration
+awscc,1.105.0,cognito,awscc_cognito_managed_login_branding
+awscc,1.105.0,cognito,awscc_cognito_terms
+awscc,1.105.0,cognito,awscc_cognito_user_pool_client
+awscc,1.105.0,cognito,awscc_cognito_user_pool_domain
+awscc,1.105.0,cognito,awscc_cognito_user_pool_group
+awscc,1.105.0,cognito,awscc_cognito_user_pool_identity_provider
+awscc,1.105.0,cognito,awscc_cognito_user_pool_regional_configuration_attachment
+awscc,1.105.0,cognito,awscc_cognito_user_pool_replica
+awscc,1.105.0,cognito,awscc_cognito_user_pool_resource_server
+awscc,1.105.0,cognito,awscc_cognito_user_pool_risk_configuration_attachment
+awscc,1.105.0,cognito,awscc_cognito_user_pool_ui_customization_attachment
+awscc,1.105.0,cognito,awscc_cognito_user_pool_user
+awscc,1.105.0,cognito,awscc_cognito_user_pool_user_to_group_attachment
+awscc,1.105.0,comprehend,awscc_comprehend_document_classifier
+awscc,1.105.0,comprehend,awscc_comprehend_document_classifier_endpoint
+awscc,1.105.0,comprehend,awscc_comprehend_entity_recognizer
+awscc,1.105.0,comprehend,awscc_comprehend_entity_recognizer_endpoint
+awscc,1.105.0,comprehend,awscc_comprehend_flywheel
+awscc,1.105.0,computeoptimizer,awscc_computeoptimizer_automation_rule
+awscc,1.105.0,config,awscc_config_aggregation_authorization
+awscc,1.105.0,config,awscc_config_config_rule
+awscc,1.105.0,config,awscc_config_configuration_aggregator
+awscc,1.105.0,config,awscc_config_configuration_recorder
+awscc,1.105.0,config,awscc_config_conformance_pack
+awscc,1.105.0,config,awscc_config_connector
+awscc,1.105.0,config,awscc_config_delivery_channel
+awscc,1.105.0,config,awscc_config_organization_config_rule
+awscc,1.105.0,config,awscc_config_organization_conformance_pack
+awscc,1.105.0,config,awscc_config_remediation_configuration
+awscc,1.105.0,config,awscc_config_stored_query
+awscc,1.105.0,connect,awscc_connect_agent_status
+awscc,1.105.0,connect,awscc_connect_approved_origin
+awscc,1.105.0,connect,awscc_connect_contact_flow
+awscc,1.105.0,connect,awscc_connect_contact_flow_module
+awscc,1.105.0,connect,awscc_connect_contact_flow_module_alias
+awscc,1.105.0,connect,awscc_connect_contact_flow_module_version
+awscc,1.105.0,connect,awscc_connect_contact_flow_version
+awscc,1.105.0,connect,awscc_connect_data_lake_association
+awscc,1.105.0,connect,awscc_connect_data_table
+awscc,1.105.0,connect,awscc_connect_data_table_attribute
+awscc,1.105.0,connect,awscc_connect_data_table_record
+awscc,1.105.0,connect,awscc_connect_email_address
+awscc,1.105.0,connect,awscc_connect_hours_of_operation
+awscc,1.105.0,connect,awscc_connect_instance
+awscc,1.105.0,connect,awscc_connect_instance_storage_config
+awscc,1.105.0,connect,awscc_connect_integration_association
+awscc,1.105.0,connect,awscc_connect_metric
+awscc,1.105.0,connect,awscc_connect_notification
+awscc,1.105.0,connect,awscc_connect_phone_number
+awscc,1.105.0,connect,awscc_connect_predefined_attribute
+awscc,1.105.0,connect,awscc_connect_prompt
+awscc,1.105.0,connect,awscc_connect_queue
+awscc,1.105.0,connect,awscc_connect_quick_connect
+awscc,1.105.0,connect,awscc_connect_routing_profile
+awscc,1.105.0,connect,awscc_connect_security_key
+awscc,1.105.0,connect,awscc_connect_security_profile
+awscc,1.105.0,connect,awscc_connect_task_template
+awscc,1.105.0,connect,awscc_connect_test_case
+awscc,1.105.0,connect,awscc_connect_traffic_distribution_group
+awscc,1.105.0,connect,awscc_connect_use_case
+awscc,1.105.0,connect,awscc_connect_user
+awscc,1.105.0,connect,awscc_connect_user_hierarchy_group
+awscc,1.105.0,connect,awscc_connect_user_hierarchy_structure
+awscc,1.105.0,connect,awscc_connect_view
+awscc,1.105.0,connect,awscc_connect_view_version
+awscc,1.105.0,connect,awscc_connect_vocabulary
+awscc,1.105.0,connect,awscc_connect_workspace
+awscc,1.105.0,connectcampaigns,awscc_connectcampaigns_campaign
+awscc,1.105.0,connectcampaignsv2,awscc_connectcampaignsv2_campaign
+awscc,1.105.0,controltower,awscc_controltower_enabled_control
+awscc,1.105.0,controltower,awscc_controltower_landing_zone
+awscc,1.105.0,cur,awscc_cur_report_definition
+awscc,1.105.0,customerprofiles,awscc_customerprofiles_calculated_attribute_definition
+awscc,1.105.0,customerprofiles,awscc_customerprofiles_domain
+awscc,1.105.0,customerprofiles,awscc_customerprofiles_domain_object_type
+awscc,1.105.0,customerprofiles,awscc_customerprofiles_event_stream
+awscc,1.105.0,customerprofiles,awscc_customerprofiles_event_trigger
+awscc,1.105.0,customerprofiles,awscc_customerprofiles_integration
+awscc,1.105.0,customerprofiles,awscc_customerprofiles_object_type
+awscc,1.105.0,customerprofiles,awscc_customerprofiles_recommender
+awscc,1.105.0,customerprofiles,awscc_customerprofiles_segment_definition
+awscc,1.105.0,databrew,awscc_databrew_dataset
+awscc,1.105.0,databrew,awscc_databrew_job
+awscc,1.105.0,databrew,awscc_databrew_project
+awscc,1.105.0,databrew,awscc_databrew_ruleset
+awscc,1.105.0,databrew,awscc_databrew_schedule
+awscc,1.105.0,dataexchange,awscc_dataexchange_data_set
+awscc,1.105.0,dataexchange,awscc_dataexchange_event_action
+awscc,1.105.0,datapipeline,awscc_datapipeline_pipeline
+awscc,1.105.0,datasync,awscc_datasync_agent
+awscc,1.105.0,datasync,awscc_datasync_location_azure_blob
+awscc,1.105.0,datasync,awscc_datasync_location_efs
+awscc,1.105.0,datasync,awscc_datasync_location_fsx_lustre
+awscc,1.105.0,datasync,awscc_datasync_location_fsx_ontap
+awscc,1.105.0,datasync,awscc_datasync_location_fsx_open_zfs
+awscc,1.105.0,datasync,awscc_datasync_location_fsx_windows
+awscc,1.105.0,datasync,awscc_datasync_location_hdfs
+awscc,1.105.0,datasync,awscc_datasync_location_nfs
+awscc,1.105.0,datasync,awscc_datasync_location_object_storage
+awscc,1.105.0,datasync,awscc_datasync_location_s3
+awscc,1.105.0,datasync,awscc_datasync_location_smb
+awscc,1.105.0,datasync,awscc_datasync_storage_system
+awscc,1.105.0,datasync,awscc_datasync_task
+awscc,1.105.0,datazone,awscc_datazone_connection
+awscc,1.105.0,datazone,awscc_datazone_data_source
+awscc,1.105.0,datazone,awscc_datazone_domain
+awscc,1.105.0,datazone,awscc_datazone_domain_unit
+awscc,1.105.0,datazone,awscc_datazone_environment
+awscc,1.105.0,datazone,awscc_datazone_environment_actions
+awscc,1.105.0,datazone,awscc_datazone_environment_blueprint_configuration
+awscc,1.105.0,datazone,awscc_datazone_environment_profile
+awscc,1.105.0,datazone,awscc_datazone_form_type
+awscc,1.105.0,datazone,awscc_datazone_group_profile
+awscc,1.105.0,datazone,awscc_datazone_owner
+awscc,1.105.0,datazone,awscc_datazone_policy_grant
+awscc,1.105.0,datazone,awscc_datazone_project
+awscc,1.105.0,datazone,awscc_datazone_project_membership
+awscc,1.105.0,datazone,awscc_datazone_project_profile
+awscc,1.105.0,datazone,awscc_datazone_subscription_target
+awscc,1.105.0,datazone,awscc_datazone_user_profile
+awscc,1.105.0,dax,awscc_dax_parameter_group
+awscc,1.105.0,dax,awscc_dax_subnet_group
+awscc,1.105.0,deadline,awscc_deadline_budget
+awscc,1.105.0,deadline,awscc_deadline_farm
+awscc,1.105.0,deadline,awscc_deadline_fleet
+awscc,1.105.0,deadline,awscc_deadline_license_endpoint
+awscc,1.105.0,deadline,awscc_deadline_limit
+awscc,1.105.0,deadline,awscc_deadline_metered_product
+awscc,1.105.0,deadline,awscc_deadline_monitor
+awscc,1.105.0,deadline,awscc_deadline_queue
+awscc,1.105.0,deadline,awscc_deadline_queue_environment
+awscc,1.105.0,deadline,awscc_deadline_queue_fleet_association
+awscc,1.105.0,deadline,awscc_deadline_queue_limit_association
+awscc,1.105.0,deadline,awscc_deadline_storage_profile
+awscc,1.105.0,deadline,awscc_deadline_worker
+awscc,1.105.0,detective,awscc_detective_graph
+awscc,1.105.0,detective,awscc_detective_member_invitation
+awscc,1.105.0,detective,awscc_detective_organization_admin
+awscc,1.105.0,devopsagent,awscc_devopsagent_agent_space
+awscc,1.105.0,devopsagent,awscc_devopsagent_asset
+awscc,1.105.0,devopsagent,awscc_devopsagent_association
+awscc,1.105.0,devopsagent,awscc_devopsagent_private_connection
+awscc,1.105.0,devopsagent,awscc_devopsagent_service
+awscc,1.105.0,devopsagent,awscc_devopsagent_trigger
+awscc,1.105.0,devopsguru,awscc_devopsguru_log_anomaly_detection_integration
+awscc,1.105.0,devopsguru,awscc_devopsguru_notification_channel
+awscc,1.105.0,devopsguru,awscc_devopsguru_resource_collection
+awscc,1.105.0,directconnect,awscc_directconnect_connection
+awscc,1.105.0,directconnect,awscc_directconnect_direct_connect_gateway
+awscc,1.105.0,directconnect,awscc_directconnect_direct_connect_gateway_association
+awscc,1.105.0,directconnect,awscc_directconnect_lag
+awscc,1.105.0,directconnect,awscc_directconnect_private_virtual_interface
+awscc,1.105.0,directconnect,awscc_directconnect_public_virtual_interface
+awscc,1.105.0,directconnect,awscc_directconnect_transit_virtual_interface
+awscc,1.105.0,directoryservice,awscc_directoryservice_microsoft_ad
+awscc,1.105.0,directoryservice,awscc_directoryservice_simple_ad
+awscc,1.105.0,dlm,awscc_dlm_lifecycle_policy
+awscc,1.105.0,dms,awscc_dms_certificate
+awscc,1.105.0,dms,awscc_dms_data_migration
+awscc,1.105.0,dms,awscc_dms_data_provider
+awscc,1.105.0,dms,awscc_dms_endpoint
+awscc,1.105.0,dms,awscc_dms_event_subscription
+awscc,1.105.0,dms,awscc_dms_instance_profile
+awscc,1.105.0,dms,awscc_dms_migration_project
+awscc,1.105.0,dms,awscc_dms_replication_config
+awscc,1.105.0,dms,awscc_dms_replication_subnet_group
+awscc,1.105.0,dms,awscc_dms_replication_task
+awscc,1.105.0,docdb,awscc_docdb_db_cluster_parameter_group
+awscc,1.105.0,docdb,awscc_docdb_db_subnet_group
+awscc,1.105.0,docdb,awscc_docdb_event_subscription
+awscc,1.105.0,docdb,awscc_docdb_global_cluster
+awscc,1.105.0,docdbelastic,awscc_docdbelastic_cluster
+awscc,1.105.0,docdbelastic,awscc_docdbelastic_cluster_snapshot
+awscc,1.105.0,drs,awscc_drs_launch_configuration_template
+awscc,1.105.0,drs,awscc_drs_recovery_plan
+awscc,1.105.0,drs,awscc_drs_replication_configuration_template
+awscc,1.105.0,drs,awscc_drs_source_network
+awscc,1.105.0,dsql,awscc_dsql_cluster
+awscc,1.105.0,dynamodb,awscc_dynamodb_backup
+awscc,1.105.0,dynamodb,awscc_dynamodb_global_table
+awscc,1.105.0,dynamodb,awscc_dynamodb_table
+awscc,1.105.0,ec2,awscc_ec2_application_status_check
+awscc,1.105.0,ec2,awscc_ec2_capacity_manager_data_export
+awscc,1.105.0,ec2,awscc_ec2_capacity_reservation
+awscc,1.105.0,ec2,awscc_ec2_capacity_reservation_fleet
+awscc,1.105.0,ec2,awscc_ec2_carrier_gateway
+awscc,1.105.0,ec2,awscc_ec2_client_vpn_route
+awscc,1.105.0,ec2,awscc_ec2_customer_gateway
+awscc,1.105.0,ec2,awscc_ec2_dhcp_options
+awscc,1.105.0,ec2,awscc_ec2_ec2_fleet
+awscc,1.105.0,ec2,awscc_ec2_egress_only_internet_gateway
+awscc,1.105.0,ec2,awscc_ec2_eip
+awscc,1.105.0,ec2,awscc_ec2_eip_association
+awscc,1.105.0,ec2,awscc_ec2_enclave_certificate_iam_role_association
+awscc,1.105.0,ec2,awscc_ec2_flow_log
+awscc,1.105.0,ec2,awscc_ec2_fpga_image
+awscc,1.105.0,ec2,awscc_ec2_gateway_route_table_association
+awscc,1.105.0,ec2,awscc_ec2_host
+awscc,1.105.0,ec2,awscc_ec2_i_pv_4_pool
+awscc,1.105.0,ec2,awscc_ec2_instance
+awscc,1.105.0,ec2,awscc_ec2_instance_connect_endpoint
+awscc,1.105.0,ec2,awscc_ec2_instance_event_window
+awscc,1.105.0,ec2,awscc_ec2_internet_gateway
+awscc,1.105.0,ec2,awscc_ec2_ip_pool_route_table_association
+awscc,1.105.0,ec2,awscc_ec2_ipam
+awscc,1.105.0,ec2,awscc_ec2_ipam_allocation
+awscc,1.105.0,ec2,awscc_ec2_ipam_external_resource_verification_token
+awscc,1.105.0,ec2,awscc_ec2_ipam_pool
+awscc,1.105.0,ec2,awscc_ec2_ipam_pool_cidr
+awscc,1.105.0,ec2,awscc_ec2_ipam_prefix_list_resolver
+awscc,1.105.0,ec2,awscc_ec2_ipam_prefix_list_resolver_target
+awscc,1.105.0,ec2,awscc_ec2_ipam_resource_discovery
+awscc,1.105.0,ec2,awscc_ec2_ipam_resource_discovery_association
+awscc,1.105.0,ec2,awscc_ec2_ipam_scope
+awscc,1.105.0,ec2,awscc_ec2_key_pair
+awscc,1.105.0,ec2,awscc_ec2_launch_template
+awscc,1.105.0,ec2,awscc_ec2_local_gateway_route
+awscc,1.105.0,ec2,awscc_ec2_local_gateway_route_table
+awscc,1.105.0,ec2,awscc_ec2_local_gateway_route_table_virtual_interface_group_association
+awscc,1.105.0,ec2,awscc_ec2_local_gateway_route_table_vpc_association
+awscc,1.105.0,ec2,awscc_ec2_local_gateway_virtual_interface
+awscc,1.105.0,ec2,awscc_ec2_local_gateway_virtual_interface_group
+awscc,1.105.0,ec2,awscc_ec2_nat_gateway
+awscc,1.105.0,ec2,awscc_ec2_network_acl
+awscc,1.105.0,ec2,awscc_ec2_network_insights_access_scope
+awscc,1.105.0,ec2,awscc_ec2_network_insights_access_scope_analysis
+awscc,1.105.0,ec2,awscc_ec2_network_insights_analysis
+awscc,1.105.0,ec2,awscc_ec2_network_insights_path
+awscc,1.105.0,ec2,awscc_ec2_network_interface
+awscc,1.105.0,ec2,awscc_ec2_network_interface_attachment
+awscc,1.105.0,ec2,awscc_ec2_network_performance_metric_subscription
+awscc,1.105.0,ec2,awscc_ec2_placement_group
+awscc,1.105.0,ec2,awscc_ec2_prefix_list
+awscc,1.105.0,ec2,awscc_ec2_route
+awscc,1.105.0,ec2,awscc_ec2_route_server
+awscc,1.105.0,ec2,awscc_ec2_route_server_association
+awscc,1.105.0,ec2,awscc_ec2_route_server_endpoint
+awscc,1.105.0,ec2,awscc_ec2_route_server_peer
+awscc,1.105.0,ec2,awscc_ec2_route_server_propagation
+awscc,1.105.0,ec2,awscc_ec2_route_table
+awscc,1.105.0,ec2,awscc_ec2_secondary_network
+awscc,1.105.0,ec2,awscc_ec2_security_group
+awscc,1.105.0,ec2,awscc_ec2_security_group_egress
+awscc,1.105.0,ec2,awscc_ec2_security_group_ingress
+awscc,1.105.0,ec2,awscc_ec2_security_group_vpc_association
+awscc,1.105.0,ec2,awscc_ec2_snapshot_block_public_access
+awscc,1.105.0,ec2,awscc_ec2_spot_fleet
+awscc,1.105.0,ec2,awscc_ec2_sql_ha_standby_detected_instance
+awscc,1.105.0,ec2,awscc_ec2_subnet
+awscc,1.105.0,ec2,awscc_ec2_subnet_cidr_block
+awscc,1.105.0,ec2,awscc_ec2_subnet_cidr_reservation
+awscc,1.105.0,ec2,awscc_ec2_subnet_network_acl_association
+awscc,1.105.0,ec2,awscc_ec2_subnet_route_table_association
+awscc,1.105.0,ec2,awscc_ec2_traffic_mirror_filter
+awscc,1.105.0,ec2,awscc_ec2_traffic_mirror_filter_rule
+awscc,1.105.0,ec2,awscc_ec2_traffic_mirror_session
+awscc,1.105.0,ec2,awscc_ec2_traffic_mirror_target
+awscc,1.105.0,ec2,awscc_ec2_transit_gateway
+awscc,1.105.0,ec2,awscc_ec2_transit_gateway_attachment
+awscc,1.105.0,ec2,awscc_ec2_transit_gateway_connect
+awscc,1.105.0,ec2,awscc_ec2_transit_gateway_connect_peer
+awscc,1.105.0,ec2,awscc_ec2_transit_gateway_metering_policy
+awscc,1.105.0,ec2,awscc_ec2_transit_gateway_metering_policy_entry
+awscc,1.105.0,ec2,awscc_ec2_transit_gateway_multicast_domain
+awscc,1.105.0,ec2,awscc_ec2_transit_gateway_multicast_domain_association
+awscc,1.105.0,ec2,awscc_ec2_transit_gateway_multicast_group_member
+awscc,1.105.0,ec2,awscc_ec2_transit_gateway_multicast_group_source
+awscc,1.105.0,ec2,awscc_ec2_transit_gateway_peering_attachment
+awscc,1.105.0,ec2,awscc_ec2_transit_gateway_policy_table
+awscc,1.105.0,ec2,awscc_ec2_transit_gateway_policy_table_association
+awscc,1.105.0,ec2,awscc_ec2_transit_gateway_policy_table_entry
+awscc,1.105.0,ec2,awscc_ec2_transit_gateway_route
+awscc,1.105.0,ec2,awscc_ec2_transit_gateway_route_table
+awscc,1.105.0,ec2,awscc_ec2_transit_gateway_route_table_association
+awscc,1.105.0,ec2,awscc_ec2_transit_gateway_route_table_propagation
+awscc,1.105.0,ec2,awscc_ec2_transit_gateway_vpc_attachment
+awscc,1.105.0,ec2,awscc_ec2_verified_access_endpoint
+awscc,1.105.0,ec2,awscc_ec2_verified_access_group
+awscc,1.105.0,ec2,awscc_ec2_verified_access_instance
+awscc,1.105.0,ec2,awscc_ec2_verified_access_trust_provider
+awscc,1.105.0,ec2,awscc_ec2_volume
+awscc,1.105.0,ec2,awscc_ec2_volume_attachment
+awscc,1.105.0,ec2,awscc_ec2_vpc
+awscc,1.105.0,ec2,awscc_ec2_vpc_block_public_access_exclusion
+awscc,1.105.0,ec2,awscc_ec2_vpc_block_public_access_options
+awscc,1.105.0,ec2,awscc_ec2_vpc_cidr_block
+awscc,1.105.0,ec2,awscc_ec2_vpc_encryption_control
+awscc,1.105.0,ec2,awscc_ec2_vpc_endpoint
+awscc,1.105.0,ec2,awscc_ec2_vpc_endpoint_connection_notification
+awscc,1.105.0,ec2,awscc_ec2_vpc_endpoint_service
+awscc,1.105.0,ec2,awscc_ec2_vpc_endpoint_service_permissions
+awscc,1.105.0,ec2,awscc_ec2_vpc_gateway_attachment
+awscc,1.105.0,ec2,awscc_ec2_vpc_peering_connection
+awscc,1.105.0,ec2,awscc_ec2_vpcdhcp_options_association
+awscc,1.105.0,ec2,awscc_ec2_vpn_concentrator
+awscc,1.105.0,ec2,awscc_ec2_vpn_connection
+awscc,1.105.0,ec2,awscc_ec2_vpn_connection_route
+awscc,1.105.0,ec2,awscc_ec2_vpn_gateway
+awscc,1.105.0,ecr,awscc_ecr_public_repository
+awscc,1.105.0,ecr,awscc_ecr_pull_through_cache_rule
+awscc,1.105.0,ecr,awscc_ecr_pull_time_update_exclusion
+awscc,1.105.0,ecr,awscc_ecr_registry_policy
+awscc,1.105.0,ecr,awscc_ecr_registry_scanning_configuration
+awscc,1.105.0,ecr,awscc_ecr_replication_configuration
+awscc,1.105.0,ecr,awscc_ecr_repository
+awscc,1.105.0,ecr,awscc_ecr_repository_creation_template
+awscc,1.105.0,ecr,awscc_ecr_signing_configuration
+awscc,1.105.0,ecs,awscc_ecs_capacity_provider
+awscc,1.105.0,ecs,awscc_ecs_cluster
+awscc,1.105.0,ecs,awscc_ecs_cluster_capacity_provider_associations
+awscc,1.105.0,ecs,awscc_ecs_daemon
+awscc,1.105.0,ecs,awscc_ecs_daemon_task_definition
+awscc,1.105.0,ecs,awscc_ecs_express_gateway_service
+awscc,1.105.0,ecs,awscc_ecs_primary_task_set
+awscc,1.105.0,ecs,awscc_ecs_service
+awscc,1.105.0,ecs,awscc_ecs_task_definition
+awscc,1.105.0,ecs,awscc_ecs_task_set
+awscc,1.105.0,efs,awscc_efs_access_point
+awscc,1.105.0,efs,awscc_efs_file_system
+awscc,1.105.0,efs,awscc_efs_mount_target
+awscc,1.105.0,eks,awscc_eks_access_entry
+awscc,1.105.0,eks,awscc_eks_addon
+awscc,1.105.0,eks,awscc_eks_capability
+awscc,1.105.0,eks,awscc_eks_certificate_authority
+awscc,1.105.0,eks,awscc_eks_cluster
+awscc,1.105.0,eks,awscc_eks_fargate_profile
+awscc,1.105.0,eks,awscc_eks_identity_provider_config
+awscc,1.105.0,eks,awscc_eks_pod_identity_association
+awscc,1.105.0,elasticache,awscc_elasticache_cache_cluster
+awscc,1.105.0,elasticache,awscc_elasticache_global_replication_group
+awscc,1.105.0,elasticache,awscc_elasticache_parameter_group
+awscc,1.105.0,elasticache,awscc_elasticache_replication_group
+awscc,1.105.0,elasticache,awscc_elasticache_serverless_cache
+awscc,1.105.0,elasticache,awscc_elasticache_serverless_cache_snapshot
+awscc,1.105.0,elasticache,awscc_elasticache_snapshot
+awscc,1.105.0,elasticache,awscc_elasticache_subnet_group
+awscc,1.105.0,elasticache,awscc_elasticache_user
+awscc,1.105.0,elasticache,awscc_elasticache_user_group
+awscc,1.105.0,elasticbeanstalk,awscc_elasticbeanstalk_application
+awscc,1.105.0,elasticbeanstalk,awscc_elasticbeanstalk_application_version
+awscc,1.105.0,elasticbeanstalk,awscc_elasticbeanstalk_configuration_template
+awscc,1.105.0,elasticbeanstalk,awscc_elasticbeanstalk_environment
+awscc,1.105.0,elasticloadbalancing,awscc_elasticloadbalancing_load_balancer
+awscc,1.105.0,elasticloadbalancingv2,awscc_elasticloadbalancingv2_listener
+awscc,1.105.0,elasticloadbalancingv2,awscc_elasticloadbalancingv2_listener_rule
+awscc,1.105.0,elasticloadbalancingv2,awscc_elasticloadbalancingv2_load_balancer
+awscc,1.105.0,elasticloadbalancingv2,awscc_elasticloadbalancingv2_target_group
+awscc,1.105.0,elasticloadbalancingv2,awscc_elasticloadbalancingv2_trust_store
+awscc,1.105.0,elasticloadbalancingv2,awscc_elasticloadbalancingv2_trust_store_revocation
+awscc,1.105.0,elementalinference,awscc_elementalinference_dictionary
+awscc,1.105.0,elementalinference,awscc_elementalinference_feed
+awscc,1.105.0,emr,awscc_emr_security_configuration
+awscc,1.105.0,emr,awscc_emr_step
+awscc,1.105.0,emr,awscc_emr_studio
+awscc,1.105.0,emr,awscc_emr_studio_session_mapping
+awscc,1.105.0,emr,awscc_emr_wal_workspace
+awscc,1.105.0,emrserverless,awscc_emrserverless_application
+awscc,1.105.0,entityresolution,awscc_entityresolution_id_mapping_workflow
+awscc,1.105.0,entityresolution,awscc_entityresolution_id_namespace
+awscc,1.105.0,entityresolution,awscc_entityresolution_matching_workflow
+awscc,1.105.0,entityresolution,awscc_entityresolution_policy_statement
+awscc,1.105.0,entityresolution,awscc_entityresolution_schema_mapping
+awscc,1.105.0,events,awscc_events_api_destination
+awscc,1.105.0,events,awscc_events_archive
+awscc,1.105.0,events,awscc_events_connection
+awscc,1.105.0,events,awscc_events_endpoint
+awscc,1.105.0,events,awscc_events_event_bus
+awscc,1.105.0,events,awscc_events_event_bus_policy
+awscc,1.105.0,events,awscc_events_rule
+awscc,1.105.0,eventschemas,awscc_eventschemas_discoverer
+awscc,1.105.0,eventschemas,awscc_eventschemas_registry
+awscc,1.105.0,eventschemas,awscc_eventschemas_registry_policy
+awscc,1.105.0,eventschemas,awscc_eventschemas_schema
+awscc,1.105.0,eventsv2,awscc_eventsv2_event_bus
+awscc,1.105.0,eventsv2,awscc_eventsv2_event_source
+awscc,1.105.0,eventsv2,awscc_eventsv2_resource_policy
+awscc,1.105.0,eventsv2,awscc_eventsv2_subscriber
+awscc,1.105.0,evidently,awscc_evidently_experiment
+awscc,1.105.0,evidently,awscc_evidently_feature
+awscc,1.105.0,evidently,awscc_evidently_launch
+awscc,1.105.0,evidently,awscc_evidently_project
+awscc,1.105.0,evidently,awscc_evidently_segment
+awscc,1.105.0,evs,awscc_evs_environment
+awscc,1.105.0,finspace,awscc_finspace_environment
+awscc,1.105.0,fis,awscc_fis_experiment_template
+awscc,1.105.0,fis,awscc_fis_target_account_configuration
+awscc,1.105.0,fms,awscc_fms_applications_list
+awscc,1.105.0,fms,awscc_fms_notification_channel
+awscc,1.105.0,fms,awscc_fms_policy
+awscc,1.105.0,fms,awscc_fms_protocols_list
+awscc,1.105.0,fms,awscc_fms_resource_set
+awscc,1.105.0,forecast,awscc_forecast_dataset
+awscc,1.105.0,forecast,awscc_forecast_dataset_group
+awscc,1.105.0,frauddetector,awscc_frauddetector_detector
+awscc,1.105.0,frauddetector,awscc_frauddetector_entity_type
+awscc,1.105.0,frauddetector,awscc_frauddetector_event_type
+awscc,1.105.0,frauddetector,awscc_frauddetector_label
+awscc,1.105.0,frauddetector,awscc_frauddetector_list
+awscc,1.105.0,frauddetector,awscc_frauddetector_outcome
+awscc,1.105.0,frauddetector,awscc_frauddetector_variable
+awscc,1.105.0,fsx,awscc_fsx_data_repository_association
+awscc,1.105.0,fsx,awscc_fsx_s3_access_point_attachment
+awscc,1.105.0,fsx,awscc_fsx_volume
+awscc,1.105.0,gamelift,awscc_gamelift_alias
+awscc,1.105.0,gamelift,awscc_gamelift_build
+awscc,1.105.0,gamelift,awscc_gamelift_container_fleet
+awscc,1.105.0,gamelift,awscc_gamelift_container_group_definition
+awscc,1.105.0,gamelift,awscc_gamelift_fleet
+awscc,1.105.0,gamelift,awscc_gamelift_game_server_group
+awscc,1.105.0,gamelift,awscc_gamelift_game_session_queue
+awscc,1.105.0,gamelift,awscc_gamelift_location
+awscc,1.105.0,gamelift,awscc_gamelift_matchmaking_configuration
+awscc,1.105.0,gamelift,awscc_gamelift_matchmaking_rule_set
+awscc,1.105.0,gamelift,awscc_gamelift_script
+awscc,1.105.0,globalaccelerator,awscc_globalaccelerator_accelerator
+awscc,1.105.0,globalaccelerator,awscc_globalaccelerator_cross_account_attachment
+awscc,1.105.0,globalaccelerator,awscc_globalaccelerator_endpoint_group
+awscc,1.105.0,globalaccelerator,awscc_globalaccelerator_listener
+awscc,1.105.0,glue,awscc_glue_blueprint
+awscc,1.105.0,glue,awscc_glue_catalog
+awscc,1.105.0,glue,awscc_glue_classifier
+awscc,1.105.0,glue,awscc_glue_connection
+awscc,1.105.0,glue,awscc_glue_connection_type
+awscc,1.105.0,glue,awscc_glue_crawler
+awscc,1.105.0,glue,awscc_glue_custom_entity_type
+awscc,1.105.0,glue,awscc_glue_data_catalog_encryption_settings
+awscc,1.105.0,glue,awscc_glue_data_quality_ruleset
+awscc,1.105.0,glue,awscc_glue_database
+awscc,1.105.0,glue,awscc_glue_identity_center_configuration
+awscc,1.105.0,glue,awscc_glue_integration
+awscc,1.105.0,glue,awscc_glue_integration_resource_property
+awscc,1.105.0,glue,awscc_glue_job
+awscc,1.105.0,glue,awscc_glue_ml_transform
+awscc,1.105.0,glue,awscc_glue_partition
+awscc,1.105.0,glue,awscc_glue_registry
+awscc,1.105.0,glue,awscc_glue_schema
+awscc,1.105.0,glue,awscc_glue_schema_version
+awscc,1.105.0,glue,awscc_glue_schema_version_metadata
+awscc,1.105.0,glue,awscc_glue_security_configuration
+awscc,1.105.0,glue,awscc_glue_session
+awscc,1.105.0,glue,awscc_glue_table_optimizer
+awscc,1.105.0,glue,awscc_glue_trigger
+awscc,1.105.0,glue,awscc_glue_user_defined_function
+awscc,1.105.0,glue,awscc_glue_workflow
+awscc,1.105.0,grafana,awscc_grafana_workspace
+awscc,1.105.0,greengrassv2,awscc_greengrassv2_component_version
+awscc,1.105.0,greengrassv2,awscc_greengrassv2_deployment
+awscc,1.105.0,groundstation,awscc_groundstation_config
+awscc,1.105.0,groundstation,awscc_groundstation_dataflow_endpoint_group
+awscc,1.105.0,groundstation,awscc_groundstation_dataflow_endpoint_group_v2
+awscc,1.105.0,groundstation,awscc_groundstation_mission_profile
+awscc,1.105.0,guardduty,awscc_guardduty_custom_detection_rule_association
+awscc,1.105.0,guardduty,awscc_guardduty_detector
+awscc,1.105.0,guardduty,awscc_guardduty_filter
+awscc,1.105.0,guardduty,awscc_guardduty_ip_set
+awscc,1.105.0,guardduty,awscc_guardduty_malware_protection_plan
+awscc,1.105.0,guardduty,awscc_guardduty_master
+awscc,1.105.0,guardduty,awscc_guardduty_member
+awscc,1.105.0,guardduty,awscc_guardduty_publishing_destination
+awscc,1.105.0,guardduty,awscc_guardduty_threat_entity_set
+awscc,1.105.0,guardduty,awscc_guardduty_threat_intel_set
+awscc,1.105.0,guardduty,awscc_guardduty_trusted_entity_set
+awscc,1.105.0,healthagent,awscc_healthagent_domain
+awscc,1.105.0,healthimaging,awscc_healthimaging_datastore
+awscc,1.105.0,healthlake,awscc_healthlake_data_transformation_profile
+awscc,1.105.0,healthlake,awscc_healthlake_fhir_datastore
+awscc,1.105.0,iam,awscc_iam_group
+awscc,1.105.0,iam,awscc_iam_group_policy
+awscc,1.105.0,iam,awscc_iam_instance_profile
+awscc,1.105.0,iam,awscc_iam_managed_policy
+awscc,1.105.0,iam,awscc_iam_oidc_provider
+awscc,1.105.0,iam,awscc_iam_role
+awscc,1.105.0,iam,awscc_iam_role_policy
+awscc,1.105.0,iam,awscc_iam_saml_provider
+awscc,1.105.0,iam,awscc_iam_server_certificate
+awscc,1.105.0,iam,awscc_iam_service_linked_role
+awscc,1.105.0,iam,awscc_iam_user
+awscc,1.105.0,iam,awscc_iam_user_policy
+awscc,1.105.0,iam,awscc_iam_virtual_mfa_device
+awscc,1.105.0,identitystore,awscc_identitystore_group
+awscc,1.105.0,identitystore,awscc_identitystore_group_membership
+awscc,1.105.0,identitystore,awscc_identitystore_user
+awscc,1.105.0,imagebuilder,awscc_imagebuilder_component
+awscc,1.105.0,imagebuilder,awscc_imagebuilder_container_recipe
+awscc,1.105.0,imagebuilder,awscc_imagebuilder_distribution_configuration
+awscc,1.105.0,imagebuilder,awscc_imagebuilder_image
+awscc,1.105.0,imagebuilder,awscc_imagebuilder_image_pipeline
+awscc,1.105.0,imagebuilder,awscc_imagebuilder_image_recipe
+awscc,1.105.0,imagebuilder,awscc_imagebuilder_infrastructure_configuration
+awscc,1.105.0,imagebuilder,awscc_imagebuilder_lifecycle_policy
+awscc,1.105.0,imagebuilder,awscc_imagebuilder_workflow
+awscc,1.105.0,inspector,awscc_inspector_assessment_target
+awscc,1.105.0,inspector,awscc_inspector_assessment_template
+awscc,1.105.0,inspector,awscc_inspector_resource_group
+awscc,1.105.0,inspectorv2,awscc_inspectorv2_cis_scan_configuration
+awscc,1.105.0,inspectorv2,awscc_inspectorv2_code_security_integration
+awscc,1.105.0,inspectorv2,awscc_inspectorv2_code_security_scan_configuration
+awscc,1.105.0,inspectorv2,awscc_inspectorv2_connector
+awscc,1.105.0,inspectorv2,awscc_inspectorv2_filter
+awscc,1.105.0,interconnect,awscc_interconnect_connection
+awscc,1.105.0,internetmonitor,awscc_internetmonitor_monitor
+awscc,1.105.0,invoicing,awscc_invoicing_invoice_unit
+awscc,1.105.0,invoicing,awscc_invoicing_procurement_portal_preference
+awscc,1.105.0,iot,awscc_iot_account_audit_configuration
+awscc,1.105.0,iot,awscc_iot_authorizer
+awscc,1.105.0,iot,awscc_iot_billing_group
+awscc,1.105.0,iot,awscc_iot_ca_certificate
+awscc,1.105.0,iot,awscc_iot_certificate
+awscc,1.105.0,iot,awscc_iot_certificate_provider
+awscc,1.105.0,iot,awscc_iot_command
+awscc,1.105.0,iot,awscc_iot_custom_metric
+awscc,1.105.0,iot,awscc_iot_dimension
+awscc,1.105.0,iot,awscc_iot_domain_configuration
+awscc,1.105.0,iot,awscc_iot_encryption_configuration
+awscc,1.105.0,iot,awscc_iot_fleet_metric
+awscc,1.105.0,iot,awscc_iot_job
+awscc,1.105.0,iot,awscc_iot_job_template
+awscc,1.105.0,iot,awscc_iot_logging
+awscc,1.105.0,iot,awscc_iot_mitigation_action
+awscc,1.105.0,iot,awscc_iot_policy
+awscc,1.105.0,iot,awscc_iot_policy_principal_attachment
+awscc,1.105.0,iot,awscc_iot_provisioning_template
+awscc,1.105.0,iot,awscc_iot_resource_specific_logging
+awscc,1.105.0,iot,awscc_iot_role_alias
+awscc,1.105.0,iot,awscc_iot_scheduled_audit
+awscc,1.105.0,iot,awscc_iot_security_profile
+awscc,1.105.0,iot,awscc_iot_software_package
+awscc,1.105.0,iot,awscc_iot_software_package_version
+awscc,1.105.0,iot,awscc_iot_stream
+awscc,1.105.0,iot,awscc_iot_thing
+awscc,1.105.0,iot,awscc_iot_thing_group
+awscc,1.105.0,iot,awscc_iot_thing_principal_attachment
+awscc,1.105.0,iot,awscc_iot_thing_type
+awscc,1.105.0,iot,awscc_iot_topic_rule
+awscc,1.105.0,iot,awscc_iot_topic_rule_destination
+awscc,1.105.0,iotanalytics,awscc_iotanalytics_channel
+awscc,1.105.0,iotanalytics,awscc_iotanalytics_dataset
+awscc,1.105.0,iotanalytics,awscc_iotanalytics_datastore
+awscc,1.105.0,iotanalytics,awscc_iotanalytics_pipeline
+awscc,1.105.0,iotcoredeviceadvisor,awscc_iotcoredeviceadvisor_suite_definition
+awscc,1.105.0,iotevents,awscc_iotevents_alarm_model
+awscc,1.105.0,iotevents,awscc_iotevents_detector_model
+awscc,1.105.0,iotevents,awscc_iotevents_input
+awscc,1.105.0,iotfleethub,awscc_iotfleethub_application
+awscc,1.105.0,iotfleetwise,awscc_iotfleetwise_campaign
+awscc,1.105.0,iotfleetwise,awscc_iotfleetwise_fleet
+awscc,1.105.0,iotfleetwise,awscc_iotfleetwise_model_manifest
+awscc,1.105.0,iotfleetwise,awscc_iotfleetwise_signal_catalog
+awscc,1.105.0,iotfleetwise,awscc_iotfleetwise_state_template
+awscc,1.105.0,iotfleetwise,awscc_iotfleetwise_vehicle
+awscc,1.105.0,iotsecuretunneling,awscc_iotsecuretunneling_tunnel
+awscc,1.105.0,iotsitewise,awscc_iotsitewise_access_policy
+awscc,1.105.0,iotsitewise,awscc_iotsitewise_application
+awscc,1.105.0,iotsitewise,awscc_iotsitewise_asset
+awscc,1.105.0,iotsitewise,awscc_iotsitewise_asset_model
+awscc,1.105.0,iotsitewise,awscc_iotsitewise_dashboard
+awscc,1.105.0,iotsitewise,awscc_iotsitewise_dataset
+awscc,1.105.0,iotsitewise,awscc_iotsitewise_gateway
+awscc,1.105.0,iotsitewise,awscc_iotsitewise_pipeline
+awscc,1.105.0,iotsitewise,awscc_iotsitewise_portal
+awscc,1.105.0,iotsitewise,awscc_iotsitewise_project
+awscc,1.105.0,iotsitewise,awscc_iotsitewise_task
+awscc,1.105.0,iotsitewise,awscc_iotsitewise_workspace
+awscc,1.105.0,iottwinmaker,awscc_iottwinmaker_scene
+awscc,1.105.0,iottwinmaker,awscc_iottwinmaker_sync_job
+awscc,1.105.0,iottwinmaker,awscc_iottwinmaker_workspace
+awscc,1.105.0,iotwireless,awscc_iotwireless_destination
+awscc,1.105.0,iotwireless,awscc_iotwireless_device_profile
+awscc,1.105.0,iotwireless,awscc_iotwireless_fuota_task
+awscc,1.105.0,iotwireless,awscc_iotwireless_multicast_group
+awscc,1.105.0,iotwireless,awscc_iotwireless_network_analyzer_configuration
+awscc,1.105.0,iotwireless,awscc_iotwireless_partner_account
+awscc,1.105.0,iotwireless,awscc_iotwireless_service_profile
+awscc,1.105.0,iotwireless,awscc_iotwireless_task_definition
+awscc,1.105.0,iotwireless,awscc_iotwireless_wireless_device
+awscc,1.105.0,iotwireless,awscc_iotwireless_wireless_device_import_task
+awscc,1.105.0,iotwireless,awscc_iotwireless_wireless_gateway
+awscc,1.105.0,ivs,awscc_ivs_ad_configuration
+awscc,1.105.0,ivs,awscc_ivs_channel
+awscc,1.105.0,ivs,awscc_ivs_encoder_configuration
+awscc,1.105.0,ivs,awscc_ivs_ingest_configuration
+awscc,1.105.0,ivs,awscc_ivs_playback_key_pair
+awscc,1.105.0,ivs,awscc_ivs_playback_restriction_policy
+awscc,1.105.0,ivs,awscc_ivs_public_key
+awscc,1.105.0,ivs,awscc_ivs_recording_configuration
+awscc,1.105.0,ivs,awscc_ivs_stage
+awscc,1.105.0,ivs,awscc_ivs_storage_configuration
+awscc,1.105.0,ivs,awscc_ivs_stream_key
+awscc,1.105.0,ivschat,awscc_ivschat_logging_configuration
+awscc,1.105.0,ivschat,awscc_ivschat_room
+awscc,1.105.0,kafkaconnect,awscc_kafkaconnect_connector
+awscc,1.105.0,kafkaconnect,awscc_kafkaconnect_custom_plugin
+awscc,1.105.0,kafkaconnect,awscc_kafkaconnect_worker_configuration
+awscc,1.105.0,kendra,awscc_kendra_data_source
+awscc,1.105.0,kendra,awscc_kendra_faq
+awscc,1.105.0,kendra,awscc_kendra_featured_results_set
+awscc,1.105.0,kendra,awscc_kendra_index
+awscc,1.105.0,kendra,awscc_kendra_query_suggestions_block_list
+awscc,1.105.0,kendra,awscc_kendra_thesaurus
+awscc,1.105.0,kendraranking,awscc_kendraranking_execution_plan
+awscc,1.105.0,kinesis,awscc_kinesis_channel
+awscc,1.105.0,kinesis,awscc_kinesis_resource_policy
+awscc,1.105.0,kinesis,awscc_kinesis_stream
+awscc,1.105.0,kinesis,awscc_kinesis_stream_consumer
+awscc,1.105.0,kinesisanalyticsv2,awscc_kinesisanalyticsv2_application
+awscc,1.105.0,kinesisfirehose,awscc_kinesisfirehose_delivery_stream
+awscc,1.105.0,kinesisvideo,awscc_kinesisvideo_signaling_channel
+awscc,1.105.0,kinesisvideo,awscc_kinesisvideo_stream
+awscc,1.105.0,kms,awscc_kms_alias
+awscc,1.105.0,kms,awscc_kms_key
+awscc,1.105.0,kms,awscc_kms_replica_key
+awscc,1.105.0,lakeformation,awscc_lakeformation_data_cells_filter
+awscc,1.105.0,lakeformation,awscc_lakeformation_principal_permissions
+awscc,1.105.0,lakeformation,awscc_lakeformation_tag
+awscc,1.105.0,lakeformation,awscc_lakeformation_tag_association
+awscc,1.105.0,lambda,awscc_lambda_alias
+awscc,1.105.0,lambda,awscc_lambda_capacity_provider
+awscc,1.105.0,lambda,awscc_lambda_code_signing_config
+awscc,1.105.0,lambda,awscc_lambda_event_invoke_config
+awscc,1.105.0,lambda,awscc_lambda_event_source_mapping
+awscc,1.105.0,lambda,awscc_lambda_function
+awscc,1.105.0,lambda,awscc_lambda_layer_version
+awscc,1.105.0,lambda,awscc_lambda_layer_version_permission
+awscc,1.105.0,lambda,awscc_lambda_microvm_image
+awscc,1.105.0,lambda,awscc_lambda_network_connector
+awscc,1.105.0,lambda,awscc_lambda_permission
+awscc,1.105.0,lambda,awscc_lambda_resource_policy
+awscc,1.105.0,lambda,awscc_lambda_url
+awscc,1.105.0,lambda,awscc_lambda_version
+awscc,1.105.0,lambda,awscc_lambda_web_function
+awscc,1.105.0,lambda,awscc_lambda_web_function_endpoint
+awscc,1.105.0,lambda,awscc_lambda_web_function_revision
+awscc,1.105.0,launchwizard,awscc_launchwizard_deployment
+awscc,1.105.0,lex,awscc_lex_bot
+awscc,1.105.0,lex,awscc_lex_bot_alias
+awscc,1.105.0,lex,awscc_lex_bot_version
+awscc,1.105.0,lex,awscc_lex_resource_policy
+awscc,1.105.0,licensemanager,awscc_licensemanager_grant
+awscc,1.105.0,licensemanager,awscc_licensemanager_license
+awscc,1.105.0,licensemanager,awscc_licensemanager_license_asset_group
+awscc,1.105.0,licensemanager,awscc_licensemanager_license_asset_rule_set
+awscc,1.105.0,licensemanager,awscc_licensemanager_report_generator
+awscc,1.105.0,lightsail,awscc_lightsail_alarm
+awscc,1.105.0,lightsail,awscc_lightsail_bucket
+awscc,1.105.0,lightsail,awscc_lightsail_certificate
+awscc,1.105.0,lightsail,awscc_lightsail_contact_method
+awscc,1.105.0,lightsail,awscc_lightsail_container
+awscc,1.105.0,lightsail,awscc_lightsail_database
+awscc,1.105.0,lightsail,awscc_lightsail_database_snapshot
+awscc,1.105.0,lightsail,awscc_lightsail_disk
+awscc,1.105.0,lightsail,awscc_lightsail_disk_snapshot
+awscc,1.105.0,lightsail,awscc_lightsail_distribution
+awscc,1.105.0,lightsail,awscc_lightsail_domain
+awscc,1.105.0,lightsail,awscc_lightsail_instance
+awscc,1.105.0,lightsail,awscc_lightsail_instance_snapshot
+awscc,1.105.0,lightsail,awscc_lightsail_key_pair
+awscc,1.105.0,lightsail,awscc_lightsail_load_balancer
+awscc,1.105.0,lightsail,awscc_lightsail_load_balancer_tls_certificate
+awscc,1.105.0,lightsail,awscc_lightsail_static_ip
+awscc,1.105.0,location,awscc_location_api_key
+awscc,1.105.0,location,awscc_location_geofence_collection
+awscc,1.105.0,location,awscc_location_map
+awscc,1.105.0,location,awscc_location_place_index
+awscc,1.105.0,location,awscc_location_route_calculator
+awscc,1.105.0,location,awscc_location_tracker
+awscc,1.105.0,location,awscc_location_tracker_consumer
+awscc,1.105.0,logs,awscc_logs_account_policy
+awscc,1.105.0,logs,awscc_logs_delivery
+awscc,1.105.0,logs,awscc_logs_delivery_destination
+awscc,1.105.0,logs,awscc_logs_delivery_source
+awscc,1.105.0,logs,awscc_logs_destination
+awscc,1.105.0,logs,awscc_logs_integration
+awscc,1.105.0,logs,awscc_logs_log_anomaly_detector
+awscc,1.105.0,logs,awscc_logs_log_group
+awscc,1.105.0,logs,awscc_logs_log_stream
+awscc,1.105.0,logs,awscc_logs_metric_filter
+awscc,1.105.0,logs,awscc_logs_query_definition
+awscc,1.105.0,logs,awscc_logs_resource_policy
+awscc,1.105.0,logs,awscc_logs_scheduled_query
+awscc,1.105.0,logs,awscc_logs_storage_tier_policy
+awscc,1.105.0,logs,awscc_logs_subscription_filter
+awscc,1.105.0,lookoutequipment,awscc_lookoutequipment_inference_scheduler
+awscc,1.105.0,lookoutmetrics,awscc_lookoutmetrics_alert
+awscc,1.105.0,lookoutmetrics,awscc_lookoutmetrics_anomaly_detector
+awscc,1.105.0,lookoutvision,awscc_lookoutvision_project
+awscc,1.105.0,m2,awscc_m2_application
+awscc,1.105.0,m2,awscc_m2_deployment
+awscc,1.105.0,m2,awscc_m2_environment
+awscc,1.105.0,macie,awscc_macie_allow_list
+awscc,1.105.0,macie,awscc_macie_custom_data_identifier
+awscc,1.105.0,macie,awscc_macie_findings_filter
+awscc,1.105.0,macie,awscc_macie_member
+awscc,1.105.0,macie,awscc_macie_session
+awscc,1.105.0,managedblockchain,awscc_managedblockchain_accessor
+awscc,1.105.0,mediaconnect,awscc_mediaconnect_bridge
+awscc,1.105.0,mediaconnect,awscc_mediaconnect_bridge_output
+awscc,1.105.0,mediaconnect,awscc_mediaconnect_bridge_source
+awscc,1.105.0,mediaconnect,awscc_mediaconnect_flow
+awscc,1.105.0,mediaconnect,awscc_mediaconnect_flow_entitlement
+awscc,1.105.0,mediaconnect,awscc_mediaconnect_flow_media_stream
+awscc,1.105.0,mediaconnect,awscc_mediaconnect_flow_output
+awscc,1.105.0,mediaconnect,awscc_mediaconnect_flow_source
+awscc,1.105.0,mediaconnect,awscc_mediaconnect_flow_vpc_interface
+awscc,1.105.0,mediaconnect,awscc_mediaconnect_gateway
+awscc,1.105.0,mediaconnect,awscc_mediaconnect_router_input
+awscc,1.105.0,mediaconnect,awscc_mediaconnect_router_network_interface
+awscc,1.105.0,mediaconnect,awscc_mediaconnect_router_output
+awscc,1.105.0,mediaconvert,awscc_mediaconvert_job_template
+awscc,1.105.0,mediaconvert,awscc_mediaconvert_preset
+awscc,1.105.0,mediaconvert,awscc_mediaconvert_queue
+awscc,1.105.0,medialive,awscc_medialive_channel_placement_group
+awscc,1.105.0,medialive,awscc_medialive_cloudwatch_alarm_template
+awscc,1.105.0,medialive,awscc_medialive_cloudwatch_alarm_template_group
+awscc,1.105.0,medialive,awscc_medialive_cluster
+awscc,1.105.0,medialive,awscc_medialive_event_bridge_rule_template
+awscc,1.105.0,medialive,awscc_medialive_event_bridge_rule_template_group
+awscc,1.105.0,medialive,awscc_medialive_multiplex
+awscc,1.105.0,medialive,awscc_medialive_multiplexprogram
+awscc,1.105.0,medialive,awscc_medialive_network
+awscc,1.105.0,medialive,awscc_medialive_node
+awscc,1.105.0,medialive,awscc_medialive_sdi_source
+awscc,1.105.0,medialive,awscc_medialive_signal_map
+awscc,1.105.0,mediapackage,awscc_mediapackage_asset
+awscc,1.105.0,mediapackage,awscc_mediapackage_packaging_configuration
+awscc,1.105.0,mediapackage,awscc_mediapackage_packaging_group
+awscc,1.105.0,mediapackagev2,awscc_mediapackagev2_channel
+awscc,1.105.0,mediapackagev2,awscc_mediapackagev2_channel_group
+awscc,1.105.0,mediapackagev2,awscc_mediapackagev2_channel_policy
+awscc,1.105.0,mediapackagev2,awscc_mediapackagev2_origin_endpoint
+awscc,1.105.0,mediapackagev2,awscc_mediapackagev2_origin_endpoint_policy
+awscc,1.105.0,mediatailor,awscc_mediatailor_channel
+awscc,1.105.0,mediatailor,awscc_mediatailor_channel_policy
+awscc,1.105.0,mediatailor,awscc_mediatailor_function
+awscc,1.105.0,mediatailor,awscc_mediatailor_live_source
+awscc,1.105.0,mediatailor,awscc_mediatailor_prefetch_schedule
+awscc,1.105.0,mediatailor,awscc_mediatailor_program
+awscc,1.105.0,mediatailor,awscc_mediatailor_source_location
+awscc,1.105.0,mediatailor,awscc_mediatailor_vod_source
+awscc,1.105.0,memorydb,awscc_memorydb_acl
+awscc,1.105.0,memorydb,awscc_memorydb_cluster
+awscc,1.105.0,memorydb,awscc_memorydb_multi_region_cluster
+awscc,1.105.0,memorydb,awscc_memorydb_parameter_group
+awscc,1.105.0,memorydb,awscc_memorydb_snapshot
+awscc,1.105.0,memorydb,awscc_memorydb_subnet_group
+awscc,1.105.0,memorydb,awscc_memorydb_user
+awscc,1.105.0,mgn,awscc_mgn_connector
+awscc,1.105.0,mgn,awscc_mgn_network_migration_definition
+awscc,1.105.0,mpa,awscc_mpa_identity_source
+awscc,1.105.0,msk,awscc_msk_batch_scram_secret
+awscc,1.105.0,msk,awscc_msk_channel
+awscc,1.105.0,msk,awscc_msk_cluster
+awscc,1.105.0,msk,awscc_msk_cluster_policy
+awscc,1.105.0,msk,awscc_msk_configuration
+awscc,1.105.0,msk,awscc_msk_replicator
+awscc,1.105.0,msk,awscc_msk_serverless_cluster
+awscc,1.105.0,msk,awscc_msk_topic
+awscc,1.105.0,msk,awscc_msk_vpc_connection
+awscc,1.105.0,mwaa,awscc_mwaa_environment
+awscc,1.105.0,mwaaserverless,awscc_mwaaserverless_workflow
+awscc,1.105.0,neptune,awscc_neptune_db_cluster
+awscc,1.105.0,neptune,awscc_neptune_db_cluster_parameter_group
+awscc,1.105.0,neptune,awscc_neptune_db_instance
+awscc,1.105.0,neptune,awscc_neptune_db_parameter_group
+awscc,1.105.0,neptune,awscc_neptune_db_subnet_group
+awscc,1.105.0,neptune,awscc_neptune_event_subscription
+awscc,1.105.0,neptune,awscc_neptune_global_cluster
+awscc,1.105.0,neptunegraph,awscc_neptunegraph_graph
+awscc,1.105.0,neptunegraph,awscc_neptunegraph_graph_snapshot
+awscc,1.105.0,neptunegraph,awscc_neptunegraph_private_graph_endpoint
+awscc,1.105.0,networkfirewall,awscc_networkfirewall_container_association
+awscc,1.105.0,networkfirewall,awscc_networkfirewall_firewall
+awscc,1.105.0,networkfirewall,awscc_networkfirewall_firewall_policy
+awscc,1.105.0,networkfirewall,awscc_networkfirewall_logging_configuration
+awscc,1.105.0,networkfirewall,awscc_networkfirewall_rule_group
+awscc,1.105.0,networkfirewall,awscc_networkfirewall_tls_inspection_configuration
+awscc,1.105.0,networkfirewall,awscc_networkfirewall_vpc_endpoint_association
+awscc,1.105.0,networkflowmonitor,awscc_networkflowmonitor_monitor
+awscc,1.105.0,networkflowmonitor,awscc_networkflowmonitor_scope
+awscc,1.105.0,networkmanager,awscc_networkmanager_connect_attachment
+awscc,1.105.0,networkmanager,awscc_networkmanager_connect_peer
+awscc,1.105.0,networkmanager,awscc_networkmanager_core_network
+awscc,1.105.0,networkmanager,awscc_networkmanager_core_network_prefix_list_association
+awscc,1.105.0,networkmanager,awscc_networkmanager_customer_gateway_association
+awscc,1.105.0,networkmanager,awscc_networkmanager_device
+awscc,1.105.0,networkmanager,awscc_networkmanager_direct_connect_gateway_attachment
+awscc,1.105.0,networkmanager,awscc_networkmanager_global_network
+awscc,1.105.0,networkmanager,awscc_networkmanager_link
+awscc,1.105.0,networkmanager,awscc_networkmanager_link_association
+awscc,1.105.0,networkmanager,awscc_networkmanager_site
+awscc,1.105.0,networkmanager,awscc_networkmanager_site_to_site_vpn_attachment
+awscc,1.105.0,networkmanager,awscc_networkmanager_transit_gateway_peering
+awscc,1.105.0,networkmanager,awscc_networkmanager_transit_gateway_registration
+awscc,1.105.0,networkmanager,awscc_networkmanager_transit_gateway_route_table_attachment
+awscc,1.105.0,networkmanager,awscc_networkmanager_vpc_attachment
+awscc,1.105.0,networkmonitor,awscc_networkmonitor_monitor
+awscc,1.105.0,networksecuritymanager,awscc_networksecuritymanager_deployment
+awscc,1.105.0,networksecuritymanager,awscc_networksecuritymanager_policy
+awscc,1.105.0,networksecuritymanager,awscc_networksecuritymanager_rule
+awscc,1.105.0,networksecuritymanager,awscc_networksecuritymanager_scope
+awscc,1.105.0,networksecuritymanager,awscc_networksecuritymanager_template
+awscc,1.105.0,nimblestudio,awscc_nimblestudio_launch_profile
+awscc,1.105.0,nimblestudio,awscc_nimblestudio_streaming_image
+awscc,1.105.0,nimblestudio,awscc_nimblestudio_studio
+awscc,1.105.0,nimblestudio,awscc_nimblestudio_studio_component
+awscc,1.105.0,notifications,awscc_notifications_channel_association
+awscc,1.105.0,notifications,awscc_notifications_event_rule
+awscc,1.105.0,notifications,awscc_notifications_managed_notification_account_contact_association
+awscc,1.105.0,notifications,awscc_notifications_managed_notification_additional_channel_association
+awscc,1.105.0,notifications,awscc_notifications_notification_configuration
+awscc,1.105.0,notifications,awscc_notifications_notification_hub
+awscc,1.105.0,notifications,awscc_notifications_organizational_unit_association
+awscc,1.105.0,notificationscontacts,awscc_notificationscontacts_email_contact
+awscc,1.105.0,oam,awscc_oam_link
+awscc,1.105.0,oam,awscc_oam_sink
+awscc,1.105.0,observabilityadmin,awscc_observabilityadmin_dataset_integration
+awscc,1.105.0,observabilityadmin,awscc_observabilityadmin_organization_centralization_rule
+awscc,1.105.0,observabilityadmin,awscc_observabilityadmin_organization_telemetry_rule
+awscc,1.105.0,observabilityadmin,awscc_observabilityadmin_s3_table_integration
+awscc,1.105.0,observabilityadmin,awscc_observabilityadmin_telemetry_enrichment
+awscc,1.105.0,observabilityadmin,awscc_observabilityadmin_telemetry_rule
+awscc,1.105.0,odb,awscc_odb_cloud_autonomous_vm_cluster
+awscc,1.105.0,odb,awscc_odb_cloud_exadata_infrastructure
+awscc,1.105.0,odb,awscc_odb_cloud_vm_cluster
+awscc,1.105.0,odb,awscc_odb_odb_network
+awscc,1.105.0,odb,awscc_odb_odb_peering_connection
+awscc,1.105.0,omics,awscc_omics_annotation_store
+awscc,1.105.0,omics,awscc_omics_configuration
+awscc,1.105.0,omics,awscc_omics_reference_store
+awscc,1.105.0,omics,awscc_omics_run_cache
+awscc,1.105.0,omics,awscc_omics_run_group
+awscc,1.105.0,omics,awscc_omics_sequence_store
+awscc,1.105.0,omics,awscc_omics_variant_store
+awscc,1.105.0,omics,awscc_omics_workflow
+awscc,1.105.0,omics,awscc_omics_workflow_version
+awscc,1.105.0,opensearch,awscc_opensearch_data_source
+awscc,1.105.0,opensearchserverless,awscc_opensearchserverless_access_policy
+awscc,1.105.0,opensearchserverless,awscc_opensearchserverless_collection
+awscc,1.105.0,opensearchserverless,awscc_opensearchserverless_collection_group
+awscc,1.105.0,opensearchserverless,awscc_opensearchserverless_collection_index
+awscc,1.105.0,opensearchserverless,awscc_opensearchserverless_lifecycle_policy
+awscc,1.105.0,opensearchserverless,awscc_opensearchserverless_security_config
+awscc,1.105.0,opensearchserverless,awscc_opensearchserverless_security_policy
+awscc,1.105.0,opensearchserverless,awscc_opensearchserverless_vpc_endpoint
+awscc,1.105.0,opensearchservice,awscc_opensearchservice_application
+awscc,1.105.0,opensearchservice,awscc_opensearchservice_domain
+awscc,1.105.0,opsworkscm,awscc_opsworkscm_server
+awscc,1.105.0,organizations,awscc_organizations_account
+awscc,1.105.0,organizations,awscc_organizations_organization
+awscc,1.105.0,organizations,awscc_organizations_organizational_unit
+awscc,1.105.0,organizations,awscc_organizations_policy
+awscc,1.105.0,organizations,awscc_organizations_resource_policy
+awscc,1.105.0,osis,awscc_osis_pipeline
+awscc,1.105.0,outposts,awscc_outposts_outpost
+awscc,1.105.0,outposts,awscc_outposts_site
+awscc,1.105.0,panorama,awscc_panorama_application_instance
+awscc,1.105.0,panorama,awscc_panorama_package
+awscc,1.105.0,panorama,awscc_panorama_package_version
+awscc,1.105.0,paymentcryptography,awscc_paymentcryptography_alias
+awscc,1.105.0,paymentcryptography,awscc_paymentcryptography_key
+awscc,1.105.0,pcaconnectorad,awscc_pcaconnectorad_connector
+awscc,1.105.0,pcaconnectorad,awscc_pcaconnectorad_directory_registration
+awscc,1.105.0,pcaconnectorad,awscc_pcaconnectorad_service_principal_name
+awscc,1.105.0,pcaconnectorad,awscc_pcaconnectorad_template
+awscc,1.105.0,pcaconnectorad,awscc_pcaconnectorad_template_group_access_control_entry
+awscc,1.105.0,pcaconnectorscep,awscc_pcaconnectorscep_challenge
+awscc,1.105.0,pcaconnectorscep,awscc_pcaconnectorscep_connector
+awscc,1.105.0,pcs,awscc_pcs_cluster
+awscc,1.105.0,pcs,awscc_pcs_compute_node_group
+awscc,1.105.0,pcs,awscc_pcs_queue
+awscc,1.105.0,personalize,awscc_personalize_campaign
+awscc,1.105.0,personalize,awscc_personalize_dataset
+awscc,1.105.0,personalize,awscc_personalize_dataset_group
+awscc,1.105.0,personalize,awscc_personalize_event_tracker
+awscc,1.105.0,personalize,awscc_personalize_filter
+awscc,1.105.0,personalize,awscc_personalize_metric_attribution
+awscc,1.105.0,personalize,awscc_personalize_schema
+awscc,1.105.0,personalize,awscc_personalize_solution
+awscc,1.105.0,pi,awscc_pi_perf_reports
+awscc,1.105.0,pinpoint,awscc_pinpoint_in_app_template
+awscc,1.105.0,pipes,awscc_pipes_pipe
+awscc,1.105.0,pricingplanmanager,awscc_pricingplanmanager_subscription
+awscc,1.105.0,proton,awscc_proton_environment_account_connection
+awscc,1.105.0,proton,awscc_proton_environment_template
+awscc,1.105.0,proton,awscc_proton_service_template
+awscc,1.105.0,qbusiness,awscc_qbusiness_application
+awscc,1.105.0,qbusiness,awscc_qbusiness_data_source
+awscc,1.105.0,qbusiness,awscc_qbusiness_index
+awscc,1.105.0,qbusiness,awscc_qbusiness_permission
+awscc,1.105.0,qbusiness,awscc_qbusiness_plugin
+awscc,1.105.0,qbusiness,awscc_qbusiness_retriever
+awscc,1.105.0,qbusiness,awscc_qbusiness_web_experience
+awscc,1.105.0,qldb,awscc_qldb_stream
+awscc,1.105.0,quicksight,awscc_quicksight_action_connector
+awscc,1.105.0,quicksight,awscc_quicksight_agent
+awscc,1.105.0,quicksight,awscc_quicksight_analysis
+awscc,1.105.0,quicksight,awscc_quicksight_custom_permissions
+awscc,1.105.0,quicksight,awscc_quicksight_customization
+awscc,1.105.0,quicksight,awscc_quicksight_dashboard
+awscc,1.105.0,quicksight,awscc_quicksight_data_set
+awscc,1.105.0,quicksight,awscc_quicksight_data_source
+awscc,1.105.0,quicksight,awscc_quicksight_dlp_setting
+awscc,1.105.0,quicksight,awscc_quicksight_flow
+awscc,1.105.0,quicksight,awscc_quicksight_folder
+awscc,1.105.0,quicksight,awscc_quicksight_knowledge_base
+awscc,1.105.0,quicksight,awscc_quicksight_limits_profile
+awscc,1.105.0,quicksight,awscc_quicksight_o_auth_client_application
+awscc,1.105.0,quicksight,awscc_quicksight_refresh_schedule
+awscc,1.105.0,quicksight,awscc_quicksight_space
+awscc,1.105.0,quicksight,awscc_quicksight_template
+awscc,1.105.0,quicksight,awscc_quicksight_theme
+awscc,1.105.0,quicksight,awscc_quicksight_topic
+awscc,1.105.0,quicksight,awscc_quicksight_topic_v2
+awscc,1.105.0,quicksight,awscc_quicksight_vpc_connection
+awscc,1.105.0,ram,awscc_ram_permission
+awscc,1.105.0,ram,awscc_ram_permission_association
+awscc,1.105.0,ram,awscc_ram_principal_association
+awscc,1.105.0,ram,awscc_ram_resource_association
+awscc,1.105.0,ram,awscc_ram_resource_share
+awscc,1.105.0,ram,awscc_ram_source_association
+awscc,1.105.0,rbin,awscc_rbin_rule
+awscc,1.105.0,rds,awscc_rds_cluster_snapshot
+awscc,1.105.0,rds,awscc_rds_custom_db_engine_version
+awscc,1.105.0,rds,awscc_rds_db_cluster
+awscc,1.105.0,rds,awscc_rds_db_cluster_endpoint
+awscc,1.105.0,rds,awscc_rds_db_cluster_parameter_group
+awscc,1.105.0,rds,awscc_rds_db_instance
+awscc,1.105.0,rds,awscc_rds_db_parameter_group
+awscc,1.105.0,rds,awscc_rds_db_proxy
+awscc,1.105.0,rds,awscc_rds_db_proxy_endpoint
+awscc,1.105.0,rds,awscc_rds_db_proxy_target_group
+awscc,1.105.0,rds,awscc_rds_db_shard_group
+awscc,1.105.0,rds,awscc_rds_db_snapshot
+awscc,1.105.0,rds,awscc_rds_db_subnet_group
+awscc,1.105.0,rds,awscc_rds_event_subscription
+awscc,1.105.0,rds,awscc_rds_global_cluster
+awscc,1.105.0,rds,awscc_rds_integration
+awscc,1.105.0,rds,awscc_rds_option_group
+awscc,1.105.0,redshift,awscc_redshift_cluster
+awscc,1.105.0,redshift,awscc_redshift_cluster_parameter_group
+awscc,1.105.0,redshift,awscc_redshift_cluster_subnet_group
+awscc,1.105.0,redshift,awscc_redshift_endpoint_access
+awscc,1.105.0,redshift,awscc_redshift_endpoint_authorization
+awscc,1.105.0,redshift,awscc_redshift_event_subscription
+awscc,1.105.0,redshift,awscc_redshift_integration
+awscc,1.105.0,redshift,awscc_redshift_qev2_idc_application
+awscc,1.105.0,redshift,awscc_redshift_redshift_idc_application
+awscc,1.105.0,redshift,awscc_redshift_scheduled_action
+awscc,1.105.0,redshift,awscc_redshift_snapshot
+awscc,1.105.0,redshift,awscc_redshift_snapshot_copy_grant
+awscc,1.105.0,redshift,awscc_redshift_snapshot_schedule
+awscc,1.105.0,redshift,awscc_redshift_usage_limit
+awscc,1.105.0,redshiftserverless,awscc_redshiftserverless_namespace
+awscc,1.105.0,redshiftserverless,awscc_redshiftserverless_snapshot
+awscc,1.105.0,redshiftserverless,awscc_redshiftserverless_workgroup
+awscc,1.105.0,refactorspaces,awscc_refactorspaces_application
+awscc,1.105.0,refactorspaces,awscc_refactorspaces_environment
+awscc,1.105.0,refactorspaces,awscc_refactorspaces_route
+awscc,1.105.0,refactorspaces,awscc_refactorspaces_service
+awscc,1.105.0,rekognition,awscc_rekognition_collection
+awscc,1.105.0,rekognition,awscc_rekognition_dataset
+awscc,1.105.0,rekognition,awscc_rekognition_project
+awscc,1.105.0,resiliencehub,awscc_resiliencehub_app
+awscc,1.105.0,resiliencehub,awscc_resiliencehub_resiliency_policy
+awscc,1.105.0,resiliencehubv2,awscc_resiliencehubv2_policy
+awscc,1.105.0,resiliencehubv2,awscc_resiliencehubv2_service
+awscc,1.105.0,resiliencehubv2,awscc_resiliencehubv2_service_function
+awscc,1.105.0,resiliencehubv2,awscc_resiliencehubv2_system
+awscc,1.105.0,resiliencehubv2,awscc_resiliencehubv2_user_journey
+awscc,1.105.0,resourceexplorer2,awscc_resourceexplorer2_default_view_association
+awscc,1.105.0,resourceexplorer2,awscc_resourceexplorer2_index
+awscc,1.105.0,resourceexplorer2,awscc_resourceexplorer2_view
+awscc,1.105.0,resourcegroups,awscc_resourcegroups_group
+awscc,1.105.0,resourcegroups,awscc_resourcegroups_tag_sync_task
+awscc,1.105.0,robomaker,awscc_robomaker_fleet
+awscc,1.105.0,robomaker,awscc_robomaker_robot
+awscc,1.105.0,robomaker,awscc_robomaker_robot_application
+awscc,1.105.0,robomaker,awscc_robomaker_robot_application_version
+awscc,1.105.0,robomaker,awscc_robomaker_simulation_application
+awscc,1.105.0,robomaker,awscc_robomaker_simulation_application_version
+awscc,1.105.0,rolesanywhere,awscc_rolesanywhere_crl
+awscc,1.105.0,rolesanywhere,awscc_rolesanywhere_profile
+awscc,1.105.0,rolesanywhere,awscc_rolesanywhere_trust_anchor
+awscc,1.105.0,route53,awscc_route53_cidr_collection
+awscc,1.105.0,route53,awscc_route53_delegation_set
+awscc,1.105.0,route53,awscc_route53_dnssec
+awscc,1.105.0,route53,awscc_route53_health_check
+awscc,1.105.0,route53,awscc_route53_hosted_zone
+awscc,1.105.0,route53,awscc_route53_key_signing_key
+awscc,1.105.0,route53,awscc_route53_query_logging_config
+awscc,1.105.0,route53,awscc_route53_record_set
+awscc,1.105.0,route53,awscc_route53_traffic_policy
+awscc,1.105.0,route53,awscc_route53_traffic_policy_instance
+awscc,1.105.0,route53globalresolver,awscc_route53globalresolver_access_source
+awscc,1.105.0,route53globalresolver,awscc_route53globalresolver_access_token
+awscc,1.105.0,route53globalresolver,awscc_route53globalresolver_dns_view
+awscc,1.105.0,route53globalresolver,awscc_route53globalresolver_firewall_domain_list
+awscc,1.105.0,route53globalresolver,awscc_route53globalresolver_firewall_rule
+awscc,1.105.0,route53globalresolver,awscc_route53globalresolver_global_resolver
+awscc,1.105.0,route53globalresolver,awscc_route53globalresolver_hosted_zone_association
+awscc,1.105.0,route53profiles,awscc_route53profiles_profile
+awscc,1.105.0,route53profiles,awscc_route53profiles_profile_association
+awscc,1.105.0,route53profiles,awscc_route53profiles_profile_resource_association
+awscc,1.105.0,route53recoverycontrol,awscc_route53recoverycontrol_cluster
+awscc,1.105.0,route53recoverycontrol,awscc_route53recoverycontrol_control_panel
+awscc,1.105.0,route53recoverycontrol,awscc_route53recoverycontrol_routing_control
+awscc,1.105.0,route53recoverycontrol,awscc_route53recoverycontrol_safety_rule
+awscc,1.105.0,route53recoveryreadiness,awscc_route53recoveryreadiness_cell
+awscc,1.105.0,route53recoveryreadiness,awscc_route53recoveryreadiness_readiness_check
+awscc,1.105.0,route53recoveryreadiness,awscc_route53recoveryreadiness_recovery_group
+awscc,1.105.0,route53recoveryreadiness,awscc_route53recoveryreadiness_resource_set
+awscc,1.105.0,route53resolver,awscc_route53resolver_firewall_domain_list
+awscc,1.105.0,route53resolver,awscc_route53resolver_firewall_rule_group
+awscc,1.105.0,route53resolver,awscc_route53resolver_firewall_rule_group_association
+awscc,1.105.0,route53resolver,awscc_route53resolver_outpost_resolver
+awscc,1.105.0,route53resolver,awscc_route53resolver_resolver_config
+awscc,1.105.0,route53resolver,awscc_route53resolver_resolver_dnssec_config
+awscc,1.105.0,route53resolver,awscc_route53resolver_resolver_endpoint
+awscc,1.105.0,route53resolver,awscc_route53resolver_resolver_query_logging_config
+awscc,1.105.0,route53resolver,awscc_route53resolver_resolver_query_logging_config_association
+awscc,1.105.0,route53resolver,awscc_route53resolver_resolver_rule
+awscc,1.105.0,route53resolver,awscc_route53resolver_resolver_rule_association
+awscc,1.105.0,rtbfabric,awscc_rtbfabric_inbound_external_link
+awscc,1.105.0,rtbfabric,awscc_rtbfabric_link
+awscc,1.105.0,rtbfabric,awscc_rtbfabric_link_routing_rule
+awscc,1.105.0,rtbfabric,awscc_rtbfabric_outbound_external_link
+awscc,1.105.0,rtbfabric,awscc_rtbfabric_requester_gateway
+awscc,1.105.0,rtbfabric,awscc_rtbfabric_responder_gateway
+awscc,1.105.0,rum,awscc_rum_app_monitor
+awscc,1.105.0,s3,awscc_s3_access_grant
+awscc,1.105.0,s3,awscc_s3_access_grants_instance
+awscc,1.105.0,s3,awscc_s3_access_grants_location
+awscc,1.105.0,s3,awscc_s3_access_point
+awscc,1.105.0,s3,awscc_s3_bucket
+awscc,1.105.0,s3,awscc_s3_bucket_policy
+awscc,1.105.0,s3,awscc_s3_multi_region_access_point
+awscc,1.105.0,s3,awscc_s3_multi_region_access_point_policy
+awscc,1.105.0,s3,awscc_s3_storage_lens
+awscc,1.105.0,s3,awscc_s3_storage_lens_group
+awscc,1.105.0,s3express,awscc_s3express_access_point
+awscc,1.105.0,s3express,awscc_s3express_bucket_policy
+awscc,1.105.0,s3express,awscc_s3express_directory_bucket
+awscc,1.105.0,s3files,awscc_s3files_access_point
+awscc,1.105.0,s3files,awscc_s3files_file_system
+awscc,1.105.0,s3files,awscc_s3files_file_system_policy
+awscc,1.105.0,s3files,awscc_s3files_mount_target
+awscc,1.105.0,s3objectlambda,awscc_s3objectlambda_access_point
+awscc,1.105.0,s3objectlambda,awscc_s3objectlambda_access_point_policy
+awscc,1.105.0,s3outposts,awscc_s3outposts_access_point
+awscc,1.105.0,s3outposts,awscc_s3outposts_bucket
+awscc,1.105.0,s3outposts,awscc_s3outposts_bucket_policy
+awscc,1.105.0,s3outposts,awscc_s3outposts_endpoint
+awscc,1.105.0,s3tables,awscc_s3tables_namespace
+awscc,1.105.0,s3tables,awscc_s3tables_table
+awscc,1.105.0,s3tables,awscc_s3tables_table_bucket
+awscc,1.105.0,s3tables,awscc_s3tables_table_bucket_policy
+awscc,1.105.0,s3tables,awscc_s3tables_table_policy
+awscc,1.105.0,s3vectors,awscc_s3vectors_index
+awscc,1.105.0,s3vectors,awscc_s3vectors_vector_bucket
+awscc,1.105.0,s3vectors,awscc_s3vectors_vector_bucket_policy
+awscc,1.105.0,sagemaker,awscc_sagemaker_action
+awscc,1.105.0,sagemaker,awscc_sagemaker_ai_workload_config
+awscc,1.105.0,sagemaker,awscc_sagemaker_algorithm
+awscc,1.105.0,sagemaker,awscc_sagemaker_app
+awscc,1.105.0,sagemaker,awscc_sagemaker_app_image_config
+awscc,1.105.0,sagemaker,awscc_sagemaker_artifact
+awscc,1.105.0,sagemaker,awscc_sagemaker_cluster
+awscc,1.105.0,sagemaker,awscc_sagemaker_cluster_scheduler_config
+awscc,1.105.0,sagemaker,awscc_sagemaker_code_repository
+awscc,1.105.0,sagemaker,awscc_sagemaker_context
+awscc,1.105.0,sagemaker,awscc_sagemaker_data_quality_job_definition
+awscc,1.105.0,sagemaker,awscc_sagemaker_device
+awscc,1.105.0,sagemaker,awscc_sagemaker_device_fleet
+awscc,1.105.0,sagemaker,awscc_sagemaker_domain
+awscc,1.105.0,sagemaker,awscc_sagemaker_endpoint
+awscc,1.105.0,sagemaker,awscc_sagemaker_endpoint_config
+awscc,1.105.0,sagemaker,awscc_sagemaker_experiment
+awscc,1.105.0,sagemaker,awscc_sagemaker_experiment_trial_component
+awscc,1.105.0,sagemaker,awscc_sagemaker_feature_group
+awscc,1.105.0,sagemaker,awscc_sagemaker_hub
+awscc,1.105.0,sagemaker,awscc_sagemaker_human_task_ui
+awscc,1.105.0,sagemaker,awscc_sagemaker_image
+awscc,1.105.0,sagemaker,awscc_sagemaker_image_version
+awscc,1.105.0,sagemaker,awscc_sagemaker_inference_component
+awscc,1.105.0,sagemaker,awscc_sagemaker_inference_experiment
+awscc,1.105.0,sagemaker,awscc_sagemaker_mlflow_app
+awscc,1.105.0,sagemaker,awscc_sagemaker_mlflow_tracking_server
+awscc,1.105.0,sagemaker,awscc_sagemaker_model
+awscc,1.105.0,sagemaker,awscc_sagemaker_model_bias_job_definition
+awscc,1.105.0,sagemaker,awscc_sagemaker_model_explainability_job_definition
+awscc,1.105.0,sagemaker,awscc_sagemaker_model_package
+awscc,1.105.0,sagemaker,awscc_sagemaker_model_package_group
+awscc,1.105.0,sagemaker,awscc_sagemaker_model_quality_job_definition
+awscc,1.105.0,sagemaker,awscc_sagemaker_monitoring_schedule
+awscc,1.105.0,sagemaker,awscc_sagemaker_notebook_instance
+awscc,1.105.0,sagemaker,awscc_sagemaker_notebook_instance_lifecycle_config
+awscc,1.105.0,sagemaker,awscc_sagemaker_partner_app
+awscc,1.105.0,sagemaker,awscc_sagemaker_pipeline
+awscc,1.105.0,sagemaker,awscc_sagemaker_processing_job
+awscc,1.105.0,sagemaker,awscc_sagemaker_project
+awscc,1.105.0,sagemaker,awscc_sagemaker_space
+awscc,1.105.0,sagemaker,awscc_sagemaker_studio_lifecycle_config
+awscc,1.105.0,sagemaker,awscc_sagemaker_trial_component
+awscc,1.105.0,sagemaker,awscc_sagemaker_user_profile
+awscc,1.105.0,sagemaker,awscc_sagemaker_workforce
+awscc,1.105.0,sagemaker,awscc_sagemaker_workteam
+awscc,1.105.0,scheduler,awscc_scheduler_schedule
+awscc,1.105.0,scheduler,awscc_scheduler_schedule_group
+awscc,1.105.0,scn,awscc_scn_data_integration_flow
+awscc,1.105.0,scn,awscc_scn_dataset
+awscc,1.105.0,scn,awscc_scn_instance
+awscc,1.105.0,scn,awscc_scn_namespace
+awscc,1.105.0,sdb,awscc_sdb_domain
+awscc,1.105.0,secretsmanager,awscc_secretsmanager_resource_policy
+awscc,1.105.0,secretsmanager,awscc_secretsmanager_rotation_schedule
+awscc,1.105.0,secretsmanager,awscc_secretsmanager_secret
+awscc,1.105.0,secretsmanager,awscc_secretsmanager_secret_target_attachment
+awscc,1.105.0,securityagent,awscc_securityagent_agent_space
+awscc,1.105.0,securityagent,awscc_securityagent_application
+awscc,1.105.0,securityagent,awscc_securityagent_artifact
+awscc,1.105.0,securityagent,awscc_securityagent_pentest
+awscc,1.105.0,securityagent,awscc_securityagent_security_requirement_pack
+awscc,1.105.0,securityagent,awscc_securityagent_target_domain
+awscc,1.105.0,securityhub,awscc_securityhub_aggregator_v2
+awscc,1.105.0,securityhub,awscc_securityhub_automation_rule_v2
+awscc,1.105.0,securityhub,awscc_securityhub_configuration_policy
+awscc,1.105.0,securityhub,awscc_securityhub_connector
+awscc,1.105.0,securityhub,awscc_securityhub_connector_v2
+awscc,1.105.0,securityhub,awscc_securityhub_delegated_admin
+awscc,1.105.0,securityhub,awscc_securityhub_finding_aggregator
+awscc,1.105.0,securityhub,awscc_securityhub_hub
+awscc,1.105.0,securityhub,awscc_securityhub_hub_v2
+awscc,1.105.0,securityhub,awscc_securityhub_insight
+awscc,1.105.0,securityhub,awscc_securityhub_organization_configuration
+awscc,1.105.0,securityhub,awscc_securityhub_policy_association
+awscc,1.105.0,securityhub,awscc_securityhub_product_subscription
+awscc,1.105.0,securityhub,awscc_securityhub_security_control
+awscc,1.105.0,securityhub,awscc_securityhub_standard
+awscc,1.105.0,securitylake,awscc_securitylake_aws_log_source
+awscc,1.105.0,securitylake,awscc_securitylake_data_lake
+awscc,1.105.0,securitylake,awscc_securitylake_subscriber_notification
+awscc,1.105.0,serverlessrepo,awscc_serverlessrepo_application
+awscc,1.105.0,servicecatalog,awscc_servicecatalog_accepted_portfolio_share
+awscc,1.105.0,servicecatalog,awscc_servicecatalog_cloudformation_product
+awscc,1.105.0,servicecatalog,awscc_servicecatalog_cloudformation_provisioned_product
+awscc,1.105.0,servicecatalog,awscc_servicecatalog_launch_notification_constraint
+awscc,1.105.0,servicecatalog,awscc_servicecatalog_launch_role_constraint
+awscc,1.105.0,servicecatalog,awscc_servicecatalog_launch_template_constraint
+awscc,1.105.0,servicecatalog,awscc_servicecatalog_portfolio
+awscc,1.105.0,servicecatalog,awscc_servicecatalog_portfolio_principal_association
+awscc,1.105.0,servicecatalog,awscc_servicecatalog_portfolio_product_association
+awscc,1.105.0,servicecatalog,awscc_servicecatalog_portfolio_share
+awscc,1.105.0,servicecatalog,awscc_servicecatalog_resource_update_constraint
+awscc,1.105.0,servicecatalog,awscc_servicecatalog_service_action
+awscc,1.105.0,servicecatalog,awscc_servicecatalog_service_action_association
+awscc,1.105.0,servicecatalog,awscc_servicecatalog_stack_set_constraint
+awscc,1.105.0,servicecatalog,awscc_servicecatalog_tag_option
+awscc,1.105.0,servicecatalog,awscc_servicecatalog_tag_option_association
+awscc,1.105.0,servicecatalogappregistry,awscc_servicecatalogappregistry_application
+awscc,1.105.0,servicecatalogappregistry,awscc_servicecatalogappregistry_attribute_group
+awscc,1.105.0,servicecatalogappregistry,awscc_servicecatalogappregistry_attribute_group_association
+awscc,1.105.0,servicecatalogappregistry,awscc_servicecatalogappregistry_resource_association
+awscc,1.105.0,servicediscovery,awscc_servicediscovery_http_namespace
+awscc,1.105.0,servicediscovery,awscc_servicediscovery_instance
+awscc,1.105.0,servicediscovery,awscc_servicediscovery_private_dns_namespace
+awscc,1.105.0,servicediscovery,awscc_servicediscovery_public_dns_namespace
+awscc,1.105.0,servicediscovery,awscc_servicediscovery_service
+awscc,1.105.0,ses,awscc_ses_configuration_set
+awscc,1.105.0,ses,awscc_ses_configuration_set_event_destination
+awscc,1.105.0,ses,awscc_ses_contact_list
+awscc,1.105.0,ses,awscc_ses_custom_verification_email_template
+awscc,1.105.0,ses,awscc_ses_dedicated_ip_pool
+awscc,1.105.0,ses,awscc_ses_email_identity
+awscc,1.105.0,ses,awscc_ses_email_identity_certificate
+awscc,1.105.0,ses,awscc_ses_mail_manager_addon_instance
+awscc,1.105.0,ses,awscc_ses_mail_manager_addon_subscription
+awscc,1.105.0,ses,awscc_ses_mail_manager_address_list
+awscc,1.105.0,ses,awscc_ses_mail_manager_archive
+awscc,1.105.0,ses,awscc_ses_mail_manager_ingress_point
+awscc,1.105.0,ses,awscc_ses_mail_manager_relay
+awscc,1.105.0,ses,awscc_ses_mail_manager_rule_set
+awscc,1.105.0,ses,awscc_ses_mail_manager_traffic_policy
+awscc,1.105.0,ses,awscc_ses_multi_region_endpoint
+awscc,1.105.0,ses,awscc_ses_receipt_filter
+awscc,1.105.0,ses,awscc_ses_receipt_rule_set
+awscc,1.105.0,ses,awscc_ses_template
+awscc,1.105.0,ses,awscc_ses_tenant
+awscc,1.105.0,ses,awscc_ses_vdm_attributes
+awscc,1.105.0,shield,awscc_shield_drt_access
+awscc,1.105.0,shield,awscc_shield_proactive_engagement
+awscc,1.105.0,shield,awscc_shield_protection
+awscc,1.105.0,shield,awscc_shield_protection_group
+awscc,1.105.0,signer,awscc_signer_profile_permission
+awscc,1.105.0,signer,awscc_signer_signing_profile
+awscc,1.105.0,simspaceweaver,awscc_simspaceweaver_simulation
+awscc,1.105.0,smsvoice,awscc_smsvoice_configuration_set
+awscc,1.105.0,smsvoice,awscc_smsvoice_notify_configuration
+awscc,1.105.0,smsvoice,awscc_smsvoice_opt_out_list
+awscc,1.105.0,smsvoice,awscc_smsvoice_phone_number
+awscc,1.105.0,smsvoice,awscc_smsvoice_pool
+awscc,1.105.0,smsvoice,awscc_smsvoice_protect_configuration
+awscc,1.105.0,smsvoice,awscc_smsvoice_rcs_agent
+awscc,1.105.0,smsvoice,awscc_smsvoice_registration
+awscc,1.105.0,smsvoice,awscc_smsvoice_registration_attachment
+awscc,1.105.0,smsvoice,awscc_smsvoice_resource_policy
+awscc,1.105.0,smsvoice,awscc_smsvoice_sender_id
+awscc,1.105.0,smsvoice,awscc_smsvoice_verified_destination_number
+awscc,1.105.0,sns,awscc_sns_subscription
+awscc,1.105.0,sns,awscc_sns_topic
+awscc,1.105.0,sns,awscc_sns_topic_inline_policy
+awscc,1.105.0,sqs,awscc_sqs_queue
+awscc,1.105.0,sqs,awscc_sqs_queue_inline_policy
+awscc,1.105.0,ssm,awscc_ssm_association
+awscc,1.105.0,ssm,awscc_ssm_cloud_connector
+awscc,1.105.0,ssm,awscc_ssm_document
+awscc,1.105.0,ssm,awscc_ssm_maintenance_window
+awscc,1.105.0,ssm,awscc_ssm_maintenance_window_target
+awscc,1.105.0,ssm,awscc_ssm_maintenance_window_task
+awscc,1.105.0,ssm,awscc_ssm_ops_item
+awscc,1.105.0,ssm,awscc_ssm_parameter
+awscc,1.105.0,ssm,awscc_ssm_patch_baseline
+awscc,1.105.0,ssm,awscc_ssm_resource_data_sync
+awscc,1.105.0,ssm,awscc_ssm_resource_policy
+awscc,1.105.0,ssm,awscc_ssm_service_setting
+awscc,1.105.0,ssmcontacts,awscc_ssmcontacts_contact
+awscc,1.105.0,ssmcontacts,awscc_ssmcontacts_contact_channel
+awscc,1.105.0,ssmcontacts,awscc_ssmcontacts_plan
+awscc,1.105.0,ssmcontacts,awscc_ssmcontacts_rotation
+awscc,1.105.0,ssmguiconnect,awscc_ssmguiconnect_preferences
+awscc,1.105.0,ssmincidents,awscc_ssmincidents_replication_set
+awscc,1.105.0,ssmincidents,awscc_ssmincidents_response_plan
+awscc,1.105.0,ssmquicksetup,awscc_ssmquicksetup_configuration_manager
+awscc,1.105.0,ssmquicksetup,awscc_ssmquicksetup_lifecycle_automation
+awscc,1.105.0,sso,awscc_sso_application
+awscc,1.105.0,sso,awscc_sso_application_assignment
+awscc,1.105.0,sso,awscc_sso_assignment
+awscc,1.105.0,sso,awscc_sso_instance
+awscc,1.105.0,sso,awscc_sso_instance_access_control_attribute_configuration
+awscc,1.105.0,sso,awscc_sso_permission_set
+awscc,1.105.0,stepfunctions,awscc_stepfunctions_activity
+awscc,1.105.0,stepfunctions,awscc_stepfunctions_state_machine
+awscc,1.105.0,stepfunctions,awscc_stepfunctions_state_machine_alias
+awscc,1.105.0,stepfunctions,awscc_stepfunctions_state_machine_version
+awscc,1.105.0,storagegateway,awscc_storagegateway_tape
+awscc,1.105.0,storagegateway,awscc_storagegateway_tape_pool
+awscc,1.105.0,storagegateway,awscc_storagegateway_volume
+awscc,1.105.0,supportapp,awscc_supportapp_account_alias
+awscc,1.105.0,supportapp,awscc_supportapp_slack_channel_configuration
+awscc,1.105.0,supportapp,awscc_supportapp_slack_workspace_configuration
+awscc,1.105.0,supportauthz,awscc_supportauthz_support_permit
+awscc,1.105.0,synthetics,awscc_synthetics_canary
+awscc,1.105.0,synthetics,awscc_synthetics_group
+awscc,1.105.0,systemsmanagersap,awscc_systemsmanagersap_application
+awscc,1.105.0,textract,awscc_textract_adapter
+awscc,1.105.0,timestream,awscc_timestream_database
+awscc,1.105.0,timestream,awscc_timestream_influx_db_cluster
+awscc,1.105.0,timestream,awscc_timestream_influx_db_instance
+awscc,1.105.0,timestream,awscc_timestream_scheduled_query
+awscc,1.105.0,timestream,awscc_timestream_table
+awscc,1.105.0,transcribe,awscc_transcribe_call_analytics_category
+awscc,1.105.0,transcribe,awscc_transcribe_medical_vocabulary
+awscc,1.105.0,transcribe,awscc_transcribe_vocabulary
+awscc,1.105.0,transcribe,awscc_transcribe_vocabulary_filter
+awscc,1.105.0,transfer,awscc_transfer_agreement
+awscc,1.105.0,transfer,awscc_transfer_certificate
+awscc,1.105.0,transfer,awscc_transfer_connector
+awscc,1.105.0,transfer,awscc_transfer_host_key
+awscc,1.105.0,transfer,awscc_transfer_profile
+awscc,1.105.0,transfer,awscc_transfer_server
+awscc,1.105.0,transfer,awscc_transfer_web_app
+awscc,1.105.0,transfer,awscc_transfer_workflow
+awscc,1.105.0,translate,awscc_translate_parallel_data
+awscc,1.105.0,translate,awscc_translate_terminology
+awscc,1.105.0,uxc,awscc_uxc_account_customization
+awscc,1.105.0,verifiedpermissions,awscc_verifiedpermissions_identity_source
+awscc,1.105.0,verifiedpermissions,awscc_verifiedpermissions_policy
+awscc,1.105.0,verifiedpermissions,awscc_verifiedpermissions_policy_store
+awscc,1.105.0,verifiedpermissions,awscc_verifiedpermissions_policy_store_alias
+awscc,1.105.0,verifiedpermissions,awscc_verifiedpermissions_policy_template
+awscc,1.105.0,voiceid,awscc_voiceid_domain
+awscc,1.105.0,vpclattice,awscc_vpclattice_access_log_subscription
+awscc,1.105.0,vpclattice,awscc_vpclattice_auth_policy
+awscc,1.105.0,vpclattice,awscc_vpclattice_listener
+awscc,1.105.0,vpclattice,awscc_vpclattice_resource_configuration
+awscc,1.105.0,vpclattice,awscc_vpclattice_resource_gateway
+awscc,1.105.0,vpclattice,awscc_vpclattice_resource_policy
+awscc,1.105.0,vpclattice,awscc_vpclattice_rule
+awscc,1.105.0,vpclattice,awscc_vpclattice_service
+awscc,1.105.0,vpclattice,awscc_vpclattice_service_network
+awscc,1.105.0,vpclattice,awscc_vpclattice_service_network_resource_association
+awscc,1.105.0,vpclattice,awscc_vpclattice_service_network_service_association
+awscc,1.105.0,vpclattice,awscc_vpclattice_service_network_vpc_association
+awscc,1.105.0,wafv2,awscc_wafv2_ip_set
+awscc,1.105.0,wafv2,awscc_wafv2_logging_configuration
+awscc,1.105.0,wafv2,awscc_wafv2_regex_pattern_set
+awscc,1.105.0,wafv2,awscc_wafv2_web_acl_association
+awscc,1.105.0,wellarchitected,awscc_wellarchitected_agent_context
+awscc,1.105.0,wellarchitected,awscc_wellarchitected_agent_goal
+awscc,1.105.0,wellarchitected,awscc_wellarchitected_agent_profile
+awscc,1.105.0,wellarchitected,awscc_wellarchitected_lens
+awscc,1.105.0,wellarchitected,awscc_wellarchitected_profile
+awscc,1.105.0,wellarchitected,awscc_wellarchitected_review_template
+awscc,1.105.0,wellarchitected,awscc_wellarchitected_workload
+awscc,1.105.0,wickr,awscc_wickr_network
+awscc,1.105.0,wisdom,awscc_wisdom_ai_agent
+awscc,1.105.0,wisdom,awscc_wisdom_ai_agent_version
+awscc,1.105.0,wisdom,awscc_wisdom_ai_guardrail
+awscc,1.105.0,wisdom,awscc_wisdom_ai_guardrail_version
+awscc,1.105.0,wisdom,awscc_wisdom_ai_prompt
+awscc,1.105.0,wisdom,awscc_wisdom_ai_prompt_version
+awscc,1.105.0,wisdom,awscc_wisdom_assistant
+awscc,1.105.0,wisdom,awscc_wisdom_assistant_association
+awscc,1.105.0,wisdom,awscc_wisdom_content
+awscc,1.105.0,wisdom,awscc_wisdom_content_association
+awscc,1.105.0,wisdom,awscc_wisdom_knowledge_base
+awscc,1.105.0,wisdom,awscc_wisdom_message_template
+awscc,1.105.0,wisdom,awscc_wisdom_message_template_version
+awscc,1.105.0,wisdom,awscc_wisdom_quick_response
+awscc,1.105.0,workspaces,awscc_workspaces_connection_alias
+awscc,1.105.0,workspaces,awscc_workspaces_directory
+awscc,1.105.0,workspaces,awscc_workspaces_workspace_ip_group
+awscc,1.105.0,workspaces,awscc_workspaces_workspaces_pool
+awscc,1.105.0,workspacesinstances,awscc_workspacesinstances_volume
+awscc,1.105.0,workspacesinstances,awscc_workspacesinstances_volume_association
+awscc,1.105.0,workspacesinstances,awscc_workspacesinstances_workspace_instance
+awscc,1.105.0,workspacesthinclient,awscc_workspacesthinclient_environment
+awscc,1.105.0,workspacesweb,awscc_workspacesweb_browser_settings
+awscc,1.105.0,workspacesweb,awscc_workspacesweb_data_protection_settings
+awscc,1.105.0,workspacesweb,awscc_workspacesweb_identity_provider
+awscc,1.105.0,workspacesweb,awscc_workspacesweb_ip_access_settings
+awscc,1.105.0,workspacesweb,awscc_workspacesweb_network_settings
+awscc,1.105.0,workspacesweb,awscc_workspacesweb_portal
+awscc,1.105.0,workspacesweb,awscc_workspacesweb_session_logger
+awscc,1.105.0,workspacesweb,awscc_workspacesweb_trust_store
+awscc,1.105.0,workspacesweb,awscc_workspacesweb_user_access_logging_settings
+awscc,1.105.0,workspacesweb,awscc_workspacesweb_user_settings
+awscc,1.105.0,xray,awscc_xray_group
+awscc,1.105.0,xray,awscc_xray_resource_policy
+awscc,1.105.0,xray,awscc_xray_sampling_rule
+awscc,1.105.0,xray,awscc_xray_transaction_search_config

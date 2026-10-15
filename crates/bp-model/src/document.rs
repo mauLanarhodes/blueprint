@@ -6,7 +6,7 @@ use serde::{Deserialize, Serialize};
 use std::collections::{BTreeMap, HashMap, HashSet};
 
 /// Bumped for incompatible format changes; `bp-io` migrates older files.
-pub const SCHEMA_VERSION: u32 = 6;
+pub const SCHEMA_VERSION: u32 = 7;
 
 /// The tools and shape libraries a page presents in the editor.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
@@ -103,6 +103,8 @@ pub struct Document {
 
 #[derive(Debug, thiserror::Error, PartialEq)]
 pub enum ModelError {
+    #[error("element {element} has invalid infrastructure configuration: {message}")]
+    InvalidInfrastructure { element: ElementId, message: String },
     #[error("the document has no pages")]
     NoPages,
     #[error("layer {layer} points at missing page {page}")]
@@ -440,6 +442,14 @@ impl Document {
         let finite = |p: kurbo::Point| p.x.is_finite() && p.y.is_finite();
         match &element.kind {
             ElementKind::Shape(s) => {
+                if let Some(resource) = &s.infrastructure {
+                    resource
+                        .validate()
+                        .map_err(|message| ModelError::InvalidInfrastructure {
+                            element: element.id,
+                            message,
+                        })?;
+                }
                 if s.shape.is_cloud() && !self.icons.contains_key(&s.shape) {
                     return Err(ModelError::MissingIcon {
                         element: element.id,

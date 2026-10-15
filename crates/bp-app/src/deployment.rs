@@ -140,6 +140,7 @@ impl BlueprintApp {
             None => 0,
             Some(AwsResource::Vpc { .. }) => 1,
             Some(AwsResource::Subnet { .. }) => 2,
+            Some(AwsResource::Resources { .. }) => 3,
         };
         let mut chosen = current;
         let resource_label = ui.label("Resource type");
@@ -149,6 +150,9 @@ impl BlueprintApp {
                 ui.selectable_value(&mut chosen, 0, "Diagram only");
                 ui.selectable_value(&mut chosen, 1, "AWS VPC");
                 ui.selectable_value(&mut chosen, 2, "AWS private subnet");
+                if current == 3 {
+                    ui.selectable_value(&mut chosen, 3, "AWS resource configuration");
+                }
             })
             .response
             .labelled_by(resource_label.id);
@@ -166,6 +170,10 @@ impl BlueprintApp {
             };
         }
         match &mut resource {
+            Some(AwsResource::Resources { resources }) => {
+                ui.label(format!("{} saved resource draft(s)", resources.len()));
+                ui.label("General resource editing and deployment will be available in the next checkpoint.");
+            }
             Some(AwsResource::Vpc { cidr }) => {
                 field(ui, "IPv4 CIDR", cidr);
             }
