@@ -462,3 +462,29 @@ fn provider_aliases_are_separate_searchable_and_do_not_hide_unexpected_resource_
     assert_eq!(report.additional, ["aws_surprise_resource"]);
     assert_eq!(report.listed, 1724);
 }
+
+#[test]
+fn schema_accepts_omitted_empty_nested_attributes_without_rewriting_the_payload() {
+    let mut schema: serde_json::Value = serde_json::from_slice(SCHEMA).unwrap();
+    let attribute = json!({
+        "computed": true,
+        "nested_type": { "nesting_mode": "single" }
+    });
+    let provider = &mut schema["provider_schemas"][pin().provider.address()];
+    let attributes = &mut provider["resource_schemas"]["aws_instance"]["block"]["attributes"];
+    attributes["empty_nested"] = attribute.clone();
+    let snapshot =
+        SchemaSnapshot::from_outputs(&pin(), VERSION, &serde_json::to_vec(&schema).unwrap()).unwrap();
+    let resource = snapshot.resource("aws_instance").unwrap();
+    let attribute_schema = &resource.block.attributes["empty_nested"];
+    let nested = attribute_schema.nested_type.as_ref().unwrap();
+    assert!(nested.attributes.is_empty());
+    let raw = &snapshot.provider_schema["resource_schemas"]["aws_instance"]["block"]["attributes"];
+    assert_eq!(raw["empty_nested"], attribute);
+    assert_eq!(
+        snapshot
+            .output_type("aws_instance", &[OutputStep::Attribute("empty_nested".into())])
+            .unwrap(),
+        Some(json!(["object", {}]))
+    );
+}

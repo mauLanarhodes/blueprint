@@ -39,6 +39,7 @@ pub struct AttributeSchema {
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct NestedAttributes {
     pub nesting_mode: String,
+    #[serde(default)]
     pub attributes: BTreeMap<String, AttributeSchema>,
     #[serde(flatten)]
     pub extra: BTreeMap<String, Value>,
