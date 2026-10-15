@@ -196,7 +196,8 @@ impl Catalog {
         if aliases.format_version != 1
             || aliases.source_url.trim().is_empty()
             || !self.manifest.providers.iter().any(|provider| {
-                provider.provider == aliases.provider && provider.version == aliases.provider_version
+                provider.provider == aliases.provider
+                    && provider.version == aliases.provider_version
             })
         {
             return Err("Invalid or unpinned provider alias catalog".into());
@@ -208,7 +209,9 @@ impl Catalog {
                 .ok_or("Provider alias refers to an unknown canonical resource")?
                 .clone();
             if !aliases.provider.owns(&alias)
-                || self.entries.contains_key(&(aliases.provider, alias.clone()))
+                || self
+                    .entries
+                    .contains_key(&(aliases.provider, alias.clone()))
             {
                 return Err("Invalid or conflicting provider alias".into());
             }

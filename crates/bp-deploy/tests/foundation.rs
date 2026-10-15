@@ -95,7 +95,11 @@ fn schemas_verify_selected_release_keep_versions_separate_and_report_coverage_ga
     );
     let coverage = snapshot.coverage(Catalog::builtin()).unwrap();
     assert_eq!(
-        (coverage.expected, coverage.available, coverage.missing.len()),
+        (
+            coverage.expected,
+            coverage.available,
+            coverage.missing.len()
+        ),
         (1730, 2, 1728)
     );
     let wrong = ProviderPin {
@@ -441,13 +445,16 @@ fn provider_aliases_are_separate_searchable_and_do_not_hide_unexpected_resource_
     let alias = catalog.find(TerraformProvider::Aws, "aws_alb").unwrap();
     assert_eq!(alias.terraform_resource_type, "aws_alb");
     assert_eq!(
-        catalog.search(Some(TerraformProvider::Aws), "aws_alb").len(),
+        catalog
+            .search(Some(TerraformProvider::Aws), "aws_alb")
+            .len(),
         6
     );
     let mut snapshot = snapshot();
     let sample = snapshot.provider_schema["resource_schemas"]["aws_s3_bucket"].clone();
     for entry in catalog.aliases() {
-        snapshot.provider_schema["resource_schemas"][&entry.terraform_resource_type] = sample.clone();
+        snapshot.provider_schema["resource_schemas"][&entry.terraform_resource_type] =
+            sample.clone();
     }
     snapshot.provider_schema["resource_schemas"]["aws_surprise_resource"] = sample;
     let report = snapshot.coverage(catalog).unwrap();
