@@ -9,6 +9,21 @@ env:
   CARGO_TERM_COLOR: always
 
 jobs:
+  aws-schemas:
+    name: Verify AWS provider catalog schemas
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: 1.16.6
+          terraform_wrapper: false
+      - run: cargo build --locked -p bp-cli
+      # Provider metadata only: no AWS credentials, plan, apply, or AWS calls.
+      - run: target/debug/blueprint-cli aws-schema fetch aws "$RUNNER_TEMP/blueprint-schemas"
+      - run: target/debug/blueprint-cli aws-schema fetch awscc "$RUNNER_TEMP/blueprint-schemas"
   check:
     name: ${{ matrix.os }}
     strategy:
@@ -30,6 +45,9 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y libxcb-render0-dev libxcb-shape0-dev libxcb-xfixes0-dev libxkbcommon-dev
       - run: cargo fmt --all --check
+      - name: AWS catalog provenance and generated inventory
+        if: runner.os == 'Linux'
+        run: python3 tools/update_aws_catalog.py --check
       - run: cargo clippy --workspace --all-targets -- -D warnings
       # Includes the UI tests, which drive the real app headlessly.
       - run: cargo test --workspace

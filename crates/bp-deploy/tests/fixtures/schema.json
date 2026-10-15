@@ -1,0 +1,26 @@
+{
+  "format_version":"1.1",
+  "provider_schemas":{
+    "registry.terraform.io/hashicorp/aws":{
+      "provider":{"version":0,"block":{"attributes":{"region":{"type":"string","optional":true}}}},
+      "resource_schemas":{
+        "aws_s3_bucket":{"version":0,"block":{"attributes":{
+          "bucket":{"type":"string","required":true,"description":"Bucket name"},
+          "arn":{"type":"string","computed":true},
+          "tags":{"type":["map","string"],"optional":true}
+        }}},
+        "aws_instance":{"version":3,"block":{
+          "attributes":{
+            "ami":{"type":"string","required":true},
+            "instance_type":{"type":"string","required":true},
+            "security_groups":{"type":["set","string"],"optional":true},
+            "password":{"type":"string","optional":true,"sensitive":true},
+            "options":{"nested_type":{"nesting_mode":"list","attributes":{"enabled":{"type":"bool","required":true}}},"optional":true}
+          },
+          "block_types":{"root_block_device":{"nesting_mode":"list","max_items":1,"block":{"attributes":{"volume_size":{"type":"number","required":true}}}}}
+        }}
+      },
+      "future_minor_field":{"retained":true}
+    }
+  }
+}

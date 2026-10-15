@@ -9,10 +9,19 @@
 use std::path::PathBuf;
 use std::process::ExitCode;
 
+mod aws;
 mod sql;
 
 const USAGE: &str = "\
 Usage:
+  blueprint-cli aws-catalog [--provider aws|awscc] [--search <text>]
+      List the versioned provider inventory (not deployment support).
+  blueprint-cli aws-icons <input.blueprint>
+      Report AWS icon mappings and resource selection requirements.
+  blueprint-cli aws-schema fetch|check <aws|awscc> <cache-directory> [--terraform <path>]
+      Fetch verified provider schemas, or check cached catalog coverage offline.
+  blueprint-cli aws-check <input.blueprint> <cache-directory>
+      Check saved resource drafts without planning or deploying.
   blueprint-cli export <input.blueprint> [output.svg] [--page <n|name>] [--embed-fonts]
       Export one page as SVG (the first page unless --page is given).
       --embed-fonts makes the SVG look the same on machines without Inter.
@@ -31,6 +40,7 @@ fn main() -> ExitCode {
         Some("info") if args.len() == 2 => info(args[1].clone().into()),
         Some("import-sql") => sql::run(&args[1..], true),
         Some("export-sql") => sql::run(&args[1..], false),
+        Some("aws-catalog" | "aws-icons" | "aws-schema" | "aws-check") => aws::run(&args),
         Some("--version" | "-V") => {
             println!("blueprint-cli {}", env!("CARGO_PKG_VERSION"));
             Ok(())

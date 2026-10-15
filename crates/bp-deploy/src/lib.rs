@@ -1,5 +1,8 @@
 //! Cloud diagrams become deployable only through explicit, validated settings.
 
+pub mod catalog;
+pub mod drafts;
+pub mod schemas;
 mod terraform;
 pub use terraform::{Plan, Terraform};
 
@@ -59,6 +62,11 @@ pub fn configuration(doc: &Document, page: PageId) -> Result<Configuration, Stri
         }
         let name = element_name(element);
         let (kind, mut body) = match resource {
+            AwsResource::Resources { .. } => {
+                return Err(format!(
+                    "{name}: general AWS resources are saved as configuration drafts; deployment is not enabled in the Foundation checkpoint"
+                ));
+            }
             AwsResource::Vpc { cidr } => {
                 Cidr::parse(cidr).map_err(|e| format!("{name}: {e}"))?;
                 (

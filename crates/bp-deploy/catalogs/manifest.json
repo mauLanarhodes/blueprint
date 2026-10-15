@@ -1,0 +1,22 @@
+{
+  "format_version": 1,
+  "snapshot": "2026-10-14",
+  "provenance": "User-supplied provider catalog; schemas and deployment testing tracked separately",
+  "csv_sha256": "6281594779bf3fdfb33811810bb815bd10530802d35ee316730c160a8a69b923",
+  "providers": [
+    {
+      "provider": "aws",
+      "version": "6.68.0",
+      "resource_count": 1724,
+      "group_count": 255,
+      "source_url": "https://registry.terraform.io/v1/providers/hashicorp/aws/6.68.0"
+    },
+    {
+      "provider": "awscc",
+      "version": "1.105.0",
+      "resource_count": 1664,
+      "group_count": 292,
+      "source_url": "https://registry.terraform.io/v1/providers/hashicorp/awscc/1.105.0"
+    }
+  ]
+}

@@ -522,12 +522,14 @@ name = "bp-cli"
 version = "0.1.0"
 dependencies = [
  "bp-commands",
+ "bp-deploy",
  "bp-export",
  "bp-io",
  "bp-model",
  "bp-scene",
  "bp-shapes",
  "bp-sql",
+ "serde_json",
 ]
 
 [[package]]
@@ -547,6 +549,7 @@ version = "0.1.0"
 dependencies = [
  "bp-io",
  "bp-model",
+ "serde",
  "serde_json",
 ]
 

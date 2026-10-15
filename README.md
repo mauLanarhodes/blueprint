@@ -345,8 +345,13 @@ cargo run -p bp-cli -- export-sql schema.blueprint schema-export.sql --page 1
 | `.svg` | Vector output for documentation and sharing. |
 | `.sql` | PostgreSQL schema interchange, with preview warnings. |
 
-Documents carry a `schema_version`, currently **6**. Blueprint migrates older
+Documents carry a `schema_version`, currently **7**. Blueprint migrates older
 documents on open. Newer-format files require a build that supports their schema.
+
+The [AWS Foundation checkpoint](docs/aws-foundation.md) adds a versioned provider
+inventory, portable general resource drafts, and offline schema/coverage checks.
+General resource deployment and generated configuration forms are later
+checkpoints; the existing VPC/private-subnet workflow remains available.
 
 ## Contributing
 

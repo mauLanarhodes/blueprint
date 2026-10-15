@@ -1,0 +1,2 @@
+# Preserve source bytes used by the catalog provenance SHA-256.
+crates/bp-deploy/catalogs/resources-2026-10-14.csv -text

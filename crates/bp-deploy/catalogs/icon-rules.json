@@ -1,0 +1,14 @@
+[
+  {"names":["Amazon S3","Amazon Simple Storage Service","S3 bucket","Bucket"],"resource_types":["aws_s3_bucket"]},
+  {"names":["Amazon EC2","Amazon Elastic Compute Cloud","EC2 instance"],"resource_types":["aws_instance"]},
+  {"names":["AWS Lambda","Lambda function"],"resource_types":["aws_lambda_function"]},
+  {"names":["Amazon DynamoDB","DynamoDB table"],"resource_types":["aws_dynamodb_table"]},
+  {"names":["Amazon RDS","Amazon Relational Database Service"],"resource_types":["aws_db_instance","aws_rds_cluster"]},
+  {"names":["Amazon ECS","Amazon Elastic Container Service"],"resource_types":["aws_ecs_cluster","aws_ecs_service","aws_ecs_task_definition"]},
+  {"names":["Amazon VPC","VPC","Virtual private cloud"],"resource_types":["aws_vpc"]},
+  {"names":["Subnet","Private subnet","Public subnet"],"resource_types":["aws_subnet"]},
+  {"names":["Amazon CloudFront","CloudFront distribution"],"resource_types":["aws_cloudfront_distribution"]},
+  {"names":["Amazon SQS","Amazon Simple Queue Service"],"resource_types":["aws_sqs_queue"]},
+  {"names":["Amazon SNS","Amazon Simple Notification Service"],"resource_types":["aws_sns_topic"]},
+  {"names":["AWS IAM","AWS Identity and Access Management"],"resource_types":["aws_iam_role","aws_iam_policy"]}
+]

@@ -16,6 +16,7 @@ mod ids;
 mod infrastructure;
 mod order;
 mod style;
+mod terraform;
 
 pub use cloud::{CloudIcon, CloudProvider, IconKind};
 pub use document::{DiagramKind, Document, Layer, ModelError, Page, SCHEMA_VERSION, Tree};
@@ -31,3 +32,7 @@ pub use infrastructure::{AwsDeployment, AwsResource};
 pub use kurbo;
 pub use order::OrderKey;
 pub use style::{Color, Dash, Paint, Style, StyleValues, TextAlign, VerticalAlign};
+pub use terraform::{
+    InputReference, OutputStep, ProviderPin, ResourceReference, ResourceTarget, ResourceValue,
+    TerraformProvider, TerraformResource, terraform_identifier,
+};
