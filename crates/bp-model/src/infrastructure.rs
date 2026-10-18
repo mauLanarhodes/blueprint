@@ -48,6 +48,15 @@ pub enum AwsResource {
     SnsTopic {
         name: String,
     },
+    LambdaFunction {
+        name: String,
+        /// A single Python module, packaged deterministically during export.
+        source_code: String,
+        timeout_seconds: u32,
+        memory_mb: u32,
+        /// An optional, explicitly configured same-page SQS trigger.
+        queue: Option<ElementId>,
+    },
     SqsQueue {
         name: String,
         visibility_timeout: u32,
@@ -70,6 +79,7 @@ impl AwsResource {
             Self::DynamoDbTable { .. } => AwsResourceKind::DynamoDbTable,
             Self::SnsTopic { .. } => AwsResourceKind::SnsTopic,
             Self::SqsQueue { .. } => AwsResourceKind::SqsQueue,
+            Self::LambdaFunction { .. } => AwsResourceKind::LambdaFunction,
         }
     }
 
@@ -79,6 +89,9 @@ impl AwsResource {
         match self {
             Self::Subnet { vpc, .. } => *vpc = vpc.and_then(|id| ids.get(&id).copied()),
             Self::SqsQueue { topic, .. } => *topic = topic.and_then(|id| ids.get(&id).copied()),
+            Self::LambdaFunction { queue, .. } => {
+                *queue = queue.and_then(|id| ids.get(&id).copied())
+            }
             _ => {}
         }
     }
@@ -94,16 +107,18 @@ pub enum AwsResourceKind {
     DynamoDbTable,
     SnsTopic,
     SqsQueue,
+    LambdaFunction,
 }
 
 impl AwsResourceKind {
-    pub const ALL: [Self; 6] = [
+    pub const ALL: [Self; 7] = [
         Self::Vpc,
         Self::Subnet,
         Self::S3Bucket,
         Self::DynamoDbTable,
         Self::SnsTopic,
         Self::SqsQueue,
+        Self::LambdaFunction,
     ];
 
     pub fn label(self) -> &'static str {
@@ -114,6 +129,7 @@ impl AwsResourceKind {
             Self::DynamoDbTable => "Amazon DynamoDB table",
             Self::SnsTopic => "Amazon SNS topic",
             Self::SqsQueue => "Amazon SQS queue",
+            Self::LambdaFunction => "AWS Lambda function",
         }
     }
 
@@ -141,6 +157,13 @@ impl AwsResourceKind {
                 sort_key: String::new(),
             },
             Self::SnsTopic => AwsResource::SnsTopic { name },
+            Self::LambdaFunction => AwsResource::LambdaFunction {
+                name,
+                source_code: "def lambda_handler(event, context):\n    records = event.get(\"Records\", [])\n    for record in records:\n        print(record.get(\"body\", \"\"))\n    return {\"processed\": len(records)}\n".into(),
+                timeout_seconds: 5,
+                memory_mb: 128,
+                queue: None,
+            },
             Self::SqsQueue => AwsResource::SqsQueue {
                 name,
                 visibility_timeout: 30,
@@ -163,6 +186,7 @@ impl AwsResourceKind {
             "subnet" | "privatesubnet" => Some(Self::Subnet),
             "s3" | "amazons3" | "s3bucket" | "amazonsimplestorageservice" => Some(Self::S3Bucket),
             "dynamodb" | "amazondynamodb" | "dynamodbtable" => Some(Self::DynamoDbTable),
+            "lambda" | "awslambda" | "amazonlambda" => Some(Self::LambdaFunction),
             "sns"
             | "amazonsns"
             | "simplenotificationservice"

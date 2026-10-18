@@ -4,13 +4,15 @@
 use crate::{literal, logical_name, reference, reference_attribute};
 use bp_model::{AwsResource, ElementId};
 use serde_json::{Map, Value, json};
-use std::collections::BTreeSet;
+use std::collections::{BTreeMap, BTreeSet};
 
 pub(crate) fn generate(
     id: ElementId,
     resource: &AwsResource,
     topics: &BTreeSet<ElementId>,
+    queues: &BTreeMap<ElementId, u32>,
     resources: &mut Map<String, Value>,
+    packages: &mut BTreeMap<String, Vec<u8>>,
 ) -> Result<(&'static str, Value), String> {
     let logical = logical_name(id);
     match resource {
@@ -149,6 +151,9 @@ pub(crate) fn generate(
                 }),
             ))
         }
+        AwsResource::LambdaFunction { .. } => {
+            crate::lambda::generate(id, resource, queues, resources, packages)
+        }
         _ => Err("Resource is handled by the network generator".into()),
     }
 }
@@ -157,7 +162,7 @@ fn insert(resources: &mut Map<String, Value>, kind: &str, logical: &str, value: 
     resources.entry(kind).or_insert_with(|| json!({}))[logical] = value;
 }
 
-fn valid_name(name: &str, min: usize, max: usize, dots: bool) -> Result<(), String> {
+pub(crate) fn valid_name(name: &str, min: usize, max: usize, dots: bool) -> Result<(), String> {
     if !(min..=max).contains(&name.len())
         || !name
             .bytes()

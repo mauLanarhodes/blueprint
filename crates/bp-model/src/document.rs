@@ -6,7 +6,7 @@ use serde::{Deserialize, Serialize};
 use std::collections::{BTreeMap, HashMap, HashSet};
 
 /// Bumped for incompatible format changes; `bp-io` migrates older files.
-pub const SCHEMA_VERSION: u32 = 7;
+pub const SCHEMA_VERSION: u32 = 8;
 
 /// The tools and shape libraries a page presents in the editor.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]

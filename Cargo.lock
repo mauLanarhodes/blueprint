@@ -549,6 +549,7 @@ dependencies = [
  "bp-io",
  "bp-model",
  "serde_json",
+ "zip",
 ]
 
 [[package]]

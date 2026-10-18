@@ -571,6 +571,12 @@ impl BlueprintApp {
             if trial.clicked() {
                 self.add_aws_trial();
             }
+            let lambda = ui.small_button("Add Lambda trial");
+            crate::widgets::focus_outline(ui, &lambda);
+            crate::widgets::command_focus(ui, &lambda);
+            if lambda.clicked() {
+                self.add_lambda_trial();
+            }
             let response = ui.small_button("Add starter network");
             crate::widgets::focus_outline(ui, &response);
             crate::widgets::command_focus(ui, &response);

@@ -1,7 +1,7 @@
 # Deploy real AWS infrastructure
 
-Blueprint can provision S3 buckets, DynamoDB tables, standard SNS topics and SQS
-queues, plus VPCs and private IPv4 subnets, from a Cloud architecture page.
+Blueprint can provision S3 buckets, DynamoDB tables, standard SNS topics, SQS
+queues and Python Lambda functions, plus VPCs and private IPv4 subnets, from a Cloud architecture page.
 See [the AWS trial guide](aws-trial.md) for service options, the editable example,
 headless validation and extension points. The app generates Terraform configuration, previews a saved
 plan, and applies that exact plan when you choose **Deploy reviewed plan**.
@@ -22,14 +22,24 @@ corresponding deletion permissions. Enter your intended 12-digit account ID:
 the provider is restricted to that account. Blueprint does not request or store
 access keys in the document.
 
+Lambda also needs permission to manage execution roles and inline policies,
+pass the generated role to Lambda (`iam:PassRole`), manage CloudWatch log groups,
+and create/update/delete event source mappings when a queue is selected. The
+function's execution role grants log-stream access to its own group and read,
+delete and attribute access only to the selected queue. These execution
+permissions are separate from your local deployment identity's permissions.
+
 ## Deploy from the editor
 
 1. Create a **Cloud architecture** page. Click **Add AWS trial stack** for S3,
    DynamoDB, SNS and an SQS subscriber, or **Add starter network** for a VPC and
-   two private subnets. Both work without installing icon packs. Alternatively,
+   two private subnets. **Add Lambda trial** includes a Python worker and its
+   queue trigger. All starters work without installing icon packs. Alternatively,
    select an AWS icon or basic shape and choose a supported resource in its
    **Infrastructure** inspector.
-2. Select each resource to edit its IPv4 CIDR. Each subnet must reference a
+2. Select each resource to edit its settings. Lambda exposes its name, Python
+   source, timeout, memory and optional same-page SQS trigger. Its queue visibility
+   must be at least six times the function timeout. Each subnet must reference a
    configured VPC on the same page, fit inside its CIDR, and avoid overlapping
    sibling subnets. You can specify an availability zone or let AWS choose it.
    These subnets do not assign public IPs; Blueprint does not create an internet
@@ -37,7 +47,8 @@ access keys in the document.
 3. Click **AWS deployment…** in the toolbar or File menu. Enter the
    AWS account ID, region, and optional local profile name. Choose a parent
    deployment folder. Blueprint creates `blueprint-PAGE_ID` beneath it.
-4. Click **Preview deployment**. The background worker writes `main.tf.json`,
+4. Click **Preview deployment**. The background worker writes `main.tf.json` and
+   any Lambda ZIP packages,
    initializes and validates Terraform, and saves `blueprint.tfplan`. Review the
    actual Terraform plan, including any updates, replacements, or deletions.
    Icons without resource configuration are listed as diagram-only.
@@ -54,6 +65,8 @@ Duplicated pages have separate deployment folders and infrastructure identities.
 Copies preserve physical AWS names; rename copied services before deploying them
 as a second stack. Topic references within a copied stack are remapped; a queue
 copied without its topic has no subscription.
+Lambda queue references are also remapped within a copied stack; copying the
+function alone clears its trigger.
 
 ## State and recovery
 
@@ -64,7 +77,8 @@ not delete resources in AWS. This initial workflow uses local state; shared
 remote state and collaborative deployment are not implemented.
 
 Blueprint refuses unrelated Terraform source files, symbolic links, concurrent
-operations, and configuration or plan files changed after preview. It uses the
+operations, and configuration, plan or Lambda package files changed after preview. Source
+edits also invalidate the reviewed plan. It uses the
 default Terraform workspace. It consumes the saved plan after each apply
 attempt; a failed apply can partially succeed, so preserve the state and create
 a new preview before retrying. Terraform's own state locking remains enabled.
@@ -79,6 +93,9 @@ The generated configuration is visible in the preview dialog and available as
 `main.tf.json` for use with the Terraform CLI. Blueprint has no separate Destroy
 button; removing configured resources from a page can produce deletions in the
 next reviewed plan. A page with no configured resources cannot generate a plan.
+Keep exported Lambda ZIPs beside the JSON. Python source is saved as ordinary
+document content; use the AWS runtime's credential chain rather than embedding
+credentials or secrets in it.
 
 References: [Terraform JSON configuration](https://developer.hashicorp.com/terraform/language/syntax/json),
 [saved plans and apply](https://developer.hashicorp.com/terraform/tutorials/cli/plan),

@@ -125,6 +125,14 @@ impl BlueprintApp {
     }
 
     pub fn add_aws_trial(&mut self) {
+        self.add_trial_stack(false);
+    }
+
+    pub fn add_lambda_trial(&mut self) {
+        self.add_trial_stack(true);
+    }
+
+    fn add_trial_stack(&mut self, with_lambda: bool) {
         if self.page_kind() != Some(DiagramKind::Cloud) || self.deployment.busy() {
             return;
         }
@@ -142,7 +150,12 @@ impl BlueprintApp {
         } else {
             bp_model::kurbo::Point::ZERO
         };
-        let elements = bp_deploy::trial::elements(parent, center, self.doc.next_order_key(parent));
+        let order = self.doc.next_order_key(parent);
+        let elements = if with_lambda {
+            bp_deploy::trial::elements_with_lambda(parent, center, order)
+        } else {
+            bp_deploy::trial::elements(parent, center, order)
+        };
         let selection = elements
             .iter()
             .filter(|e| e.is_shape())
@@ -327,6 +340,74 @@ impl BlueprintApp {
                     });
                 ui.label(RichText::new("Standard encrypted queue. A subscription also creates a queue policy allowing only the selected SNS topic. Drawing a connector alone does not create a subscription.").small().weak());
             }
+            Some(AwsResource::LambdaFunction {
+                name,
+                source_code,
+                timeout_seconds,
+                memory_mb,
+                queue,
+            }) => {
+                field(ui, "Function name", name);
+                ui.label("Python 3.13 · lambda_function.lambda_handler");
+                ui.horizontal(|ui| {
+                    ui.label("Function timeout (seconds)");
+                    ui.add(egui::DragValue::new(timeout_seconds).range(1..=900));
+                });
+                ui.horizontal(|ui| {
+                    ui.label("Memory (MB)");
+                    ui.add(egui::DragValue::new(memory_mb).range(128..=10_240));
+                });
+                let candidates: Vec<_> = self
+                    .doc
+                    .page_elements(self.page)
+                    .into_iter()
+                    .filter(|e| {
+                        matches!(
+                            e.as_shape().and_then(|s| s.infrastructure.as_ref()),
+                            Some(AwsResource::SqsQueue { .. })
+                        )
+                    })
+                    .map(|e| {
+                        (
+                            e.id,
+                            e.text()
+                                .filter(|s| !s.is_empty())
+                                .unwrap_or("SQS queue")
+                                .to_owned(),
+                        )
+                    })
+                    .collect();
+                let selected = if queue.is_some() {
+                    "Missing queue — choose again"
+                } else {
+                    "No SQS trigger"
+                };
+                let label = ui.label("SQS trigger");
+                egui::ComboBox::from_id_salt(("lambda-queue", element.id))
+                    .selected_text(
+                        candidates
+                            .iter()
+                            .find(|(id, _)| Some(*id) == *queue)
+                            .map_or(selected, |(_, name)| name),
+                    )
+                    .show_ui(ui, |ui| {
+                        ui.selectable_value(queue, None, "No SQS trigger");
+                        for (id, name) in candidates {
+                            ui.selectable_value(queue, Some(id), name);
+                        }
+                    })
+                    .response
+                    .labelled_by(label.id);
+                let label = ui.label("Python source (lambda_function.py)");
+                ui.add(
+                    egui::TextEdit::multiline(source_code)
+                        .code_editor()
+                        .desired_rows(10)
+                        .desired_width(f32::INFINITY),
+                )
+                .labelled_by(label.id);
+                ui.label(RichText::new("One Python module, up to 64 KiB, stored in this diagram. Define lambda_handler(event, context). The SQS queue needs at least six times this function's timeout.").small().weak());
+            }
             None => {
                 ui.label(
                     RichText::new("Choose a resource type to include this shape in a deployment.")
@@ -454,9 +535,8 @@ impl BlueprintApp {
         }
         let valid = self.deployment.plan.as_ref().is_some_and(|plan| {
             !plan.changes.is_empty()
-                && bp_deploy::configuration(&self.doc, self.page).is_ok_and(|config| {
-                    config.page == plan.configuration.page && config.json == plan.configuration.json
-                })
+                && bp_deploy::configuration(&self.doc, self.page)
+                    .is_ok_and(|config| config.matches(&plan.configuration))
         });
         if !valid {
             self.deployment.plan = None;
@@ -487,9 +567,9 @@ impl BlueprintApp {
         let busy = self.deployment.busy();
         let configuration = bp_deploy::configuration(&self.doc, self.page);
         if self.deployment.plan.as_ref().is_some_and(|plan| {
-            !configuration.as_ref().is_ok_and(|config| {
-                config.page == plan.configuration.page && config.json == plan.configuration.json
-            })
+            !configuration
+                .as_ref()
+                .is_ok_and(|config| config.matches(&plan.configuration))
         }) {
             self.deployment.plan = None;
             self.deployment.reviewed = false;
@@ -498,12 +578,13 @@ impl BlueprintApp {
         let mut deploy = false;
         let mut starter = false;
         let mut trial = false;
+        let mut lambda_trial = false;
         let mut close = false;
         let modal = egui::Modal::new(egui::Id::new("deploy-infrastructure")).show(ctx, |ui| {
             ui.set_width(680.0_f32.min((ctx.content_rect().width() - 48.0).max(240.0)));
             ui.heading("Deploy AWS infrastructure");
             egui::ScrollArea::vertical().max_height((ctx.content_rect().height() - 100.0).clamp(180.0, 640.0)).show(ui, |ui| {
-                ui.label("Configure S3, DynamoDB, SNS, SQS, VPCs or private subnets, preview the changes, then deploy the reviewed plan.");
+                ui.label("Configure S3, DynamoDB, SNS, SQS, Lambda, VPCs or private subnets, preview the changes, then deploy the reviewed plan.");
                 ui.add_enabled_ui(!busy, |ui| {
                     self.deployment_target(ui);
                     ui.horizontal(|ui| {
@@ -518,6 +599,7 @@ impl BlueprintApp {
                     ui.label(RichText::new("Keep the deployment folder: it stores Terraform state for future updates. Each page gets its own subfolder.").small().weak());
                     starter = ui.button("Add starter network").clicked();
                     trial = ui.button("Add AWS trial stack").clicked();
+                    lambda_trial = ui.button("Add Lambda trial").clicked();
                 });
                 ui.separator();
                 match &configuration {
@@ -560,6 +642,9 @@ impl BlueprintApp {
         }
         if trial {
             self.add_aws_trial();
+        }
+        if lambda_trial {
+            self.add_lambda_trial();
         }
         if preview {
             self.preview_deployment(ctx);
@@ -731,6 +816,66 @@ mod tests {
                 .unwrap()
                 .contains("Preview again")
         );
+    }
+
+    #[test]
+    fn lambda_trial_is_one_undo_step_and_copy_remaps_or_clears_its_queue() {
+        let mut app = BlueprintApp::new(&egui::Context::default(), None);
+        app.choose_page_kind(DiagramKind::Cloud);
+        app.add_lambda_trial();
+        assert_eq!(app.selection.len(), 5);
+        assert_eq!(app.doc.elements.len(), 7);
+        app.undo();
+        assert!(app.doc.elements.is_empty());
+        app.redo();
+        app.selection = app
+            .doc
+            .elements
+            .values()
+            .filter(|e| e.is_shape())
+            .map(|e| e.id)
+            .collect();
+        let clip = Clip::copy(&app.doc, &app.selection, |_, _| None);
+        let (roots, commands) = clip.paste(&app.doc, Parent::Layer(app.layer), Default::default());
+        assert!(app.apply("Copy Lambda trial", commands));
+        let copied_queue = roots
+            .iter()
+            .copied()
+            .find(|id| {
+                matches!(
+                    app.doc.elements[id]
+                        .as_shape()
+                        .and_then(|s| s.infrastructure.as_ref()),
+                    Some(AwsResource::SqsQueue { .. })
+                )
+            })
+            .unwrap();
+        let function = roots
+            .iter()
+            .copied()
+            .find(|id| {
+                matches!(
+                    app.doc.elements[id]
+                        .as_shape()
+                        .and_then(|s| s.infrastructure.as_ref()),
+                    Some(AwsResource::LambdaFunction { .. })
+                )
+            })
+            .unwrap();
+        assert!(
+            matches!(app.doc.elements[&function].as_shape().unwrap().infrastructure, Some(AwsResource::LambdaFunction { queue: Some(id), .. }) if id == copied_queue)
+        );
+        let clip = Clip::copy(&app.doc, &[function], |_, _| None);
+        let (roots, commands) = clip.paste(&app.doc, Parent::Layer(app.layer), Default::default());
+        assert!(app.apply("Copy Lambda alone", commands));
+        assert!(matches!(
+            app.doc.elements[&roots[0]]
+                .as_shape()
+                .unwrap()
+                .infrastructure,
+            Some(AwsResource::LambdaFunction { queue: None, .. })
+        ));
+        app.doc.validate().unwrap();
     }
 
     #[test]

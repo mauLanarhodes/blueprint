@@ -263,6 +263,49 @@ fn aws_service_icon_can_be_configured_from_its_suggestion_and_exported() {
 }
 
 #[test]
+fn lambda_icon_suggestion_exposes_source_settings_and_exports_a_package() {
+    let mut h = harness_for(DiagramKind::Cloud);
+    let mut pack = cloud_pack(CloudProvider::Aws);
+    pack.icons[0].name = "AWS Lambda".into();
+    pack.icons[0].reference = ShapeRef::new("aws", "compute-service-aws-lambda@test-v1");
+    pack.icons[0].category = "Compute".into();
+    pack.icons[0].source_path = "Compute/Lambda.svg".into();
+    app(&mut h).cloud.packs = vec![pack];
+    h.run();
+    h.get_by_label("AWS Lambda").click();
+    h.run();
+    h.get_by_label("Configure as AWS Lambda function").click();
+    h.run();
+    assert!(h.query_by_label("Function name").is_some());
+    assert!(
+        h.query_by_label("Python source (lambda_function.py)")
+            .is_some()
+    );
+    let app = app(&mut h);
+    app.doc.pages.get_mut(&app.page).unwrap().deployment = Some(bp_model::AwsDeployment {
+        account_id: "123456789012".into(),
+        ..Default::default()
+    });
+    let config = bp_deploy::configuration(&app.doc, app.page).unwrap();
+    assert_eq!(config.packages.len(), 1);
+    assert!(config.json.contains("aws_iam_role_policy"));
+}
+
+#[test]
+fn lambda_trial_button_creates_a_worker_with_an_explicit_queue_trigger() {
+    let mut h = harness_for(DiagramKind::Cloud);
+    h.get_by_label("Add Lambda trial").click();
+    h.run();
+    let app = app(&mut h);
+    assert_eq!(app.doc.elements.len(), 7);
+    assert_eq!(app.selection.len(), 5);
+    assert!(app.doc.elements.values().any(|e| matches!(
+        e.as_shape().and_then(|s| s.infrastructure.as_ref()),
+        Some(bp_model::AwsResource::LambdaFunction { queue: Some(_), .. })
+    )));
+}
+
+#[test]
 fn azure_same_named_icons_are_selectable_after_catalog_reload() {
     let mut pack = cloud_pack(CloudProvider::Azure);
     pack.icons[0].name = "Workspaces".into();

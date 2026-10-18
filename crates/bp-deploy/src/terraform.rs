@@ -1,5 +1,6 @@
 use crate::Configuration;
 use serde_json::Value;
+use std::collections::BTreeMap;
 use std::fs::{self, OpenOptions};
 use std::path::{Path, PathBuf};
 use std::process::{Command, Stdio};
@@ -29,6 +30,7 @@ pub struct Plan {
     pub changes: Vec<String>,
     pub destroys_resources: bool,
     bytes: Vec<u8>,
+    packages: BTreeMap<String, Vec<u8>>,
 }
 
 impl Terraform {
@@ -41,8 +43,7 @@ impl Terraform {
         let directory = prepare_workspace(root, &configuration)?;
         let _lock = WorkspaceLock::acquire(&directory)?;
         check_workspace(&directory, &configuration)?;
-        bp_io::atomic_write(&directory.join(CONFIG), configuration.json.as_bytes())
-            .map_err(|e| e.to_string())?;
+        crate::write_configuration(&configuration, &directory.join(CONFIG), None)?;
         // Never reuse a plan from a failed or interrupted planning attempt.
         if directory.join(PLAN).exists() {
             fs::remove_file(directory.join(PLAN)).map_err(|e| e.to_string())?;
@@ -118,7 +119,9 @@ impl Terraform {
         if bytes.is_empty() {
             return Err("Terraform did not produce a saved plan".into());
         }
+        crate::packages::verify_packages(&directory, &configuration.packages)?;
         Ok(Plan {
+            packages: configuration.packages.clone(),
             configuration,
             directory,
             review,
@@ -140,6 +143,7 @@ impl Terraform {
         {
             return Err("The configuration or saved plan changed. Preview the changes again before deploying.".into());
         }
+        crate::packages::verify_packages(&plan.directory, &plan.packages)?;
         progress("Deploying the reviewed plan to AWS…");
         let result = self.run(
             &plan.directory,

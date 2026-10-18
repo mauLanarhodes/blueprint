@@ -4,10 +4,12 @@ use std::path::PathBuf;
 pub fn run(args: &[String], trial: bool) -> Result<(), String> {
     let mut positional = Vec::new();
     let mut page = None;
+    let mut with_lambda = false;
     let mut target = AwsDeployment::default();
     let mut i = 0;
     while i < args.len() {
         match args[i].as_str() {
+            "--lambda" if trial => with_lambda = true,
             flag @ ("--page" | "--account" | "--region" | "--profile") => {
                 let value = args
                     .get(i + 1)
@@ -48,7 +50,11 @@ pub fn run(args: &[String], trial: bool) -> Result<(), String> {
                 output.display()
             ));
         }
-        let doc = bp_deploy::trial::document(target);
+        let doc = if with_lambda {
+            bp_deploy::trial::document_with_lambda(target)
+        } else {
+            bp_deploy::trial::document(target)
+        };
         if !doc.pages[&doc.first_page().unwrap()]
             .deployment
             .as_ref()
@@ -89,11 +95,12 @@ pub fn run(args: &[String], trial: bool) -> Result<(), String> {
                 .ok_or_else(|| format!("No page {want:?}"))?,
         };
         let config = bp_deploy::configuration(&doc, chosen.id)?;
-        bp_io::atomic_write(output, config.json.as_bytes()).map_err(|e| e.to_string())?;
+        bp_deploy::write_configuration(&config, output, Some(input))?;
         println!(
-            "Wrote {} ({} configured services). No AWS operations were performed.",
+            "Wrote {} ({} configured services, {} code packages). No AWS operations were performed.",
             output.display(),
-            config.resources.len()
+            config.resources.len(),
+            config.packages.len()
         );
     }
     Ok(())

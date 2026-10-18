@@ -39,6 +39,10 @@ pub fn migrate(mut value: Value) -> Result<Value, IoError> {
         // Existing VPC/subnet settings and resource identities stay unchanged.
         value["schema_version"] = 7.into();
     }
+    if version < 8 {
+        // Lambda source and its explicit queue binding must survive round trips.
+        value["schema_version"] = 8.into();
+    }
     Ok(value)
 }
 

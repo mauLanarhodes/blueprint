@@ -593,3 +593,54 @@ fn workspace_symlinks_are_rejected_without_writing_the_target() {
     );
     assert_eq!(std::fs::read_dir(&target.0).unwrap().count(), 0);
 }
+
+#[cfg(unix)]
+#[test]
+fn changed_missing_or_symlinked_lambda_packages_prevent_apply() {
+    for tamper in ["changed", "missing", "symlink", "metadata"] {
+        let scratch = Scratch::new();
+        let doc = bp_deploy::trial::document_with_lambda(AwsDeployment {
+            account_id: "123456789012".into(),
+            ..Default::default()
+        });
+        let generated = config(&doc).unwrap();
+        let name = generated.packages.keys().next().unwrap().clone();
+        let (runner, workspace) = mock(&scratch, &generated);
+        let mut plan = runner.plan(generated, &scratch.0, |_| {}).unwrap();
+        let archive = workspace.join(&name);
+        let mut bytes = std::fs::read(&archive).unwrap();
+        bytes[40] ^= 1;
+        match tamper {
+            "missing" => std::fs::remove_file(&archive).unwrap(),
+            "symlink" => {
+                let target = scratch.0.join("unreviewed.zip");
+                std::fs::write(&target, &bytes).unwrap();
+                std::fs::remove_file(&archive).unwrap();
+                std::os::unix::fs::symlink(target, &archive).unwrap();
+            }
+            "metadata" => {
+                // Mutating public configuration cannot replace the private reviewed snapshot.
+                plan.configuration.packages.insert(name, bytes.clone());
+                std::fs::write(&archive, bytes).unwrap();
+            }
+            _ => std::fs::write(&archive, bytes).unwrap(),
+        }
+        assert!(runner.apply(plan, |_| {}).is_err(), "tamper: {tamper}");
+        assert!(!workspace.join("applied").exists());
+    }
+}
+
+#[cfg(unix)]
+#[test]
+fn unchanged_lambda_package_can_apply_the_reviewed_plan() {
+    let scratch = Scratch::new();
+    let doc = bp_deploy::trial::document_with_lambda(AwsDeployment {
+        account_id: "123456789012".into(),
+        ..Default::default()
+    });
+    let generated = config(&doc).unwrap();
+    let (runner, workspace) = mock(&scratch, &generated);
+    let plan = runner.plan(generated, &scratch.0, |_| {}).unwrap();
+    runner.apply(plan, |_| {}).unwrap();
+    assert!(workspace.join("applied").exists());
+}

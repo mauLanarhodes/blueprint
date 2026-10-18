@@ -1,8 +1,11 @@
 //! Cloud diagrams become deployable only through explicit, validated settings.
 
+mod lambda;
+mod packages;
 mod services;
 mod terraform;
 pub mod trial;
+pub use packages::write_configuration;
 pub use terraform::{Plan, Terraform};
 
 use bp_model::{AwsDeployment, AwsResource, DiagramKind, Document, ElementId, PageId};
@@ -17,6 +20,15 @@ pub struct Configuration {
     pub json: String,
     pub resources: Vec<String>,
     pub warnings: Vec<String>,
+    /// Relative archive names and exact bytes exported beside the configuration.
+    pub packages: BTreeMap<String, Vec<u8>>,
+}
+
+impl Configuration {
+    /// Source changes require a new review even when Terraform expressions stay the same.
+    pub fn matches(&self, other: &Self) -> bool {
+        self.page == other.page && self.json == other.json && self.packages == other.packages
+    }
 }
 
 pub fn configuration(doc: &Document, page: PageId) -> Result<Configuration, String> {
@@ -48,6 +60,7 @@ pub fn configuration(doc: &Document, page: PageId) -> Result<Configuration, Stri
         );
     }
     let mut resources = Map::new();
+    let mut packages = BTreeMap::new();
     let mut outputs = Map::new();
     let mut names = Vec::new();
     let mut subnets: Vec<(ElementId, ElementId, Cidr)> = Vec::new();
@@ -55,6 +68,15 @@ pub fn configuration(doc: &Document, page: PageId) -> Result<Configuration, Stri
         .iter()
         .filter_map(|(id, (_, resource))| {
             matches!(resource, AwsResource::SnsTopic { .. }).then_some(*id)
+        })
+        .collect();
+    let queues: BTreeMap<_, _> = configured
+        .iter()
+        .filter_map(|(id, (_, resource))| match resource {
+            AwsResource::SqsQueue {
+                visibility_timeout, ..
+            } => Some((*id, *visibility_timeout)),
+            _ => None,
         })
         .collect();
     let mut service_names = BTreeSet::new();
@@ -118,12 +140,15 @@ pub fn configuration(doc: &Document, page: PageId) -> Result<Configuration, Stri
                 }
                 ("aws_subnet", body)
             }
-            other => services::generate(*id, other, &topics, &mut resources)
-                .map_err(|error| format!("{name}: {error}"))?,
+            other => {
+                services::generate(*id, other, &topics, &queues, &mut resources, &mut packages)
+                    .map_err(|error| format!("{name}: {error}"))?
+            }
         };
         if let Some(aws_name) = body
             .get("name")
             .or_else(|| body.get("bucket"))
+            .or_else(|| body.get("function_name"))
             .and_then(serde_json::Value::as_str)
             && !service_names.insert((kind, aws_name.to_owned()))
         {
@@ -144,6 +169,7 @@ pub fn configuration(doc: &Document, page: PageId) -> Result<Configuration, Stri
                 | AwsResource::DynamoDbTable { .. }
                 | AwsResource::SnsTopic { .. }
                 | AwsResource::SqsQueue { .. }
+                | AwsResource::LambdaFunction { .. }
         ) {
             outputs.insert(
                 format!("{logical}_arn"),
@@ -190,6 +216,7 @@ pub fn configuration(doc: &Document, page: PageId) -> Result<Configuration, Stri
         ),
         resources: names,
         warnings,
+        packages,
     })
 }
 

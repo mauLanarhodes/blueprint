@@ -96,7 +96,7 @@ future work.
 | **ERDs** | Smart tables, typed columns, key/nullability metadata, stable column ports, Crow's Foot relationships, constraints/indexes, column selection, relationship details, and automatic layout. |
 | **SQL** | Preview-first **PostgreSQL** import/export through the UI and CLI. Other table dialects provide type suggestions; their SQL interchange is not implemented. |
 | **Cloud diagrams** | Local official AWS/Azure SVG-pack imports, versioned catalogs, search, grid/list views, favorites/recents, editable labels, and embedded artwork in saved projects. |
-| **AWS deployment trial** | Configure **S3 buckets, DynamoDB tables, SNS topics, SQS queues, VPCs and private subnets**; preview and apply a reviewed Terraform plan. SNS-to-SQS selection creates its subscription and delivery policy. |
+| **AWS deployment trial** | Configure **S3 buckets, DynamoDB tables, SNS topics, SQS queues, Python Lambda functions, VPCs and private subnets**; preview and apply a reviewed Terraform plan. Explicit selections create SNS delivery policies and Lambda queue triggers. |
 | **Files and export** | `.blueprint` archives, readable `.blueprint.json`, older-format migration, SVG export, and headless file/SQL commands. |
 
 Presentation mode, a minimap, direct ERD cell editing and row dragging on the
@@ -268,19 +268,24 @@ creating a document. Use the **+** beside the page name to add another page.
 - On an ERD page, **Import SQL…** previews a PostgreSQL schema before importing
   editable tables and relationships. Column edits remain in the inspector.
 - On a cloud page, **Manage icon packs…** guides local AWS/Azure ZIP import.
-  Official vendor artwork is not bundled. **Add AWS trial stack** and
-  **Add starter network** work without an installed pack.
+  Official vendor artwork is not bundled. **Add AWS trial stack**, **Add Lambda
+  trial** and **Add starter network** work without an installed pack.
 - Save an editable `.blueprint` project, then export SVG for documentation.
   Workspace theme/layout preferences are stored separately from the document.
 
 ### AWS deployment
 
-This trial deploys **S3 buckets, DynamoDB tables, standard SNS topics and SQS
-queues**, plus **VPCs and private IPv4 subnets**. Select an AWS icon or basic shape
+This trial deploys **S3 buckets, DynamoDB tables, standard SNS topics, SQS
+queues and Python Lambda functions**, plus **VPCs and private IPv4 subnets**. Select an AWS icon or basic shape
 and configure its **Infrastructure** properties. Recognized service names offer
 a one-click suggestion. Other service icons remain diagram-only in this trial.
 Drawing a connector does not configure a subscription: select the SNS topic in
 the queue's settings to create its subscription and delivery policy.
+
+**Add Lambda trial** adds a Python 3.13 worker consuming the trial queue. Edit
+its single-module source, memory, timeout and optional queue trigger in the
+inspector. Blueprint packages the source and generates its execution role and
+14-day log group. Source or ZIP changes require a new deployment preview.
 
 With **Terraform 1.5+ in the 1.x series** on PATH and an authenticated local AWS
 profile/session, click **Add AWS trial stack**, open **AWS deployment…**, set the account,
@@ -296,6 +301,9 @@ export one without contacting AWS:
 cargo run -p bp-cli -- aws-trial trial.blueprint --account YOUR_12_DIGIT_ACCOUNT_ID
 cargo run -p bp-cli -- aws-export trial.blueprint main.tf.json
 ```
+
+Add `--lambda` to `aws-trial` to include the worker. Export writes its ZIP beside
+`main.tf.json`; keep those files together when running Terraform yourself.
 
 Read the full [deployment setup and safeguards](docs/cloud-deployment.md)
 before using this workflow. No AWS account or Terraform installation is required
@@ -358,7 +366,7 @@ cargo run -p bp-cli -- export-sql schema.blueprint schema-export.sql --page 1
 | `.svg` | Vector output for documentation and sharing. |
 | `.sql` | PostgreSQL schema interchange, with preview warnings. |
 
-Documents carry a `schema_version`, currently **7**. Blueprint migrates older
+Documents carry a `schema_version`, currently **8**. Blueprint migrates older
 documents on open. Newer-format files require a build that supports their schema.
 
 ## Contributing

@@ -1,4 +1,4 @@
-//! A working four-service starting point, shared by the editor and CLI.
+//! Working AWS starting points, shared by the editor and CLI.
 
 use bp_model::kurbo::{Point, Rect};
 use bp_model::{
@@ -63,7 +63,49 @@ pub fn elements(parent: Parent, center: Point, mut order: OrderKey) -> Vec<Eleme
     elements
 }
 
+/// The four-service trial plus a Python worker consuming the selected queue.
+pub fn elements_with_lambda(parent: Parent, center: Point, order: OrderKey) -> Vec<Element> {
+    let mut elements = elements(parent, center, order);
+    let queue = elements[3].id;
+    let order = OrderKey::after(&elements.last().unwrap().order);
+    let mut function = Element::shape(
+        ShapeRef::new("basic", "rounded-rectangle"),
+        parent,
+        order.clone(),
+        Rect::new(
+            center.x + 290.0,
+            center.y + 35.0,
+            center.x + 490.0,
+            center.y + 120.0,
+        ),
+    );
+    let mut resource = AwsResourceKind::LambdaFunction.create(function.id);
+    if let AwsResource::LambdaFunction { queue: source, .. } = &mut resource {
+        *source = Some(queue);
+    }
+    let shape = function.as_shape_mut().unwrap();
+    shape.text = "AWS Lambda · worker".into();
+    shape.infrastructure = Some(resource);
+    let connector = Element::connector(
+        Endpoint::glued(queue, None),
+        Endpoint::glued(function.id, None),
+        parent,
+        OrderKey::after(&order),
+    );
+    elements.push(function);
+    elements.push(connector);
+    elements
+}
+
 pub fn document(target: AwsDeployment) -> Document {
+    document_for(target, false)
+}
+
+pub fn document_with_lambda(target: AwsDeployment) -> Document {
+    document_for(target, true)
+}
+
+fn document_for(target: AwsDeployment, with_lambda: bool) -> Document {
     let mut doc = Document::new();
     let page = doc.first_page().unwrap();
     let data = doc.pages.get_mut(&page).unwrap();
@@ -71,7 +113,13 @@ pub fn document(target: AwsDeployment) -> Document {
     data.diagram_kind = Some(DiagramKind::Cloud);
     data.deployment = Some(target);
     let parent = Parent::Layer(doc.layers_of(page)[0].id);
-    for element in elements(parent, Point::new(300.0, 240.0), OrderKey::first()) {
+    let center = Point::new(300.0, 240.0);
+    let elements = if with_lambda {
+        elements_with_lambda(parent, center, OrderKey::first())
+    } else {
+        elements(parent, center, OrderKey::first())
+    };
+    for element in elements {
         doc.elements.insert(element.id, element);
     }
     doc

@@ -23,7 +23,7 @@ Usage:
       Preview a PostgreSQL schema or import it into a new editable ERD project.
   blueprint-cli export-sql <input.blueprint> [output.sql] [--page <n|name>] [--dialect postgres] [--preview]
       Preview or export one ERD page as PostgreSQL DDL.
-  blueprint-cli aws-trial <output.blueprint> [--account <id>] [--region <region>] [--profile <name>]
+  blueprint-cli aws-trial <output.blueprint> [--lambda] [--account <id>] [--region <region>] [--profile <name>]
       Create an editable S3, DynamoDB, SNS and SQS trial project. Does not contact AWS.
   blueprint-cli aws-export <input.blueprint> <output.tf.json> [--page <n|name>]
       Export a Cloud page as Terraform JSON. Does not initialize, plan or deploy.
