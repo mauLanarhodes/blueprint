@@ -24,7 +24,7 @@ pub struct DeploymentState {
 
 enum DeploymentEvent {
     Progress(String),
-    Planned(Result<Plan, String>),
+    Planned(Result<Box<Plan>, String>),
     Applied(Result<String, String>),
 }
 
@@ -469,7 +469,7 @@ impl BlueprintApp {
                     self.deployment.reviewed = false;
                     match result {
                         Ok(plan) => {
-                            self.deployment.plan = Some(plan);
+                            self.deployment.plan = Some(*plan);
                             self.deployment.message = None;
                         }
                         Err(error) => self.deployment.message = Some(error),
@@ -524,7 +524,7 @@ impl BlueprintApp {
                 let _ = sender.send(DeploymentEvent::Progress(phase.into()));
                 ctx.request_repaint();
             });
-            let _ = sender.send(DeploymentEvent::Planned(result));
+            let _ = sender.send(DeploymentEvent::Planned(result.map(Box::new)));
             ctx.request_repaint();
         });
     }
