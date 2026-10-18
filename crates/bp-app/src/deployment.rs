@@ -4,7 +4,9 @@ use crate::BlueprintApp;
 use bp_commands::{Command, PageProp, Prop};
 use bp_deploy::{Plan, Terraform};
 use bp_model::kurbo::Rect;
-use bp_model::{AwsResource, DiagramKind, Element, Endpoint, OrderKey, Parent, ShapeRef};
+use bp_model::{
+    AwsResource, AwsResourceKind, DiagramKind, Element, Endpoint, OrderKey, Parent, ShapeRef,
+};
 use egui::{RichText, Ui};
 use std::path::PathBuf;
 use std::sync::mpsc;
@@ -122,6 +124,44 @@ impl BlueprintApp {
         }
     }
 
+    pub fn add_aws_trial(&mut self) {
+        if self.page_kind() != Some(DiagramKind::Cloud) || self.deployment.busy() {
+            return;
+        }
+        let Some(layer) = self.doc.layers.get(&self.layer) else {
+            return;
+        };
+        if layer.locked || !layer.visible {
+            self.status = "Choose a visible, unlocked layer for the AWS trial".into();
+            return;
+        }
+        let parent = Parent::Layer(self.layer);
+        let center = self.view_center();
+        let center = if center.x.is_finite() && center.y.is_finite() {
+            center
+        } else {
+            bp_model::kurbo::Point::ZERO
+        };
+        let elements = bp_deploy::trial::elements(parent, center, self.doc.next_order_key(parent));
+        let selection = elements
+            .iter()
+            .filter(|e| e.is_shape())
+            .map(|e| e.id)
+            .collect();
+        let mut commands: Vec<_> = elements
+            .into_iter()
+            .map(|e| Command::Insert(Box::new(e)))
+            .collect();
+        crate::presets::commands(&mut commands, self.doc.pages[&self.page].background);
+        if self.apply("Add AWS trial stack", commands) {
+            self.selection = selection;
+            self.fit_requested = true;
+            self.status =
+                "AWS trial added. Select a service to configure it, then preview deployment."
+                    .into();
+        }
+    }
+
     pub(crate) fn resource_inspector(&mut self, ui: &mut Ui, element: &Element) {
         if self.page_kind() != Some(DiagramKind::Cloud) {
             return;
@@ -136,34 +176,30 @@ impl BlueprintApp {
             return;
         }
         let mut resource = shape.infrastructure.clone();
-        let current = match resource {
-            None => 0,
-            Some(AwsResource::Vpc { .. }) => 1,
-            Some(AwsResource::Subnet { .. }) => 2,
-        };
+        let current = resource.as_ref().map(AwsResource::kind);
         let mut chosen = current;
         let resource_label = ui.label("Resource type");
         egui::ComboBox::from_id_salt(("resource-kind", element.id))
             .selected_text(resource.as_ref().map_or("Diagram only", AwsResource::label))
             .show_ui(ui, |ui| {
-                ui.selectable_value(&mut chosen, 0, "Diagram only");
-                ui.selectable_value(&mut chosen, 1, "AWS VPC");
-                ui.selectable_value(&mut chosen, 2, "AWS private subnet");
+                ui.selectable_value(&mut chosen, None, "Diagram only");
+                for kind in AwsResourceKind::ALL {
+                    ui.selectable_value(&mut chosen, Some(kind), kind.label());
+                }
             })
             .response
             .labelled_by(resource_label.id);
         if chosen != current {
-            resource = match chosen {
-                1 => Some(AwsResource::Vpc {
-                    cidr: "10.0.0.0/16".into(),
-                }),
-                2 => Some(AwsResource::Subnet {
-                    vpc: None,
-                    cidr: "10.0.1.0/24".into(),
-                    availability_zone: String::new(),
-                }),
-                _ => None,
-            };
+            resource = chosen.map(|kind| kind.create(element.id));
+        }
+        if resource.is_none()
+            && let Some(icon) = self.cloud_icon(&shape.shape)
+            && let Some(kind) = AwsResourceKind::suggest(&icon.name)
+            && ui
+                .button(format!("Configure as {}", kind.label()))
+                .clicked()
+        {
+            resource = Some(kind.create(element.id));
         }
         match &mut resource {
             Some(AwsResource::Vpc { cidr }) => {
@@ -215,6 +251,81 @@ impl BlueprintApp {
                         .small()
                         .weak(),
                 );
+            }
+            Some(AwsResource::S3Bucket { name, versioning }) => {
+                field(ui, "Bucket name (globally unique)", name);
+                ui.checkbox(versioning, "Enable object versioning");
+                ui.label(RichText::new("Public access is blocked. Bucket deletion will fail while it contains objects; objects are never force-deleted.").small().weak());
+            }
+            Some(AwsResource::DynamoDbTable {
+                name,
+                partition_key,
+                sort_key,
+            }) => {
+                field(ui, "Table name", name);
+                field(ui, "Partition key", partition_key);
+                field(ui, "Sort key (optional)", sort_key);
+                ui.label(RichText::new("On-demand billing. Both keys use the String type; other item attributes need no schema.").small().weak());
+            }
+            Some(AwsResource::SnsTopic { name }) => {
+                field(ui, "Topic name", name);
+                ui.label(RichText::new("Standard topic. Select this topic in an SQS queue's settings to subscribe that queue.").small().weak());
+            }
+            Some(AwsResource::SqsQueue {
+                name,
+                visibility_timeout,
+                retention_seconds,
+                topic,
+            }) => {
+                field(ui, "Queue name", name);
+                ui.horizontal(|ui| {
+                    ui.label("Visibility timeout (seconds)");
+                    ui.add(egui::DragValue::new(visibility_timeout).range(0..=43_200));
+                });
+                ui.horizontal(|ui| {
+                    ui.label("Message retention (seconds)");
+                    ui.add(egui::DragValue::new(retention_seconds).range(60..=1_209_600));
+                });
+                let candidates: Vec<_> = self
+                    .doc
+                    .page_elements(self.page)
+                    .into_iter()
+                    .filter(|e| {
+                        matches!(
+                            e.as_shape().and_then(|s| s.infrastructure.as_ref()),
+                            Some(AwsResource::SnsTopic { .. })
+                        )
+                    })
+                    .map(|e| {
+                        (
+                            e.id,
+                            e.text()
+                                .filter(|s| !s.is_empty())
+                                .unwrap_or("SNS topic")
+                                .to_owned(),
+                        )
+                    })
+                    .collect();
+                ui.label("Subscribe to SNS topic (optional)");
+                let selected = if topic.is_some() {
+                    "Missing topic — choose again"
+                } else {
+                    "No subscription"
+                };
+                egui::ComboBox::from_id_salt(("queue-topic", element.id))
+                    .selected_text(
+                        candidates
+                            .iter()
+                            .find(|(id, _)| Some(*id) == *topic)
+                            .map_or(selected, |(_, name)| name),
+                    )
+                    .show_ui(ui, |ui| {
+                        ui.selectable_value(topic, None, "No subscription");
+                        for (id, name) in candidates {
+                            ui.selectable_value(topic, Some(id), name);
+                        }
+                    });
+                ui.label(RichText::new("Standard encrypted queue. A subscription also creates a queue policy allowing only the selected SNS topic. Drawing a connector alone does not create a subscription.").small().weak());
             }
             None => {
                 ui.label(
@@ -386,12 +497,13 @@ impl BlueprintApp {
         let mut preview = false;
         let mut deploy = false;
         let mut starter = false;
+        let mut trial = false;
         let mut close = false;
         let modal = egui::Modal::new(egui::Id::new("deploy-infrastructure")).show(ctx, |ui| {
             ui.set_width(680.0_f32.min((ctx.content_rect().width() - 48.0).max(240.0)));
             ui.heading("Deploy AWS infrastructure");
             egui::ScrollArea::vertical().max_height((ctx.content_rect().height() - 100.0).clamp(180.0, 640.0)).show(ui, |ui| {
-                ui.label("Configure a private VPC and subnets, preview the changes, then deploy the reviewed plan.");
+                ui.label("Configure S3, DynamoDB, SNS, SQS, VPCs or private subnets, preview the changes, then deploy the reviewed plan.");
                 ui.add_enabled_ui(!busy, |ui| {
                     self.deployment_target(ui);
                     ui.horizontal(|ui| {
@@ -405,6 +517,7 @@ impl BlueprintApp {
                     });
                     ui.label(RichText::new("Keep the deployment folder: it stores Terraform state for future updates. Each page gets its own subfolder.").small().weak());
                     starter = ui.button("Add starter network").clicked();
+                    trial = ui.button("Add AWS trial stack").clicked();
                 });
                 ui.separator();
                 match &configuration {
@@ -444,6 +557,9 @@ impl BlueprintApp {
         }
         if starter {
             self.add_starter_network();
+        }
+        if trial {
+            self.add_aws_trial();
         }
         if preview {
             self.preview_deployment(ctx);
@@ -615,5 +731,78 @@ mod tests {
                 .unwrap()
                 .contains("Preview again")
         );
+    }
+
+    #[test]
+    fn trial_is_undoable_and_copying_remaps_its_subscription() {
+        let mut app = BlueprintApp::new(&egui::Context::default(), None);
+        app.choose_page_kind(DiagramKind::Cloud);
+        app.add_aws_trial();
+        assert_eq!(app.selection.len(), 4);
+        assert_eq!(app.doc.elements.len(), 5);
+        app.undo();
+        assert!(app.doc.elements.is_empty());
+        app.redo();
+        let selection: Vec<_> = app
+            .doc
+            .elements
+            .values()
+            .filter(|e| e.is_shape())
+            .map(|e| e.id)
+            .collect();
+        let topic = app
+            .doc
+            .elements
+            .values()
+            .find(|e| {
+                matches!(
+                    e.as_shape().and_then(|s| s.infrastructure.as_ref()),
+                    Some(AwsResource::SnsTopic { .. })
+                )
+            })
+            .unwrap()
+            .id;
+        let clip = Clip::copy(&app.doc, &selection, |_, _| None);
+        let (roots, commands) = clip.paste(&app.doc, Parent::Layer(app.layer), Default::default());
+        assert!(app.apply("Copy AWS trial", commands));
+        let copied_topic = roots
+            .iter()
+            .copied()
+            .find(|id| {
+                matches!(
+                    app.doc.elements[id]
+                        .as_shape()
+                        .and_then(|s| s.infrastructure.as_ref()),
+                    Some(AwsResource::SnsTopic { .. })
+                )
+            })
+            .unwrap();
+        assert_ne!(topic, copied_topic);
+        let queue = roots
+            .iter()
+            .copied()
+            .find(|id| {
+                matches!(
+                    app.doc.elements[id]
+                        .as_shape()
+                        .and_then(|s| s.infrastructure.as_ref()),
+                    Some(AwsResource::SqsQueue { .. })
+                )
+            })
+            .unwrap();
+        assert!(
+            matches!(app.doc.elements[&queue].as_shape().unwrap().infrastructure, Some(AwsResource::SqsQueue { topic: Some(id), .. }) if id == copied_topic)
+        );
+        let clip = Clip::copy(&app.doc, &[queue], |_, _| None);
+        let (roots, commands) = clip.paste(&app.doc, Parent::Layer(app.layer), Default::default());
+        assert!(app.apply("Copy only queue", commands));
+        assert!(matches!(
+            app.doc.elements[&roots[0]]
+                .as_shape()
+                .unwrap()
+                .infrastructure,
+            Some(AwsResource::SqsQueue { topic: None, .. })
+        ));
+        app.doc.validate().unwrap();
     }
 }

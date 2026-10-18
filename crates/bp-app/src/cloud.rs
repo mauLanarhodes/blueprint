@@ -565,6 +565,12 @@ impl BlueprintApp {
             crate::widgets::command_focus(ui, &header.header_response);
         }
         if self.cloud.provider == CloudProvider::Aws {
+            let trial = ui.small_button("Add AWS trial stack");
+            crate::widgets::focus_outline(ui, &trial);
+            crate::widgets::command_focus(ui, &trial);
+            if trial.clicked() {
+                self.add_aws_trial();
+            }
             let response = ui.small_button("Add starter network");
             crate::widgets::focus_outline(ui, &response);
             crate::widgets::command_focus(ui, &response);

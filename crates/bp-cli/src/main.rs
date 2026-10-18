@@ -9,6 +9,7 @@
 use std::path::PathBuf;
 use std::process::ExitCode;
 
+mod aws;
 mod sql;
 
 const USAGE: &str = "\
@@ -22,6 +23,10 @@ Usage:
       Preview a PostgreSQL schema or import it into a new editable ERD project.
   blueprint-cli export-sql <input.blueprint> [output.sql] [--page <n|name>] [--dialect postgres] [--preview]
       Preview or export one ERD page as PostgreSQL DDL.
+  blueprint-cli aws-trial <output.blueprint> [--account <id>] [--region <region>] [--profile <name>]
+      Create an editable S3, DynamoDB, SNS and SQS trial project. Does not contact AWS.
+  blueprint-cli aws-export <input.blueprint> <output.tf.json> [--page <n|name>]
+      Export a Cloud page as Terraform JSON. Does not initialize, plan or deploy.
 ";
 
 fn main() -> ExitCode {
@@ -31,6 +36,8 @@ fn main() -> ExitCode {
         Some("info") if args.len() == 2 => info(args[1].clone().into()),
         Some("import-sql") => sql::run(&args[1..], true),
         Some("export-sql") => sql::run(&args[1..], false),
+        Some("aws-trial") => aws::run(&args[1..], true),
+        Some("aws-export") => aws::run(&args[1..], false),
         Some("--version" | "-V") => {
             println!("blueprint-cli {}", env!("CARGO_PKG_VERSION"));
             Ok(())

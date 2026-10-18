@@ -34,6 +34,11 @@ pub fn migrate(mut value: Value) -> Result<Value, IoError> {
         // Earlier readers must not discard deployable resource configuration.
         value["schema_version"] = 6.into();
     }
+    if version < 7 {
+        // New AWS trial variants must not be dropped by older readers.
+        // Existing VPC/subnet settings and resource identities stay unchanged.
+        value["schema_version"] = 7.into();
+    }
     Ok(value)
 }
 

@@ -11,6 +11,7 @@ name = "blueprint-cli"
 path = "src/main.rs"
 
 [dependencies]
+bp-deploy.workspace = true
 bp-export.workspace = true
 bp-io.workspace = true
 bp-model.workspace = true

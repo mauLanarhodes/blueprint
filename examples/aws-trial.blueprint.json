@@ -1,0 +1,129 @@
+{
+  "schema_version": 7,
+  "pages": {
+    "01a1510c-7d6c-72ca-b3dc-af78514afa1f": {
+      "id": "01a1510c-7d6c-72ca-b3dc-af78514afa1f",
+      "name": "AWS deployment trial",
+      "order": "V",
+      "background": "#ffffff",
+      "diagram_kind": "cloud",
+      "deployment": {
+        "region": "us-east-1",
+        "profile": "",
+        "account_id": ""
+      }
+    }
+  },
+  "layers": {
+    "01a1510c-7d6c-72ca-b3dc-af79b8cf8397": {
+      "id": "01a1510c-7d6c-72ca-b3dc-af79b8cf8397",
+      "page": "01a1510c-7d6c-72ca-b3dc-af78514afa1f",
+      "name": "Layer 1",
+      "order": "V",
+      "visible": true,
+      "locked": false
+    }
+  },
+  "elements": {
+    "01a1510c-7d6c-72ca-b3dc-af7a357c161e": {
+      "id": "01a1510c-7d6c-72ca-b3dc-af7a357c161e",
+      "parent": {
+        "layer": "01a1510c-7d6c-72ca-b3dc-af79b8cf8397"
+      },
+      "order": "V",
+      "type": "shape",
+      "shape": "basic/rounded-rectangle",
+      "bounds": {
+        "x0": 70.0,
+        "y0": 115.0,
+        "x1": 270.0,
+        "y1": 200.0
+      },
+      "text": "Amazon S3 · objects",
+      "infrastructure": {
+        "type": "s3_bucket",
+        "name": "blueprint-b3dcaf7a357c161e",
+        "versioning": true
+      }
+    },
+    "01a1510c-7d6c-72ca-b3dc-af7b4faf49f5": {
+      "id": "01a1510c-7d6c-72ca-b3dc-af7b4faf49f5",
+      "parent": {
+        "layer": "01a1510c-7d6c-72ca-b3dc-af79b8cf8397"
+      },
+      "order": "l",
+      "type": "shape",
+      "shape": "basic/rounded-rectangle",
+      "bounds": {
+        "x0": 70.0,
+        "y0": 275.0,
+        "x1": 270.0,
+        "y1": 360.0
+      },
+      "text": "DynamoDB · data",
+      "infrastructure": {
+        "type": "dynamo_db_table",
+        "name": "blueprint-b3dcaf7b4faf49f5",
+        "partition_key": "id",
+        "sort_key": ""
+      }
+    },
+    "01a1510c-7d6c-72ca-b3dc-af7cb0201387": {
+      "id": "01a1510c-7d6c-72ca-b3dc-af7cb0201387",
+      "parent": {
+        "layer": "01a1510c-7d6c-72ca-b3dc-af79b8cf8397"
+      },
+      "order": "t",
+      "type": "shape",
+      "shape": "basic/rounded-rectangle",
+      "bounds": {
+        "x0": 330.0,
+        "y0": 115.0,
+        "x1": 530.0,
+        "y1": 200.0
+      },
+      "text": "Amazon SNS · events",
+      "infrastructure": {
+        "type": "sns_topic",
+        "name": "blueprint-b3dcaf7cb0201387"
+      }
+    },
+    "01a1510c-7d6c-72ca-b3dc-af7de771773e": {
+      "id": "01a1510c-7d6c-72ca-b3dc-af7de771773e",
+      "parent": {
+        "layer": "01a1510c-7d6c-72ca-b3dc-af79b8cf8397"
+      },
+      "order": "x",
+      "type": "shape",
+      "shape": "basic/rounded-rectangle",
+      "bounds": {
+        "x0": 330.0,
+        "y0": 275.0,
+        "x1": 530.0,
+        "y1": 360.0
+      },
+      "text": "Amazon SQS · inbox",
+      "infrastructure": {
+        "type": "sqs_queue",
+        "name": "blueprint-b3dcaf7de771773e",
+        "visibility_timeout": 30,
+        "retention_seconds": 345600,
+        "topic": "01a1510c-7d6c-72ca-b3dc-af7cb0201387"
+      }
+    },
+    "01a1510c-7d6c-72ca-b3dc-af7eec6f5739": {
+      "id": "01a1510c-7d6c-72ca-b3dc-af7eec6f5739",
+      "parent": {
+        "layer": "01a1510c-7d6c-72ca-b3dc-af79b8cf8397"
+      },
+      "order": "z",
+      "type": "connector",
+      "source": {
+        "element": "01a1510c-7d6c-72ca-b3dc-af7cb0201387"
+      },
+      "target": {
+        "element": "01a1510c-7d6c-72ca-b3dc-af7de771773e"
+      }
+    }
+  }
+}

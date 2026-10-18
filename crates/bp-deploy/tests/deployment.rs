@@ -185,6 +185,268 @@ fn labels_and_profiles_are_literals_and_configuration_survives_both_formats() {
     }
 }
 
+fn trial() -> Document {
+    bp_deploy::trial::document(AwsDeployment {
+        account_id: "123456789012".into(),
+        ..Default::default()
+    })
+}
+
+#[test]
+fn trial_generates_private_bucket_and_a_topic_scoped_queue_subscription() {
+    let generated = config(&trial()).unwrap();
+    let value: Value = serde_json::from_str(&generated.json).unwrap();
+    assert_eq!(generated.resources.len(), 4);
+    assert!(generated.warnings.is_empty());
+    let resources = &value["resource"];
+    assert_eq!(
+        resources
+            .as_object()
+            .unwrap()
+            .values()
+            .map(|v| v.as_object().unwrap().len())
+            .sum::<usize>(),
+        8
+    );
+    let (queue, _) = resources["aws_sqs_queue"]
+        .as_object()
+        .unwrap()
+        .iter()
+        .next()
+        .unwrap();
+    let (topic, _) = resources["aws_sns_topic"]
+        .as_object()
+        .unwrap()
+        .iter()
+        .next()
+        .unwrap();
+    let queue_arn = format!("${{aws_sqs_queue.{queue}.arn}}");
+    let topic_arn = format!("${{aws_sns_topic.{topic}.arn}}");
+    let subscription = &resources["aws_sns_topic_subscription"][queue];
+    assert_eq!(subscription["endpoint"], queue_arn);
+    assert_eq!(subscription["topic_arn"], topic_arn);
+    assert_eq!(
+        subscription["depends_on"],
+        json!([format!("aws_sqs_queue_policy.{queue}")])
+    );
+    let policy: Value = serde_json::from_str(
+        resources["aws_sqs_queue_policy"][queue]["policy"]
+            .as_str()
+            .unwrap(),
+    )
+    .unwrap();
+    assert_eq!(policy["Version"], "2012-10-17");
+    assert_eq!(policy["Statement"][0]["Resource"], queue_arn);
+    assert_eq!(
+        policy["Statement"][0]["Condition"]["ArnEquals"]["aws:SourceArn"],
+        topic_arn
+    );
+    assert_eq!(
+        policy["Statement"][0]["Principal"]["Service"],
+        "sns.amazonaws.com"
+    );
+    let bucket = resources["aws_s3_bucket"]
+        .as_object()
+        .unwrap()
+        .values()
+        .next()
+        .unwrap();
+    assert_eq!(bucket["force_destroy"], false);
+    let block = resources["aws_s3_bucket_public_access_block"]
+        .as_object()
+        .unwrap()
+        .values()
+        .next()
+        .unwrap();
+    for field in [
+        "block_public_acls",
+        "block_public_policy",
+        "ignore_public_acls",
+        "restrict_public_buckets",
+    ] {
+        assert_eq!(block[field], true);
+    }
+}
+
+#[test]
+fn trial_settings_round_trip_and_legacy_network_migration_keeps_resource_identities() {
+    let doc = trial();
+    for bytes in [
+        bp_io::to_json_bytes(&doc).unwrap(),
+        bp_io::to_zip_bytes(&doc).unwrap(),
+    ] {
+        let loaded = bp_io::from_bytes(&bytes).unwrap();
+        assert_eq!(loaded, doc);
+        assert_eq!(config(&loaded).unwrap().json, config(&doc).unwrap().json);
+    }
+    let doc = network().0;
+    let expected = config(&doc).unwrap();
+    let mut legacy = serde_json::to_value(&doc).unwrap();
+    legacy["schema_version"] = 6.into();
+    let loaded = bp_io::from_bytes(&serde_json::to_vec(&legacy).unwrap()).unwrap();
+    assert_eq!(loaded.schema_version, bp_model::SCHEMA_VERSION);
+    assert_eq!(loaded.elements, doc.elements);
+    assert_eq!(config(&loaded).unwrap().json, expected.json);
+}
+
+#[test]
+fn trial_rejects_invalid_service_names_and_settings_before_terraform() {
+    use bp_model::AwsResourceKind;
+    for (kind, invalid, message) in [
+        (
+            AwsResourceKind::S3Bucket,
+            AwsResource::S3Bucket {
+                name: "Invalid Bucket".into(),
+                versioning: false,
+            },
+            "Bucket name",
+        ),
+        (
+            AwsResourceKind::DynamoDbTable,
+            AwsResource::DynamoDbTable {
+                name: "table".into(),
+                partition_key: "id".into(),
+                sort_key: "id".into(),
+            },
+            "different names",
+        ),
+        (
+            AwsResourceKind::SqsQueue,
+            AwsResource::SqsQueue {
+                name: "queue".into(),
+                visibility_timeout: 43_201,
+                retention_seconds: 60,
+                topic: None,
+            },
+            "Visibility",
+        ),
+        (
+            AwsResourceKind::SqsQueue,
+            AwsResource::SqsQueue {
+                name: "queue".into(),
+                visibility_timeout: 30,
+                retention_seconds: 59,
+                topic: None,
+            },
+            "retention",
+        ),
+        (
+            AwsResourceKind::SqsQueue,
+            AwsResource::SqsQueue {
+                name: "queue".into(),
+                visibility_timeout: 30,
+                retention_seconds: 60,
+                topic: Some(ElementId::new()),
+            },
+            "on this page",
+        ),
+        (
+            AwsResourceKind::SnsTopic,
+            AwsResource::SnsTopic {
+                name: "topic.fifo".into(),
+            },
+            "Name must",
+        ),
+    ] {
+        let mut doc = trial();
+        let element = doc
+            .elements
+            .values_mut()
+            .find(|e| {
+                e.as_shape()
+                    .and_then(|s| s.infrastructure.as_ref())
+                    .is_some_and(|r| r.kind() == kind)
+            })
+            .unwrap();
+        element.as_shape_mut().unwrap().infrastructure = Some(invalid);
+        assert!(config(&doc).unwrap_err().contains(message));
+    }
+    let mut doc = trial();
+    let mut copy = doc
+        .elements
+        .values()
+        .find(|e| {
+            matches!(
+                e.as_shape().and_then(|s| s.infrastructure.as_ref()),
+                Some(AwsResource::S3Bucket { .. })
+            )
+        })
+        .unwrap()
+        .clone();
+    copy.id = ElementId::new();
+    copy.order = OrderKey::after(&copy.order);
+    doc.elements.insert(copy.id, copy);
+    assert!(config(&doc).unwrap_err().contains("unique name"));
+}
+
+#[test]
+fn unlinking_a_queue_removes_only_its_subscription_and_keys_remain_literal() {
+    let mut doc = trial();
+    let before: Value = serde_json::from_str(&config(&doc).unwrap().json).unwrap();
+    for element in doc.elements.values_mut() {
+        match element
+            .as_shape_mut()
+            .and_then(|s| s.infrastructure.as_mut())
+        {
+            Some(AwsResource::SqsQueue { topic, .. }) => *topic = None,
+            Some(AwsResource::DynamoDbTable {
+                partition_key,
+                sort_key,
+                ..
+            }) => {
+                *partition_key = "${file(\"literal\")}".into();
+                *sort_key = "%{ literal }".into();
+            }
+            _ => {}
+        }
+    }
+    let value: Value = serde_json::from_str(&config(&doc).unwrap().json).unwrap();
+    assert_eq!(
+        value["resource"]["aws_sqs_queue"],
+        before["resource"]["aws_sqs_queue"]
+    );
+    assert!(value["resource"].get("aws_sqs_queue_policy").is_none());
+    assert!(
+        value["resource"]
+            .get("aws_sns_topic_subscription")
+            .is_none()
+    );
+    let table = value["resource"]["aws_dynamodb_table"]
+        .as_object()
+        .unwrap()
+        .values()
+        .next()
+        .unwrap();
+    assert_eq!(table["hash_key"], "$${file(\"literal\")}");
+    assert_eq!(table["range_key"], "%%{ literal }");
+}
+
+#[cfg(unix)]
+#[test]
+fn trial_uses_the_reviewed_plan_runner_for_all_supporting_resources() {
+    let scratch = Scratch::new();
+    let generated = config(&trial()).unwrap();
+    let value: Value = serde_json::from_str(&generated.json).unwrap();
+    let (runner, workspace) = mock(&scratch, &generated);
+    let changes: Vec<_> = value["resource"].as_object().unwrap().iter().flat_map(|(kind, instances)| {
+        instances.as_object().unwrap().keys().map(move |name| json!({"address": format!("{kind}.{name}"), "change": {"actions": ["create"]}}))
+    }).collect();
+    std::fs::write(
+        workspace.join("mock-plan.json"),
+        json!({
+            "planned_values": {"outputs": {"aws_account_id": {"value": generated.account_id}}},
+            "resource_changes": changes
+        })
+        .to_string(),
+    )
+    .unwrap();
+    let plan = runner.plan(generated, &scratch.0, |_| {}).unwrap();
+    assert_eq!(plan.changes.len(), 8);
+    assert!(!workspace.join("applied").exists());
+    runner.apply(plan, |_| {}).unwrap();
+    assert!(workspace.join("applied").exists());
+}
+
 #[cfg(unix)]
 struct Scratch(PathBuf);
 #[cfg(unix)]

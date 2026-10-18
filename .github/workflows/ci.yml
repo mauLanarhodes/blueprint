@@ -2,13 +2,27 @@ name: CI
 
 on:
   push:
-    branches: [main]
+    branches: [main, feat/trial-aws-deploy]
   pull_request:
 
 env:
   CARGO_TERM_COLOR: always
 
 jobs:
+  aws-trial:
+    name: Validate and mock-apply AWS trial
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: 1.16.6
+          terraform_wrapper: false
+      - run: cargo build --locked -p bp-cli
+      # Real provider schema validation; mock apply never contacts AWS.
+      - run: python3 tools/check_aws_trial.py --cli target/debug/blueprint-cli
   check:
     name: ${{ matrix.os }}
     strategy:

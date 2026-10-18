@@ -78,6 +78,9 @@ Screenshot provenance and regeneration commands are in
 **Blueprint is in active, pre-1.0 development.** The manifests currently declare
 version `0.1.0`. The expanded ERD, flowchart, and cloud workspace is now merged
 into **`main`**, including the redesigned UI and limited AWS network deployment.
+This **`feat/trial-aws-deploy`** branch adds an end-to-end AWS service deployment
+trial. See [the trial guide](docs/aws-trial.md) and open
+[the editable example](examples/aws-trial.blueprint.json).
 
 Clone `main` using the instructions below to run the workspace shown in the
 gallery. Builds are currently from source; packaged stable releases remain
@@ -93,7 +96,7 @@ future work.
 | **ERDs** | Smart tables, typed columns, key/nullability metadata, stable column ports, Crow's Foot relationships, constraints/indexes, column selection, relationship details, and automatic layout. |
 | **SQL** | Preview-first **PostgreSQL** import/export through the UI and CLI. Other table dialects provide type suggestions; their SQL interchange is not implemented. |
 | **Cloud diagrams** | Local official AWS/Azure SVG-pack imports, versioned catalogs, search, grid/list views, favorites/recents, editable labels, and embedded artwork in saved projects. |
-| **AWS deployment** | Terraform preview and reviewed-plan application for explicitly configured **VPCs and private IPv4 subnets**. |
+| **AWS deployment trial** | Configure **S3 buckets, DynamoDB tables, SNS topics, SQS queues, VPCs and private subnets**; preview and apply a reviewed Terraform plan. SNS-to-SQS selection creates its subscription and delivery policy. |
 | **Files and export** | `.blueprint` archives, readable `.blueprint.json`, older-format migration, SVG export, and headless file/SQL commands. |
 
 Presentation mode, a minimap, direct ERD cell editing and row dragging on the
@@ -265,24 +268,34 @@ creating a document. Use the **+** beside the page name to add another page.
 - On an ERD page, **Import SQL…** previews a PostgreSQL schema before importing
   editable tables and relationships. Column edits remain in the inspector.
 - On a cloud page, **Manage icon packs…** guides local AWS/Azure ZIP import.
-  Official vendor artwork is not bundled. **Add starter network** works without
-  an installed pack.
+  Official vendor artwork is not bundled. **Add AWS trial stack** and
+  **Add starter network** work without an installed pack.
 - Save an editable `.blueprint` project, then export SVG for documentation.
   Workspace theme/layout preferences are stored separately from the document.
 
 ### AWS deployment
 
-Blueprint deploys **two resource types: AWS VPCs and private IPv4
-subnets**. EC2, ECS, Lambda, RDS, S3, and other service icons are diagram artwork
-unless a supported resource configuration is explicitly assigned. Drawing a
-boundary or connecting icons does not configure deployment dependencies.
+This trial deploys **S3 buckets, DynamoDB tables, standard SNS topics and SQS
+queues**, plus **VPCs and private IPv4 subnets**. Select an AWS icon or basic shape
+and configure its **Infrastructure** properties. Recognized service names offer
+a one-click suggestion. Other service icons remain diagram-only in this trial.
+Drawing a connector does not configure a subscription: select the SNS topic in
+the queue's settings to create its subscription and delivery policy.
 
 With **Terraform 1.5+ in the 1.x series** on PATH and an authenticated local AWS
-profile/session, create a starter network, open **AWS network…**, set the account,
+profile/session, click **Add AWS trial stack**, open **AWS deployment…**, set the account,
 region, and deployment folder, then preview. Review the actual saved Terraform
 plan before choosing **Deploy reviewed plan**. Applying creates or changes real
 AWS resources and can incur charges. Preserve the deployment folder: it holds
 Terraform state outside the diagram.
+
+You can open [the editable trial](examples/aws-trial.blueprint.json) or create and
+export one without contacting AWS:
+
+```sh
+cargo run -p bp-cli -- aws-trial trial.blueprint --account YOUR_12_DIGIT_ACCOUNT_ID
+cargo run -p bp-cli -- aws-export trial.blueprint main.tf.json
+```
 
 Read the full [deployment setup and safeguards](docs/cloud-deployment.md)
 before using this workflow. No AWS account or Terraform installation is required
@@ -345,7 +358,7 @@ cargo run -p bp-cli -- export-sql schema.blueprint schema-export.sql --page 1
 | `.svg` | Vector output for documentation and sharing. |
 | `.sql` | PostgreSQL schema interchange, with preview warnings. |
 
-Documents carry a `schema_version`, currently **6**. Blueprint migrates older
+Documents carry a `schema_version`, currently **7**. Blueprint migrates older
 documents on open. Newer-format files require a build that supports their schema.
 
 ## Contributing

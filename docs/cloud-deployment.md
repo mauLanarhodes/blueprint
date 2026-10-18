@@ -1,10 +1,12 @@
 # Deploy real AWS infrastructure
 
-Blueprint can provision an AWS VPC and private IPv4 subnets from a Cloud
-architecture page. The app generates Terraform configuration, previews a saved
+Blueprint can provision S3 buckets, DynamoDB tables, standard SNS topics and SQS
+queues, plus VPCs and private IPv4 subnets, from a Cloud architecture page.
+See [the AWS trial guide](aws-trial.md) for service options, the editable example,
+headless validation and extension points. The app generates Terraform configuration, previews a saved
 plan, and applies that exact plan when you choose **Deploy reviewed plan**.
 AWS/Azure service artwork remains available for diagrams; Azure deployment and
-other resource types are not implemented yet.
+AWS services outside this trial are not implemented yet.
 
 ## Setup
 
@@ -15,23 +17,24 @@ preview downloads it, and its lock file preserves the selected version.
 
 Sign in to AWS using your existing local AWS profile, SSO session, or environment
 credentials. The account needs permissions to describe, create, tag and update
-the requested VPCs and subnets. Plans that delete resources also need the
+all requested services and supporting resources. Plans that delete resources also need the
 corresponding deletion permissions. Enter your intended 12-digit account ID:
 the provider is restricted to that account. Blueprint does not request or store
 access keys in the document.
 
 ## Deploy from the editor
 
-1. Create a **Cloud architecture** page. Click **Add starter network** to add
-   one VPC and two private subnets. This works without installing icon packs.
-   Alternatively, select an AWS icon or basic shape and choose **AWS VPC** or
-   **AWS private subnet** in its **Infrastructure** inspector.
+1. Create a **Cloud architecture** page. Click **Add AWS trial stack** for S3,
+   DynamoDB, SNS and an SQS subscriber, or **Add starter network** for a VPC and
+   two private subnets. Both work without installing icon packs. Alternatively,
+   select an AWS icon or basic shape and choose a supported resource in its
+   **Infrastructure** inspector.
 2. Select each resource to edit its IPv4 CIDR. Each subnet must reference a
    configured VPC on the same page, fit inside its CIDR, and avoid overlapping
    sibling subnets. You can specify an availability zone or let AWS choose it.
    These subnets do not assign public IPs; Blueprint does not create an internet
    gateway or NAT gateway.
-3. Click **Deploy infrastructure…** in the palette or File menu. Enter the
+3. Click **AWS deployment…** in the toolbar or File menu. Enter the
    AWS account ID, region, and optional local profile name. Choose a parent
    deployment folder. Blueprint creates `blueprint-PAGE_ID` beneath it.
 4. Click **Preview deployment**. The background worker writes `main.tf.json`,
@@ -48,6 +51,9 @@ previews. Moving shapes does not change Terraform resource identities; copying
 resources gives them new identities. Whole-network copies remap subnet
 dependencies. A subnet copied without its VPC requires a new VPC selection.
 Duplicated pages have separate deployment folders and infrastructure identities.
+Copies preserve physical AWS names; rename copied services before deploying them
+as a second stack. Topic references within a copied stack are remapped; a queue
+copied without its topic has no subscription.
 
 ## State and recovery
 

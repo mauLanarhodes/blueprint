@@ -27,7 +27,7 @@ pub use erd::{
     SqlDialect, TableDisplay,
 };
 pub use ids::{ColumnId, ElementId, IdHasher, IdMap, LayerId, PageId};
-pub use infrastructure::{AwsDeployment, AwsResource};
+pub use infrastructure::{AwsDeployment, AwsResource, AwsResourceKind};
 pub use kurbo;
 pub use order::OrderKey;
 pub use style::{Color, Dash, Paint, Style, StyleValues, TextAlign, VerticalAlign};

@@ -103,7 +103,7 @@ fn deployment_starter_and_dialog_are_available_without_icon_packs() {
     app(&mut h).selection.clear();
     h.run();
     assert!(h.query_by_label("AWS account ID").is_some());
-    h.get_by_label("AWS network…").click();
+    h.get_by_label("AWS deployment…").click();
     h.run();
     assert!(h.query_by_label("Deploy AWS infrastructure").is_some());
     assert!(h.query_by_label("Choose deployment folder…").is_some());
@@ -124,6 +124,44 @@ fn selecting_a_starter_shape_exposes_resource_settings() {
     assert!(h.query_by_label("Infrastructure").is_some());
     assert!(h.query_by_label("IPv4 CIDR").is_some());
     assert!(h.query_by_label("Resource type").is_some());
+}
+
+#[test]
+fn aws_trial_button_creates_editable_services_and_bucket_checkbox_updates_configuration() {
+    let mut h = harness_for(DiagramKind::Cloud);
+    h.get_by_label("Add AWS trial stack").click();
+    h.run();
+    assert_eq!(app(&mut h).doc.elements.len(), 5);
+    let bucket = h
+        .state()
+        .as_ref()
+        .unwrap()
+        .doc
+        .elements
+        .values()
+        .find(|element| {
+            matches!(
+                element.as_shape().and_then(|s| s.infrastructure.as_ref()),
+                Some(bp_model::AwsResource::S3Bucket { .. })
+            )
+        })
+        .unwrap()
+        .id;
+    app(&mut h).selection = vec![bucket];
+    h.run();
+    assert!(h.query_by_label("Bucket name (globally unique)").is_some());
+    h.get_by_label("Enable object versioning").click();
+    h.run();
+    assert!(matches!(
+        app(&mut h).doc.elements[&bucket]
+            .as_shape()
+            .unwrap()
+            .infrastructure,
+        Some(bp_model::AwsResource::S3Bucket {
+            versioning: false,
+            ..
+        })
+    ));
 }
 
 #[test]

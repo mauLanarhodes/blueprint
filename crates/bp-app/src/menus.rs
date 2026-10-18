@@ -49,7 +49,7 @@ impl BlueprintApp {
                 }
                 if item(
                     ui,
-                    "AWS network…",
+                    "AWS deployment…",
                     None,
                     self.page_kind() == Some(bp_model::DiagramKind::Cloud),
                 ) {
@@ -280,7 +280,7 @@ impl BlueprintApp {
                             }
                         }
                         Some(bp_model::DiagramKind::Cloud)
-                            if ui.button("AWS network…").clicked() =>
+                            if ui.button("AWS deployment…").clicked() =>
                         {
                             self.open_deployment();
                         }
@@ -334,7 +334,7 @@ impl BlueprintApp {
                 self.erd_connection_toolbar(ui);
             }
             Some(bp_model::DiagramKind::Cloud) => {
-                if ui.button("AWS network…").clicked() {
+                if ui.button("AWS deployment…").clicked() {
                     self.open_deployment();
                     ui.close();
                 }

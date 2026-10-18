@@ -1,11 +1,13 @@
 //! Cloud diagrams become deployable only through explicit, validated settings.
 
+mod services;
 mod terraform;
+pub mod trial;
 pub use terraform::{Plan, Terraform};
 
 use bp_model::{AwsDeployment, AwsResource, DiagramKind, Document, ElementId, PageId};
 use serde_json::{Map, json};
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet};
 use std::net::Ipv4Addr;
 
 #[derive(Clone, Debug)]
@@ -42,13 +44,20 @@ pub fn configuration(doc: &Document, page: PageId) -> Result<Configuration, Stri
         .collect();
     if configured.is_empty() {
         return Err(
-            "Configure a VPC or subnet in the inspector, or add the starter network".into(),
+            "Choose a resource in the Infrastructure inspector, or add an AWS trial stack".into(),
         );
     }
     let mut resources = Map::new();
     let mut outputs = Map::new();
     let mut names = Vec::new();
     let mut subnets: Vec<(ElementId, ElementId, Cidr)> = Vec::new();
+    let topics: BTreeSet<_> = configured
+        .iter()
+        .filter_map(|(id, (_, resource))| {
+            matches!(resource, AwsResource::SnsTopic { .. }).then_some(*id)
+        })
+        .collect();
+    let mut service_names = BTreeSet::new();
     for (id, (element, resource)) in &configured {
         let shape = element.as_shape().expect("configured shapes");
         if shape.shape.library() == "azure" || shape.erd.is_some() {
@@ -109,7 +118,19 @@ pub fn configuration(doc: &Document, page: PageId) -> Result<Configuration, Stri
                 }
                 ("aws_subnet", body)
             }
+            other => services::generate(*id, other, &topics, &mut resources)
+                .map_err(|error| format!("{name}: {error}"))?,
         };
+        if let Some(aws_name) = body
+            .get("name")
+            .or_else(|| body.get("bucket"))
+            .and_then(serde_json::Value::as_str)
+            && !service_names.insert((kind, aws_name.to_owned()))
+        {
+            return Err(format!(
+                "{name}: another {kind} on this page uses the name {aws_name:?}; choose a unique name"
+            ));
+        }
         body["tags"] = json!({"Name": literal(&name), "ManagedBy": "Blueprint", "BlueprintElement": id.to_string()});
         let logical = logical_name(*id);
         resources.entry(kind).or_insert_with(|| json!({}))[&logical] = body;
@@ -117,6 +138,18 @@ pub fn configuration(doc: &Document, page: PageId) -> Result<Configuration, Stri
             format!("{logical}_id"),
             json!({"value": reference(kind, *id)}),
         );
+        if matches!(
+            resource,
+            AwsResource::S3Bucket { .. }
+                | AwsResource::DynamoDbTable { .. }
+                | AwsResource::SnsTopic { .. }
+                | AwsResource::SqsQueue { .. }
+        ) {
+            outputs.insert(
+                format!("{logical}_arn"),
+                json!({"value": reference_attribute(kind, *id, "arn")}),
+            );
+        }
         names.push(format!("{} — {}", name, resource.label()));
     }
     let mut provider = json!({"region": target.region, "allowed_account_ids": [target.account_id]});
@@ -196,7 +229,11 @@ fn logical_name(id: ElementId) -> String {
 }
 
 fn reference(kind: &str, id: ElementId) -> String {
-    format!("${{{kind}.{}.id}}", logical_name(id))
+    reference_attribute(kind, id, "id")
+}
+
+fn reference_attribute(kind: &str, id: ElementId, attribute: &str) -> String {
+    format!("${{{kind}.{}.{attribute}}}", logical_name(id))
 }
 
 #[derive(Clone, Copy)]
