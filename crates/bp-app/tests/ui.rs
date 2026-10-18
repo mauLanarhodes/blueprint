@@ -237,6 +237,32 @@ fn cloud_palette_inserts_asset_and_service_label_in_one_undo_step() {
 }
 
 #[test]
+fn aws_service_icon_can_be_configured_from_its_suggestion_and_exported() {
+    let mut h = harness_for(DiagramKind::Cloud);
+    let mut pack = cloud_pack(CloudProvider::Aws);
+    pack.icons[0].name = "Amazon S3".into();
+    pack.icons[0].reference = ShapeRef::new("aws", "storage-service-amazon-s3@test-v1");
+    pack.icons[0].category = "Storage".into();
+    pack.icons[0].source_path = "Storage/S3.svg".into();
+    app(&mut h).cloud.packs = vec![pack];
+    h.run();
+    h.get_by_label("Amazon S3").click();
+    h.run();
+    h.get_by_label("Configure as Amazon S3 bucket").click();
+    h.run();
+    assert!(h.query_by_label("Bucket name (globally unique)").is_some());
+    let app = app(&mut h);
+    app.doc.pages.get_mut(&app.page).unwrap().deployment = Some(bp_model::AwsDeployment {
+        account_id: "123456789012".into(),
+        ..Default::default()
+    });
+    let config = bp_deploy::configuration(&app.doc, app.page).unwrap();
+    assert_eq!(config.resources.len(), 1);
+    assert!(config.json.contains("aws_s3_bucket_public_access_block"));
+    assert!(!app.deployment.busy());
+}
+
+#[test]
 fn azure_same_named_icons_are_selectable_after_catalog_reload() {
     let mut pack = cloud_pack(CloudProvider::Azure);
     pack.icons[0].name = "Workspaces".into();
