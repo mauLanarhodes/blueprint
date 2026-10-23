@@ -253,6 +253,9 @@ pub struct Shape {
     pub erd: Option<ErdTable>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub infrastructure: Option<crate::AwsResource>,
+    /// Explicit presentation semantics. Membership remains the element's parent.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub network_container: Option<crate::NetworkContainer>,
 }
 
 /// A line between two endpoints. Its route is derived on every load, so
@@ -365,6 +368,7 @@ impl Element {
                 style: Style::default(),
                 erd,
                 infrastructure: None,
+                network_container: None,
             }),
         )
     }
@@ -419,6 +423,10 @@ impl Element {
 
     pub fn is_group(&self) -> bool {
         matches!(self.kind, ElementKind::Group)
+    }
+
+    pub fn network_container(&self) -> Option<crate::NetworkContainer> {
+        self.as_shape()?.network_container
     }
 
     /// Whether other elements may sit inside this one.

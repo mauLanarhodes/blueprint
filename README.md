@@ -95,12 +95,12 @@ future work.
 | **Flowcharts** | Searchable labeled shape libraries, glued connectors, straight/orthogonal/curved routing, connector labels, and annotations. |
 | **ERDs** | Smart tables, typed columns, key/nullability metadata, stable column ports, Crow's Foot relationships, constraints/indexes, column selection, relationship details, and automatic layout. |
 | **SQL** | Preview-first **PostgreSQL** import/export through the UI and CLI. Other table dialects provide type suggestions; their SQL interchange is not implemented. |
-| **Cloud diagrams** | Local official AWS/Azure SVG-pack imports, versioned catalogs, search, grid/list views, favorites/recents, editable labels, and embedded artwork in saved projects. |
+| **Cloud diagrams** | Nested, resizable VPC/subnet containers, service drag and drop, network conversion, official AWS/Azure SVG-pack imports, catalogs, editable labels, and embedded artwork. |
 | **AWS deployment trial** | Configure **S3 buckets, DynamoDB tables, SNS topics, SQS queues, Python Lambda functions, VPCs and private subnets**; preview and apply a reviewed Terraform plan. Explicit selections create SNS delivery policies and Lambda queue triggers. |
 | **Files and export** | `.blueprint` archives, readable `.blueprint.json`, older-format migration, SVG export, and headless file/SQL commands. |
 
 Presentation mode, a minimap, direct ERD cell editing and row dragging on the
-canvas, automatic cloud containment, broader AWS services, and Azure deployment
+canvas, broader AWS services, and Azure deployment
 remain future work. Windows, Linux, and macOS are included in the CI build/test
 matrix; installers and platform-specific release packaging remain separate work.
 
@@ -281,6 +281,14 @@ and configure its **Infrastructure** properties. Recognized service names offer
 a one-click suggestion. Other service icons remain diagram-only in this trial.
 Drawing a connector does not configure a subscription: select the SNS topic in
 the queue's settings to create its subscription and delivery policy.
+
+**Add starter network** creates a VPC boundary containing two private subnets.
+Drag services between subnets to organize the diagram; moving a boundary carries
+its contents and resizing changes only the boundary. **Add VPC**, **Add subnet**,
+and **Convert network to containers** are available in the AWS library. Conversion
+preserves resource identities and authored connectors. Service placement leaves
+Terraform unchanged; transferring a configured subnet updates its VPC dependency
+and requires a new deployment preview. See [network containers](docs/aws-network-containers.md).
 
 **Add Lambda trial** adds a Python 3.13 worker consuming the trial queue. Edit
 its single-module source, memory, timeout and optional queue trigger in the

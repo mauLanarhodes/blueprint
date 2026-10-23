@@ -12,7 +12,16 @@ impl BlueprintApp {
     /// the group being edited, or its outermost ancestor.
     pub fn selectable(&self, hit: ElementId) -> ElementId {
         let mut chain = vec![hit];
-        chain.extend(self.doc.ancestors(hit));
+        // Container boundaries are transparent to selection: ordinary groups
+        // retain their editing scope, services inside subnets select directly.
+        if self.doc.elements[&hit].network_container().is_none() {
+            chain.extend(
+                self.doc
+                    .ancestors(hit)
+                    .into_iter()
+                    .take_while(|id| self.doc.elements[id].network_container().is_none()),
+            );
+        }
         if let Some(scope) = self.scope
             && let Some(pos) = chain.iter().position(|e| *e == scope)
         {
@@ -130,7 +139,14 @@ impl BlueprintApp {
             (Some(scope), Parent::Element(p)) => p == scope,
             (Some(_), Parent::Layer(_)) => false,
             (None, Parent::Layer(l)) => self.doc.layers.get(&l).is_some_and(|l| !l.locked),
-            (None, Parent::Element(_)) => false,
+            (None, Parent::Element(_)) => {
+                self.selectable(e.id) == e.id
+                    && self
+                        .doc
+                        .layer_of(e.id)
+                        .and_then(|id| self.doc.layers.get(&id))
+                        .is_some_and(|layer| !layer.locked)
+            }
         };
         self.doc
             .paint_order(self.page)

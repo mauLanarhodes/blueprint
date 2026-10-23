@@ -6,7 +6,7 @@ use serde::{Deserialize, Serialize};
 use std::collections::{BTreeMap, HashMap, HashSet};
 
 /// Bumped for incompatible format changes; `bp-io` migrates older files.
-pub const SCHEMA_VERSION: u32 = 8;
+pub const SCHEMA_VERSION: u32 = 9;
 
 /// The tools and shape libraries a page presents in the editor.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
@@ -157,6 +157,8 @@ pub enum ModelError {
         reference: ShapeRef,
         message: String,
     },
+    #[error("network container {element} is invalid: {message}")]
+    InvalidNetworkContainer { element: ElementId, message: String },
 }
 
 impl Default for Document {
@@ -414,7 +416,91 @@ impl Document {
             self.check_parent(element.id, element.parent)?;
             self.check_kind(element)?;
         }
-        self.check_cycles()
+        self.check_cycles()?;
+        self.check_network_containers()
+    }
+
+    /// Legacy icon resources have no boundary semantics until explicitly converted.
+    /// An unassigned subnet remains valid so older files can be opened and repaired.
+    pub fn check_network_containers(&self) -> Result<(), ModelError> {
+        use crate::{AwsResource, NetworkContainer};
+        for element in self.elements.values() {
+            if let Some(resource) = element.as_shape().and_then(|s| s.infrastructure.as_ref())
+                && matches!(
+                    resource,
+                    AwsResource::Vpc { .. } | AwsResource::Subnet { .. }
+                )
+                && self.ancestors(element.id).iter().any(|ancestor| {
+                    match self.elements[ancestor].network_container() {
+                        Some(NetworkContainer::Subnet) => true,
+                        Some(NetworkContainer::Vpc) => matches!(resource, AwsResource::Vpc { .. }),
+                        None => false,
+                    }
+                })
+            {
+                return Err(ModelError::InvalidNetworkContainer {
+                    element: element.id,
+                    message: "a network resource cannot be nested in this boundary".into(),
+                });
+            }
+            let Some(kind) = element.network_container() else {
+                continue;
+            };
+            let invalid = |message: &str| ModelError::InvalidNetworkContainer {
+                element: element.id,
+                message: message.into(),
+            };
+            let shape = element.as_shape().expect("containers are shapes");
+            if let Some(resource) = &shape.infrastructure
+                && !matches!(
+                    (kind, resource),
+                    (NetworkContainer::Vpc, AwsResource::Vpc { .. })
+                        | (NetworkContainer::Subnet, AwsResource::Subnet { .. })
+                )
+            {
+                return Err(invalid("presentation does not match resource type"));
+            }
+            for ancestor in self.ancestors(element.id) {
+                let Some(parent_kind) = self.elements[&ancestor].network_container() else {
+                    continue;
+                };
+                if kind != NetworkContainer::Subnet
+                    || parent_kind != NetworkContainer::Vpc
+                    || element.parent != Parent::Element(ancestor)
+                {
+                    return Err(invalid("only a subnet can be nested directly in a VPC"));
+                }
+            }
+            if let Some(AwsResource::Subnet { vpc, .. }) = &shape.infrastructure {
+                let visual_vpc = match element.parent {
+                    Parent::Element(id)
+                        if self.elements.get(&id).is_some_and(|e| {
+                            e.network_container() == Some(NetworkContainer::Vpc)
+                        }) =>
+                    {
+                        Some(id)
+                    }
+                    _ => None,
+                };
+                if *vpc != visual_vpc {
+                    return Err(invalid("visual VPC parent and configured VPC must agree"));
+                }
+                if let Some(vpc) = vpc {
+                    if self.page_of(*vpc) != self.page_of(element.id) {
+                        return Err(invalid("VPC must be on the same page"));
+                    }
+                    if !self
+                        .elements
+                        .get(vpc)
+                        .and_then(Element::as_shape)
+                        .is_some_and(|s| matches!(s.infrastructure, Some(AwsResource::Vpc { .. })))
+                    {
+                        return Err(invalid("configured VPC must be a VPC resource"));
+                    }
+                }
+            }
+        }
+        Ok(())
     }
 
     /// Whether `parent` exists and can hold children.

@@ -302,6 +302,73 @@ mod tests {
     }
 
     #[test]
+    fn nested_network_boundaries_export_shared_headers_behind_services_and_connectors() {
+        use bp_model::{AwsResource, NetworkContainer};
+        let (mut doc, page, layer) = doc_with(
+            "aws/network-boundary",
+            Rect::new(0.0, 0.0, 960.0, 520.0),
+            "Production & tools",
+        );
+        let vpc = *doc.elements.keys().next().unwrap();
+        let shape = doc.elements.get_mut(&vpc).unwrap().as_shape_mut().unwrap();
+        shape.network_container = Some(NetworkContainer::Vpc);
+        shape.infrastructure = Some(AwsResource::Vpc {
+            cidr: "10.0.0.0/16".into(),
+        });
+        let parent = Parent::Element(vpc);
+        let mut subnet = Element::shape(
+            ShapeRef::new("aws", "network-boundary"),
+            parent,
+            doc.next_order_key(parent),
+            Rect::new(20.0, 80.0, 460.0, 440.0),
+        );
+        let subnet_id = subnet.id;
+        let shape = subnet.as_shape_mut().unwrap();
+        shape.network_container = Some(NetworkContainer::Subnet);
+        shape.text = "Private subnet".into();
+        shape.infrastructure = Some(AwsResource::Subnet {
+            vpc: Some(vpc),
+            cidr: "10.0.1.0/24".into(),
+            availability_zone: "us-east-1a".into(),
+        });
+        doc.elements.insert(subnet_id, subnet);
+        let parent = Parent::Element(subnet_id);
+        let mut service = Element::shape(
+            ShapeRef::new("basic", "rectangle"),
+            parent,
+            doc.next_order_key(parent),
+            Rect::new(60.0, 180.0, 180.0, 240.0),
+        );
+        service.as_shape_mut().unwrap().text = "Orders API".into();
+        let service_id = service.id;
+        doc.elements.insert(service_id, service);
+        let connector = Element::connector(
+            Endpoint::glued(service_id, None),
+            Endpoint::Free(bp_model::kurbo::Point::new(800.0, 210.0)),
+            layer,
+            doc.next_order_key(layer),
+        );
+        doc.elements.insert(connector.id, connector);
+        let scene = bp_scene::build_page(&doc, page);
+        let svg = page_to_svg(&doc, page, &SvgOptions::default());
+        assert_eq!(svg, to_svg(&scene.list, &SvgOptions::default()));
+        assert!(svg.contains(">Production &amp; tools</text>"));
+        assert!(svg.contains(">10.0.0.0/16</text>"));
+        assert!(svg.contains(">Private subnet</text>"));
+        assert!(svg.contains(">10.0.1.0/24  ·  us-east-1a</text>"));
+        assert!(
+            svg.find(">Private subnet</text>").unwrap() < svg.find(">Orders API</text>").unwrap()
+        );
+        assert!(svg.contains("stroke=\"#865fae\""));
+        assert!(svg.contains("stroke=\"#228b81\""));
+        assert!(
+            !svg.contains("<image"),
+            "network boundaries do not stretch provider icons"
+        );
+        assert!(!svg.contains("drop-preview"));
+    }
+
+    #[test]
     fn transparent_background_and_translucent_fill() {
         let (mut doc, page, _) = doc_with("basic/ellipse", Rect::new(0.0, 0.0, 10.0, 10.0), "");
         for el in doc.elements.values_mut() {

@@ -3,9 +3,10 @@
 use crate::BlueprintApp;
 use bp_commands::{Command, PageProp, Prop};
 use bp_deploy::{Plan, Terraform};
-use bp_model::kurbo::Rect;
+use bp_model::kurbo::{Point, Rect};
 use bp_model::{
-    AwsResource, AwsResourceKind, DiagramKind, Element, Endpoint, OrderKey, Parent, ShapeRef,
+    AwsResource, AwsResourceKind, DiagramKind, Element, ElementId, NetworkContainer, OrderKey,
+    Parent, ShapeRef,
 };
 use egui::{RichText, Ui};
 use std::path::PathBuf;
@@ -64,16 +65,11 @@ impl BlueprintApp {
             bp_model::kurbo::Point::ZERO
         };
         let order = self.doc.next_order_key(parent);
-        let mut vpc = Element::shape(
-            ShapeRef::new("basic", "rounded-rectangle"),
+        let mut vpc = network_element(
+            NetworkContainer::Vpc,
             parent,
-            order.clone(),
-            Rect::new(
-                center.x - 100.0,
-                center.y - 140.0,
-                center.x + 100.0,
-                center.y - 60.0,
-            ),
+            order,
+            Rect::from_center_size(center, (1000.0, 560.0)),
         );
         let data = vpc.as_shape_mut().unwrap();
         data.text = "Private VPC".into();
@@ -82,18 +78,17 @@ impl BlueprintApp {
         });
         let mut commands = Vec::new();
         let mut selection = vec![vpc.id];
-        let mut order = order;
-        for (index, x) in [-210.0, 10.0].into_iter().enumerate() {
-            order = OrderKey::after(&order);
-            let mut subnet = Element::shape(
-                ShapeRef::new("basic", "rounded-rectangle"),
-                parent,
+        let mut order = OrderKey::first();
+        for (index, x) in [-468.0, 16.0].into_iter().enumerate() {
+            let mut subnet = network_element(
+                NetworkContainer::Subnet,
+                Parent::Element(vpc.id),
                 order.clone(),
                 Rect::new(
                     center.x + x,
-                    center.y + 30.0,
-                    center.x + x + 200.0,
-                    center.y + 110.0,
+                    center.y - 190.0,
+                    center.x + x + 452.0,
+                    center.y + 230.0,
                 ),
             );
             let data = subnet.as_shape_mut().unwrap();
@@ -104,15 +99,8 @@ impl BlueprintApp {
                 availability_zone: String::new(),
             });
             order = OrderKey::after(&order);
-            let connector = Element::connector(
-                Endpoint::glued(vpc.id, None),
-                Endpoint::glued(subnet.id, None),
-                parent,
-                order.clone(),
-            );
             selection.push(subnet.id);
             commands.push(Command::Insert(Box::new(subnet)));
-            commands.push(Command::Insert(Box::new(connector)));
         }
         commands.insert(0, Command::Insert(Box::new(vpc)));
         crate::presets::commands(&mut commands, self.doc.pages[&self.page].background);
@@ -120,7 +108,134 @@ impl BlueprintApp {
             self.selection = selection;
             self.fit_requested = true;
             self.status =
-                "Starter network added. Select a shape to edit its deployment settings.".into();
+                "Starter network added. Drag services into a subnet to organize the diagram."
+                    .into();
+        }
+    }
+
+    pub fn add_vpc(&mut self) {
+        if !self.can_add_network_container() {
+            return;
+        }
+        let parent = Parent::Layer(self.layer);
+        let mut element = network_element(
+            NetworkContainer::Vpc,
+            parent,
+            self.doc.next_order_key(parent),
+            Rect::from_center_size(self.network_view_center(), (1000.0, 560.0)),
+        );
+        element.as_shape_mut().unwrap().text = "VPC".into();
+        element.as_shape_mut().unwrap().infrastructure =
+            Some(AwsResourceKind::Vpc.create(element.id));
+        let id = element.id;
+        let mut commands = vec![Command::Insert(Box::new(element))];
+        crate::presets::commands(&mut commands, self.doc.pages[&self.page].background);
+        if self.apply("Add VPC", commands) {
+            self.selection = vec![id];
+            self.status = "VPC added. Edit its CIDR in Infrastructure settings.".into();
+        }
+    }
+
+    pub fn add_subnet(&mut self) {
+        if self.page_kind() != Some(DiagramKind::Cloud) || self.deployment.busy() {
+            return;
+        }
+        let selected_vpc = self.selection.iter().copied().find(|id| {
+            self.doc.elements.get(id).is_some_and(|element| {
+                element.network_container() == Some(NetworkContainer::Vpc)
+                    && self.doc.page_of(*id) == Some(self.page)
+                    && !self.doc.is_locked(*id)
+                    && self
+                        .doc
+                        .layer_of(*id)
+                        .is_some_and(|layer| self.doc.layers[&layer].visible)
+                    && matches!(
+                        element
+                            .as_shape()
+                            .and_then(|shape| shape.infrastructure.as_ref()),
+                        Some(AwsResource::Vpc { .. })
+                    )
+            })
+        });
+        if selected_vpc.is_none() && !self.can_add_network_container() {
+            return;
+        }
+        let (parent, bounds) = if let Some(vpc) = selected_vpc {
+            let Some(bounds) = vacant_subnet_bounds(&self.doc, vpc) else {
+                self.status =
+                    "There is no room for another subnet. Resize the selected VPC first.".into();
+                return;
+            };
+            (Parent::Element(vpc), bounds)
+        } else {
+            (
+                Parent::Layer(self.layer),
+                Rect::from_center_size(self.network_view_center(), (400.0, 300.0)),
+            )
+        };
+        let mut element = network_element(
+            NetworkContainer::Subnet,
+            parent,
+            self.doc.next_order_key(parent),
+            bounds,
+        );
+        let data = element.as_shape_mut().unwrap();
+        data.text = "Private subnet".into();
+        data.infrastructure = Some(AwsResource::Subnet {
+            vpc: selected_vpc,
+            // CIDR allocation is a network decision. Require an explicit value.
+            cidr: String::new(),
+            availability_zone: String::new(),
+        });
+        let id = element.id;
+        let mut commands = vec![Command::Insert(Box::new(element))];
+        crate::presets::commands(&mut commands, self.doc.pages[&self.page].background);
+        if self.apply("Add subnet", commands) {
+            self.selection = vec![id];
+            self.status = "Subnet added. Choose its IPv4 CIDR before deploying.".into();
+        }
+    }
+
+    pub fn convert_network_to_containers(&mut self) {
+        if self.page_kind() != Some(DiagramKind::Cloud) || self.deployment.busy() {
+            return;
+        }
+        match bp_commands::network::convert(&self.doc, self.page) {
+            Ok(commands) if commands.is_empty() => {
+                self.status = "This page's network resources are already containers.".into();
+            }
+            Ok(commands) => {
+                if self.apply("Convert network to containers", commands) {
+                    self.fit_requested = true;
+                    self.status = "Network converted. Resource identities and authored connectors are preserved.".into();
+                }
+            }
+            Err(error) => self.status = error.to_string(),
+        }
+    }
+
+    fn can_add_network_container(&mut self) -> bool {
+        if self.page_kind() != Some(DiagramKind::Cloud) || self.deployment.busy() {
+            return false;
+        }
+        if self
+            .doc
+            .layers
+            .get(&self.layer)
+            .is_none_or(|layer| layer.locked || !layer.visible)
+        {
+            self.status = "Choose a visible, unlocked layer for the network container".into();
+            return false;
+        }
+        true
+    }
+
+    fn network_view_center(&self) -> Point {
+        let center = self.view_center();
+        if center.x.is_finite() && center.y.is_finite() {
+            center
+        } else {
+            Point::ZERO
         }
     }
 
@@ -197,6 +312,13 @@ impl BlueprintApp {
             .show_ui(ui, |ui| {
                 ui.selectable_value(&mut chosen, None, "Diagram only");
                 for kind in AwsResourceKind::ALL {
+                    if matches!(shape.network_container, Some(NetworkContainer::Vpc))
+                        && kind != AwsResourceKind::Vpc
+                        || matches!(shape.network_container, Some(NetworkContainer::Subnet))
+                            && kind != AwsResourceKind::Subnet
+                    {
+                        continue;
+                    }
                     ui.selectable_value(&mut chosen, Some(kind), kind.label());
                 }
             })
@@ -204,6 +326,13 @@ impl BlueprintApp {
             .labelled_by(resource_label.id);
         if chosen != current {
             resource = chosen.map(|kind| kind.create(element.id));
+            if let Some(AwsResource::Subnet { vpc, .. }) = &mut resource
+                && shape.network_container == Some(NetworkContainer::Subnet)
+                && let Parent::Element(parent) = element.parent
+                && self.doc.elements[&parent].network_container() == Some(NetworkContainer::Vpc)
+            {
+                *vpc = Some(parent);
+            }
         }
         if resource.is_none()
             && let Some(icon) = self.cloud_icon(&shape.shape)
@@ -228,10 +357,15 @@ impl BlueprintApp {
                     .page_elements(self.page)
                     .into_iter()
                     .filter(|e| {
-                        matches!(
-                            e.as_shape().and_then(|s| s.infrastructure.as_ref()),
-                            Some(AwsResource::Vpc { .. })
-                        )
+                        !self.doc.is_locked(e.id)
+                            && self
+                                .doc
+                                .layer_of(e.id)
+                                .is_some_and(|layer| self.doc.layers[&layer].visible)
+                            && matches!(
+                                e.as_shape().and_then(|s| s.infrastructure.as_ref()),
+                                Some(AwsResource::Vpc { .. })
+                            )
                     })
                     .map(|e| {
                         (
@@ -243,7 +377,7 @@ impl BlueprintApp {
                         )
                     })
                     .collect();
-                ui.label("VPC");
+                let vpc_label = ui.label("VPC");
                 egui::ComboBox::from_id_salt(("subnet-vpc", element.id))
                     .selected_text(
                         candidates
@@ -252,11 +386,17 @@ impl BlueprintApp {
                             .map_or("Choose VPC…", |(_, name)| name.as_str()),
                     )
                     .show_ui(ui, |ui| {
-                        ui.selectable_value(vpc, None, "Choose VPC…");
+                        // An assigned subnet cannot be detached by clearing its
+                        // deployment reference. The shared planner owns transfers.
+                        if vpc.is_none() {
+                            ui.selectable_value(vpc, None, "Choose VPC…");
+                        }
                         for (id, name) in candidates {
                             ui.selectable_value(vpc, Some(id), name);
                         }
-                    });
+                    })
+                    .response
+                    .labelled_by(vpc_label.id);
                 field(ui, "IPv4 CIDR", cidr);
                 field(ui, "Availability zone (optional)", availability_zone);
                 ui.label(
@@ -416,15 +556,106 @@ impl BlueprintApp {
                 );
             }
         }
-        if resource != shape.infrastructure {
+        if shape.network_container == Some(NetworkContainer::Subnet)
+            || self.doc.ancestors(element.id).iter().any(|id| {
+                self.doc.elements[id].network_container() == Some(NetworkContainer::Subnet)
+            })
+        {
+            ui.label(RichText::new("Subnet placement organizes this diagram. It does not configure service networking or permissions.").small().weak());
+        }
+        if resource != shape.infrastructure
+            && let Err(error) = self.set_resource_configuration(element.id, resource)
+        {
+            self.status = error;
+        }
+    }
+
+    /// Shared with the inspector tests: relationship and deployment changes
+    /// must be accepted or rejected together, including deterministic placement.
+    fn set_resource_configuration(
+        &mut self,
+        id: ElementId,
+        resource: Option<AwsResource>,
+    ) -> Result<(), String> {
+        let element = self
+            .doc
+            .elements
+            .get(&id)
+            .ok_or("Resource no longer exists")?;
+        let shape = element.as_shape().ok_or("Select a resource shape")?;
+        let original_vpc = match shape.infrastructure.as_ref() {
+            Some(AwsResource::Subnet { vpc, .. }) => *vpc,
+            _ => None,
+        };
+        let new_vpc = match resource.as_ref() {
+            Some(AwsResource::Subnet { vpc, .. }) => *vpc,
+            _ => None,
+        };
+        let mut commands = vec![Command::Set {
+            id,
+            prop: Prop::Infrastructure(resource.clone()),
+        }];
+        if let Some(vpc) = new_vpc
+            && (original_vpc != Some(vpc)
+                && !(shape.infrastructure.is_none() && element.parent == Parent::Element(vpc))
+                || element.network_container() == Some(NetworkContainer::Subnet)
+                    && element.parent != Parent::Element(vpc))
+        {
+            if element.network_container() != Some(NetworkContainer::Subnet)
+                || self
+                    .doc
+                    .elements
+                    .get(&vpc)
+                    .and_then(Element::network_container)
+                    != Some(NetworkContainer::Vpc)
+            {
+                return Err(
+                    "Choose Convert network to containers before changing this subnet's VPC."
+                        .into(),
+                );
+            }
+            let mut staged = self.doc.clone();
+            staged
+                .elements
+                .get_mut(&id)
+                .unwrap()
+                .as_shape_mut()
+                .unwrap()
+                .infrastructure = resource;
+            commands.extend(
+                bp_commands::network::reassign_subnet(&staged, id, vpc)
+                    .map_err(|error| error.to_string())?,
+            );
+            if !self.apply("Reassign subnet VPC", commands) {
+                return Err(self.status.clone());
+            }
+        } else {
+            let mut staged = self.doc.clone();
+            staged
+                .elements
+                .get_mut(&id)
+                .unwrap()
+                .as_shape_mut()
+                .unwrap()
+                .infrastructure = resource;
+            staged.validate().map_err(|error| error.to_string())?;
             self.apply_merging(
                 "Configure infrastructure",
-                format!("infrastructure:{}", element.id),
-                vec![Command::Set {
-                    id: element.id,
-                    prop: Prop::Infrastructure(resource),
-                }],
+                format!("infrastructure:{id}"),
+                commands,
             );
+        }
+        self.invalidate_changed_deployment_plan();
+        Ok(())
+    }
+
+    pub(crate) fn invalidate_changed_deployment_plan(&mut self) {
+        if self.deployment.plan.as_ref().is_some_and(|plan| {
+            !bp_deploy::configuration(&self.doc, self.page)
+                .is_ok_and(|configuration| configuration.matches(&plan.configuration))
+        }) {
+            self.deployment.plan = None;
+            self.deployment.reviewed = false;
         }
     }
 
@@ -577,6 +808,7 @@ impl BlueprintApp {
         let mut preview = false;
         let mut deploy = false;
         let mut starter = false;
+        let mut convert = false;
         let mut trial = false;
         let mut lambda_trial = false;
         let mut close = false;
@@ -598,6 +830,7 @@ impl BlueprintApp {
                     });
                     ui.label(RichText::new("Keep the deployment folder: it stores Terraform state for future updates. Each page gets its own subfolder.").small().weak());
                     starter = ui.button("Add starter network").clicked();
+                    convert = ui.button("Convert network to containers").clicked();
                     trial = ui.button("Add AWS trial stack").clicked();
                     lambda_trial = ui.button("Add Lambda trial").clicked();
                 });
@@ -640,6 +873,9 @@ impl BlueprintApp {
         if starter {
             self.add_starter_network();
         }
+        if convert {
+            self.convert_network_to_containers();
+        }
         if trial {
             self.add_aws_trial();
         }
@@ -659,6 +895,43 @@ fn field(ui: &mut Ui, label: &str, value: &mut String) {
     let label = ui.label(label);
     ui.add(crate::widgets::text_field(value).desired_width(f32::INFINITY))
         .labelled_by(label.id);
+}
+
+fn network_element(
+    kind: NetworkContainer,
+    parent: Parent,
+    order: OrderKey,
+    bounds: Rect,
+) -> Element {
+    let mut element = Element::shape(
+        ShapeRef::new("basic", "rounded-rectangle"),
+        parent,
+        order,
+        bounds,
+    );
+    element.as_shape_mut().unwrap().network_container = Some(kind);
+    element
+}
+
+/// Reuse the transfer planner's placement search without assigning a CIDR.
+fn vacant_subnet_bounds(doc: &bp_model::Document, vpc: ElementId) -> Option<Rect> {
+    let content = NetworkContainer::Vpc.content_rect(doc.elements.get(&vpc)?.as_shape()?.bounds);
+    let element = network_element(
+        NetworkContainer::Subnet,
+        Parent::Layer(doc.layer_of(vpc)?),
+        OrderKey::first(),
+        Rect::new(
+            content.x0,
+            content.y0,
+            content.x0 + 400.0,
+            content.y0 + 300.0,
+        ),
+    );
+    let id = element.id;
+    let mut staged = doc.clone();
+    staged.elements.insert(id, element);
+    let position = bp_commands::network::available_position(&staged, id, vpc).ok()?;
+    Some(Rect::from_origin_size(position, (400.0, 300.0)))
 }
 
 #[cfg(test)]
@@ -714,13 +987,26 @@ mod tests {
         let mut app = BlueprintApp::new(&egui::Context::default(), None);
         app.choose_page_kind(DiagramKind::Cloud);
         app.add_starter_network();
-        assert_eq!(app.doc.elements.len(), 5);
+        assert_eq!(app.doc.elements.len(), 3);
+        let (vpc, subnets) = resource_ids(&app);
+        assert_eq!(
+            app.doc.elements[&vpc].network_container(),
+            Some(NetworkContainer::Vpc)
+        );
+        let content =
+            NetworkContainer::Vpc.content_rect(app.doc.elements[&vpc].as_shape().unwrap().bounds);
+        for subnet in subnets {
+            let element = &app.doc.elements[&subnet];
+            assert_eq!(element.network_container(), Some(NetworkContainer::Subnet));
+            assert_eq!(element.parent, Parent::Element(vpc));
+            assert!(content.contains_rect(element.as_shape().unwrap().bounds));
+        }
         assert_eq!(app.selection.len(), 3);
         app.undo();
         assert!(app.doc.elements.is_empty());
         app.redo();
         app.doc.validate().unwrap();
-        assert_eq!(app.doc.elements.len(), 5);
+        assert_eq!(app.doc.elements.len(), 3);
         let app = network_app();
         assert_eq!(
             bp_deploy::configuration(&app.doc, app.page)
@@ -729,6 +1015,312 @@ mod tests {
                 .len(),
             3
         );
+    }
+
+    #[test]
+    fn add_subnet_uses_selected_vpc_and_requires_an_explicit_cidr() {
+        let mut app = BlueprintApp::new(&egui::Context::default(), None);
+        app.choose_page_kind(DiagramKind::Cloud);
+        app.add_vpc();
+        let vpc = app.selection[0];
+        app.add_subnet();
+        let subnet = app.selection[0];
+        assert_eq!(app.doc.elements[&subnet].parent, Parent::Element(vpc));
+        assert!(
+            matches!(app.doc.elements[&subnet].as_shape().unwrap().infrastructure.as_ref(),
+            Some(AwsResource::Subnet { vpc: Some(parent), cidr, .. }) if *parent == vpc && cidr.is_empty())
+        );
+        let first_bounds = app.doc.elements[&subnet].as_shape().unwrap().bounds;
+        app.selection = vec![vpc];
+        app.add_subnet();
+        let second = app.selection[0];
+        assert_ne!(second, subnet);
+        assert_eq!(
+            first_bounds
+                .intersect(app.doc.elements[&second].as_shape().unwrap().bounds)
+                .area(),
+            0.0
+        );
+        app.undo();
+        assert!(!app.doc.elements.contains_key(&second));
+        app.doc.validate().unwrap();
+    }
+
+    #[test]
+    fn add_subnet_uses_selected_vpc_layer_even_when_active_layer_is_locked() {
+        let mut app = BlueprintApp::new(&egui::Context::default(), None);
+        app.choose_page_kind(DiagramKind::Cloud);
+        app.add_vpc();
+        let vpc = app.selection[0];
+        let mut layer = bp_model::Layer::new(
+            app.page,
+            "Locked unrelated layer",
+            OrderKey::after(&app.doc.layers[&app.layer].order),
+        );
+        layer.locked = true;
+        app.layer = layer.id;
+        assert!(app.apply("Add layer", [Command::InsertLayer(Box::new(layer))]));
+        app.add_subnet();
+        let subnet = app.selection[0];
+        assert_ne!(subnet, vpc);
+        assert_eq!(app.doc.elements[&subnet].parent, Parent::Element(vpc));
+        assert!(!app.doc.is_locked(subnet));
+        app.doc.validate().unwrap();
+    }
+
+    #[test]
+    fn layout_and_service_membership_leave_terraform_identical() {
+        let mut app = network_app();
+        let (vpc, subnets) = resource_ids(&app);
+        let service_bounds = NetworkContainer::Subnet
+            .content_rect(app.doc.elements[&subnets[0]].as_shape().unwrap().bounds);
+        let mut bucket = Element::shape(
+            ShapeRef::new("basic", "rectangle"),
+            Parent::Layer(app.layer),
+            app.doc.next_order_key(Parent::Layer(app.layer)),
+            Rect::new(
+                service_bounds.x0,
+                service_bounds.y0,
+                service_bounds.x0 + 100.0,
+                service_bounds.y0 + 70.0,
+            ),
+        );
+        bucket.as_shape_mut().unwrap().text = "Storage".into();
+        bucket.as_shape_mut().unwrap().infrastructure =
+            Some(AwsResourceKind::S3Bucket.create(bucket.id));
+        let bucket_id = bucket.id;
+        assert!(app.apply("Add service", [Command::Insert(Box::new(bucket))]));
+        let original = bp_deploy::configuration(&app.doc, app.page).unwrap();
+        let commands = bp_commands::network::drop(
+            &app.doc,
+            &[bucket_id],
+            Some(subnets[0]),
+            Default::default(),
+        )
+        .unwrap();
+        assert!(app.apply("Place service", commands));
+        assert!(original.matches(&bp_deploy::configuration(&app.doc, app.page).unwrap()));
+        let commands = bp_commands::edit::translate(
+            &app.doc,
+            &[vpc, subnets[0], bucket_id],
+            (40.0, 25.0).into(),
+        );
+        assert!(app.apply("Move VPC", commands));
+        let bounds = app.doc.elements[&vpc].as_shape().unwrap().bounds;
+        let commands = bp_commands::network::resize(
+            &app.doc,
+            vpc,
+            Rect::new(bounds.x0, bounds.y0, bounds.x1 + 100.0, bounds.y1 + 80.0),
+        )
+        .unwrap();
+        assert!(app.apply("Resize VPC", commands));
+        assert!(original.matches(&bp_deploy::configuration(&app.doc, app.page).unwrap()));
+        let bucket_body: serde_json::Value = serde_json::from_str(&original.json).unwrap();
+        assert!(
+            bucket_body["resource"]["aws_s3_bucket"]
+                .as_object()
+                .unwrap()
+                .values()
+                .all(|body| body.get("subnet_id").is_none() && body.get("vpc_id").is_none())
+        );
+    }
+
+    #[test]
+    fn inspector_reassignment_updates_parent_and_dependency_in_one_undo_step() {
+        let mut app = network_app();
+        let (old_vpc, subnets) = resource_ids(&app);
+        let original = bp_deploy::configuration(&app.doc, app.page).unwrap();
+        app.add_vpc();
+        let target = app.selection[0];
+        let bounds = app.doc.elements[&target].as_shape().unwrap().bounds;
+        assert!(app.apply(
+            "Separate VPC",
+            bp_commands::edit::translate(&app.doc, &[target], (bounds.width() + 80.0, 0.0).into())
+        ));
+        let before = serde_json::to_value(&app.doc).unwrap();
+        let mut resource = app.doc.elements[&subnets[0]]
+            .as_shape()
+            .unwrap()
+            .infrastructure
+            .clone();
+        if let Some(AwsResource::Subnet {
+            vpc,
+            availability_zone,
+            ..
+        }) = &mut resource
+        {
+            *vpc = Some(target);
+            *availability_zone = "us-east-1a".into();
+        }
+        app.set_resource_configuration(subnets[0], resource)
+            .unwrap();
+        assert_eq!(
+            app.doc.elements[&subnets[0]].parent,
+            Parent::Element(target)
+        );
+        assert!(
+            matches!(app.doc.elements[&subnets[0]].as_shape().unwrap().infrastructure, Some(AwsResource::Subnet { vpc: Some(id), .. }) if id == target)
+        );
+        let after = serde_json::to_value(&app.doc).unwrap();
+        let configuration = bp_deploy::configuration(&app.doc, app.page).unwrap();
+        assert!(!original.matches(&configuration));
+        let generated: serde_json::Value = serde_json::from_str(&configuration.json).unwrap();
+        let key = format!("r_{}", subnets[0].to_string().replace('-', ""));
+        let dependency = generated["resource"]["aws_subnet"][&key]["vpc_id"]
+            .as_str()
+            .unwrap();
+        assert!(dependency.contains(&target.to_string().replace('-', "")));
+        assert!(!dependency.contains(&old_vpc.to_string().replace('-', "")));
+        app.undo();
+        assert_eq!(serde_json::to_value(&app.doc).unwrap(), before);
+        app.redo();
+        assert_eq!(serde_json::to_value(&app.doc).unwrap(), after);
+        app.doc.validate().unwrap();
+    }
+
+    #[test]
+    fn invalid_inspector_reassignment_keeps_all_settings_and_geometry() {
+        let mut app = network_app();
+        let (_, subnets) = resource_ids(&app);
+        app.add_vpc();
+        let target = app.selection[0];
+        app.doc
+            .elements
+            .get_mut(&target)
+            .unwrap()
+            .as_shape_mut()
+            .unwrap()
+            .infrastructure = Some(AwsResource::Vpc {
+            cidr: "192.168.0.0/16".into(),
+        });
+        let before = serde_json::to_value(&app.doc).unwrap();
+        let mut resource = app.doc.elements[&subnets[0]]
+            .as_shape()
+            .unwrap()
+            .infrastructure
+            .clone();
+        if let Some(AwsResource::Subnet { vpc, .. }) = &mut resource {
+            *vpc = Some(target);
+        }
+        assert!(
+            app.set_resource_configuration(subnets[0], resource)
+                .unwrap_err()
+                .contains("outside")
+        );
+        assert_eq!(serde_json::to_value(&app.doc).unwrap(), before);
+    }
+
+    #[test]
+    fn diagram_only_subnet_can_be_configured_in_its_existing_visual_vpc() {
+        let mut app = network_app();
+        let (vpc, subnets) = resource_ids(&app);
+        app.set_resource_configuration(subnets[0], None).unwrap();
+        let resource = AwsResource::Subnet {
+            vpc: Some(vpc),
+            cidr: "10.0.3.0/24".into(),
+            availability_zone: String::new(),
+        };
+        app.set_resource_configuration(subnets[0], Some(resource))
+            .unwrap();
+        assert_eq!(app.doc.elements[&subnets[0]].parent, Parent::Element(vpc));
+        app.doc.validate().unwrap();
+        bp_deploy::configuration(&app.doc, app.page).unwrap();
+    }
+
+    #[test]
+    fn conversion_preserves_ids_terraform_and_authored_connectors_and_is_undoable() {
+        let mut app = network_app();
+        let (vpc, subnets) = resource_ids(&app);
+        // Reconstruct an older drawing: configured resources on a layer.
+        for id in [vpc, subnets[0], subnets[1]] {
+            let element = app.doc.elements.get_mut(&id).unwrap();
+            element.parent = Parent::Layer(app.layer);
+            element.as_shape_mut().unwrap().network_container = None;
+        }
+        let connector = Element::connector(
+            bp_model::Endpoint::glued(vpc, None),
+            bp_model::Endpoint::glued(subnets[0], None),
+            Parent::Layer(app.layer),
+            app.doc.next_order_key(Parent::Layer(app.layer)),
+        );
+        let connector_id = connector.id;
+        assert!(app.apply(
+            "Authored relationship",
+            [Command::Insert(Box::new(connector.clone()))]
+        ));
+        let before = serde_json::to_value(&app.doc).unwrap();
+        let terraform = bp_deploy::configuration(&app.doc, app.page).unwrap();
+        app.convert_network_to_containers();
+        assert_eq!(app.doc.elements[&connector_id], connector);
+        assert_eq!(
+            app.doc.elements[&vpc].network_container(),
+            Some(NetworkContainer::Vpc)
+        );
+        for subnet in subnets {
+            assert_eq!(app.doc.elements[&subnet].parent, Parent::Element(vpc));
+        }
+        assert!(terraform.matches(&bp_deploy::configuration(&app.doc, app.page).unwrap()));
+        app.doc.validate().unwrap();
+        app.undo();
+        assert_eq!(serde_json::to_value(&app.doc).unwrap(), before);
+        app.redo();
+        assert!(terraform.matches(&bp_deploy::configuration(&app.doc, app.page).unwrap()));
+    }
+
+    #[test]
+    fn nested_network_reopens_and_previous_format_keeps_its_layout() {
+        let app = network_app();
+        let (vpc, subnets) = resource_ids(&app);
+        let configuration = bp_deploy::configuration(&app.doc, app.page).unwrap();
+        let reopened = bp_io::from_bytes(&bp_io::to_zip_bytes(&app.doc).unwrap()).unwrap();
+        assert_eq!(reopened.elements[&subnets[0]].parent, Parent::Element(vpc));
+        assert!(configuration.matches(&bp_deploy::configuration(&reopened, app.page).unwrap()));
+
+        let mut legacy = app.doc.clone();
+        legacy.schema_version = 8;
+        for id in [vpc, subnets[0], subnets[1]] {
+            let element = legacy.elements.get_mut(&id).unwrap();
+            element.parent = Parent::Layer(app.layer);
+            element.as_shape_mut().unwrap().network_container = None;
+        }
+        let original_bounds = legacy.elements[&vpc].as_shape().unwrap().bounds;
+        let reopened = bp_io::from_bytes(&serde_json::to_vec(&legacy).unwrap()).unwrap();
+        assert_eq!(
+            reopened.elements[&vpc].as_shape().unwrap().bounds,
+            original_bounds
+        );
+        assert_eq!(reopened.elements[&vpc].network_container(), None);
+        assert_eq!(
+            reopened.elements[&subnets[0]].parent,
+            Parent::Layer(app.layer)
+        );
+        assert!(configuration.matches(&bp_deploy::configuration(&reopened, app.page).unwrap()));
+    }
+
+    #[test]
+    fn legacy_inspector_transfer_requests_explicit_conversion() {
+        let mut app = network_app();
+        let (_, subnets) = resource_ids(&app);
+        app.add_vpc();
+        let target = app.selection[0];
+        let element = app.doc.elements.get_mut(&subnets[0]).unwrap();
+        element.parent = Parent::Layer(app.layer);
+        element.as_shape_mut().unwrap().network_container = None;
+        let before = serde_json::to_value(&app.doc).unwrap();
+        let mut resource = app.doc.elements[&subnets[0]]
+            .as_shape()
+            .unwrap()
+            .infrastructure
+            .clone();
+        if let Some(AwsResource::Subnet { vpc, .. }) = &mut resource {
+            *vpc = Some(target);
+        }
+        assert!(
+            app.set_resource_configuration(subnets[0], resource)
+                .unwrap_err()
+                .contains("Convert network to containers")
+        );
+        assert_eq!(serde_json::to_value(&app.doc).unwrap(), before);
     }
 
     #[test]
@@ -751,7 +1343,11 @@ mod tests {
             .copied()
             .unwrap();
         assert_ne!(fresh_vpc, vpc);
-        for id in roots {
+        assert_eq!(roots, vec![fresh_vpc]);
+        let copied_subnets = app.doc.descendants(fresh_vpc);
+        assert_eq!(copied_subnets.len(), 2);
+        for id in copied_subnets {
+            assert_eq!(app.doc.elements[&id].parent, Parent::Element(fresh_vpc));
             if let Some(AwsResource::Subnet { vpc, .. }) = app.doc.elements[&id]
                 .as_shape()
                 .and_then(|s| s.infrastructure.as_ref())
@@ -816,6 +1412,94 @@ mod tests {
                 .unwrap()
                 .contains("Preview again")
         );
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn reviewed_mock_plan_survives_layout_edits_and_is_invalidated_by_subnet_transfer() {
+        use std::os::unix::fs::PermissionsExt;
+        struct Scratch(PathBuf);
+        impl Drop for Scratch {
+            fn drop(&mut self) {
+                let _ = std::fs::remove_dir_all(&self.0);
+            }
+        }
+        let scratch = Scratch(
+            std::env::temp_dir().join(format!("blueprint-network-plan-{}", ElementId::new())),
+        );
+        std::fs::create_dir(&scratch.0).unwrap();
+        let executable = scratch.0.join("terraform-mock");
+        std::fs::write(&executable, r#"#!/bin/sh
+case "$1" in
+  init|validate) : ;;
+  workspace) printf 'default\n' ;;
+  plan) printf 'reviewed-plan' > blueprint.tfplan ;;
+  show)
+    if [ "$2" = '-json' ]; then
+      printf '{"planned_values":{"outputs":{"aws_account_id":{"value":"123456789012"}}},"resource_changes":[{"address":"aws_subnet.test","change":{"actions":["create"]}}]}'
+    else printf 'Plan: 1 to add.\n'; fi ;;
+  *) exit 1 ;;
+esac
+"#).unwrap();
+        std::fs::set_permissions(&executable, std::fs::Permissions::from_mode(0o700)).unwrap();
+        let mut app = network_app();
+        let (vpc, subnets) = resource_ids(&app);
+        app.add_vpc();
+        let destination = app.selection[0];
+        let content = NetworkContainer::Subnet
+            .content_rect(app.doc.elements[&subnets[0]].as_shape().unwrap().bounds);
+        let service = Element::shape(
+            ShapeRef::new("basic", "rectangle"),
+            Parent::Layer(app.layer),
+            app.doc.next_order_key(Parent::Layer(app.layer)),
+            Rect::new(content.x0, content.y0, content.x0 + 90.0, content.y0 + 60.0),
+        );
+        let id = service.id;
+        assert!(app.apply("Add service", [Command::Insert(Box::new(service))]));
+        let configuration = bp_deploy::configuration(&app.doc, app.page).unwrap();
+        let plan = Terraform { executable }
+            .plan(configuration, &scratch.0, |_| {})
+            .unwrap();
+        app.deployment.plan = Some(plan);
+        app.deployment.reviewed = true;
+        assert!(
+            app.apply(
+                "Place service",
+                bp_commands::network::drop(&app.doc, &[id], Some(subnets[0]), Default::default())
+                    .unwrap()
+            )
+        );
+        assert!(app.apply(
+            "Move VPC",
+            bp_commands::edit::translate(&app.doc, &[vpc], (20.0, 30.0).into())
+        ));
+        let bounds = app.doc.elements[&vpc].as_shape().unwrap().bounds;
+        assert!(
+            app.apply(
+                "Resize VPC",
+                bp_commands::network::resize(
+                    &app.doc,
+                    vpc,
+                    Rect::new(bounds.x0, bounds.y0, bounds.x1 + 40.0, bounds.y1 + 40.0)
+                )
+                .unwrap()
+            )
+        );
+        assert!(app.deployment.plan.is_some());
+        assert!(app.deployment.reviewed);
+        let mut resource = app.doc.elements[&subnets[0]]
+            .as_shape()
+            .unwrap()
+            .infrastructure
+            .clone();
+        if let Some(AwsResource::Subnet { vpc, .. }) = &mut resource {
+            *vpc = Some(destination);
+        }
+        app.set_resource_configuration(subnets[0], resource)
+            .unwrap();
+        assert!(app.deployment.plan.is_none());
+        assert!(!app.deployment.reviewed);
+        assert!(!app.deployment.busy());
     }
 
     #[test]

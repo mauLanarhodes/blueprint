@@ -52,6 +52,7 @@ pub(crate) fn geometry(shape: &Shape) -> ShapeGeometry {
         text_box,
         label: (!shape.text.is_empty()).then_some(text_box),
         erd: None,
+        network_container: None,
         style,
     }
 }

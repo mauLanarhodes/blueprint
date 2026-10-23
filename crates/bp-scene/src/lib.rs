@@ -11,10 +11,12 @@
 mod cloud;
 mod connector;
 mod erd;
+mod network;
 mod text;
 
 pub use connector::ROUTE_MARGIN;
 pub use erd::{ErdGeometry, ErdRowGeometry, erd_header_height, erd_row_height};
+pub use network::NetworkContainerGeometry;
 pub use text::{PADDING_X, PADDING_Y, TextStyle, place as place_text};
 
 use bp_geom::{SpatialIndex, distance_to_path, distance_to_polyline};
@@ -118,6 +120,9 @@ pub struct ShapeGeometry {
     pub label: Option<Rect>,
     /// Header and visible column rows of a smart ERD table.
     pub erd: Option<ErdGeometry>,
+    /// Header and usable interior of a network boundary. Only the header
+    /// and exposed outline are clickable; the interior permits marquee selection.
+    pub network_container: Option<NetworkContainerGeometry>,
     pub style: StyleValues,
 }
 
@@ -177,6 +182,13 @@ pub fn connector_defaults() -> StyleValues {
 
 /// A shape's resolved geometry, from its data alone.
 pub fn shape_geometry(libraries: &Libraries, shape: &Shape) -> ShapeGeometry {
+    shape_geometry_on(libraries, shape, Color::WHITE)
+}
+
+fn shape_geometry_on(libraries: &Libraries, shape: &Shape, background: Color) -> ShapeGeometry {
+    if let Some(container) = shape.network_container {
+        return network::geometry(shape, container, background);
+    }
     if shape.shape.is_cloud() {
         return cloud::geometry(shape);
     }
@@ -194,6 +206,7 @@ pub fn shape_geometry(libraries: &Libraries, shape: &Shape) -> ShapeGeometry {
         text_box: def.text_box(bounds),
         label: None,
         erd: None,
+        network_container: None,
         bounds,
         style,
     }
@@ -231,6 +244,9 @@ fn shape_items(
     shape: &Shape,
     g: &ShapeGeometry,
 ) -> Vec<DisplayItem> {
+    if let Some(container) = shape.network_container {
+        return network::items(id, shape, container, g);
+    }
     if shape.shape.is_cloud() {
         return cloud::items(id, doc.icons.get(&shape.shape), shape, g);
     }
@@ -392,6 +408,17 @@ impl Scene {
         self.geometry(id).map(Geometry::bounds)
     }
 
+    /// Bounds including a service's label below its icon. Use this when
+    /// fitting content into a container so the label remains visible.
+    pub fn footprint_of(&self, id: ElementId) -> Option<Rect> {
+        self.geometry(id).map(|geometry| match geometry {
+            Geometry::Shape(shape) => shape
+                .label
+                .map_or(shape.bounds, |label| shape.bounds.union(label)),
+            _ => geometry.bounds(),
+        })
+    }
+
     /// The bounds of everything drawn, or `None` for an empty page.
     pub fn bounds(&self) -> Option<Rect> {
         self.list.bounds()
@@ -430,6 +457,9 @@ impl Scene {
         match self.geometry(id) {
             Some(Geometry::Shape(g)) => {
                 let edge = tolerance + g.style.stroke_width / 2.0;
+                if let Some(container) = &g.network_container {
+                    return container.header.contains(p) || distance_to_path(&g.outline, p) <= edge;
+                }
                 if g.closed {
                     g.outline.contains(p)
                         || g.label.is_some_and(|label| label.contains(p))
@@ -557,7 +587,7 @@ pub fn build_page(doc: &Document, page: PageId) -> Scene {
 
 /// What a cached element was built from.
 enum Key {
-    Shape(Box<Shape>, Option<Arc<str>>),
+    Shape(Box<Shape>, Option<Arc<str>>, Option<Color>),
     Connector(Box<ConnectorKey>),
 }
 
@@ -649,7 +679,17 @@ impl SceneCache {
         self.rebuilt = 0;
         let generation = self.generation;
         let background = doc.pages.get(&page).map_or(Color::WHITE, |p| p.background);
-        let order: Vec<&Element> = doc.paint_order(page);
+        let hierarchy = doc.paint_order(page);
+        let mut order = hierarchy.clone();
+        // Boundaries are a backdrop for the complete diagram. Painting all
+        // of them first also keeps authored connectors visible as they cross
+        // later sibling containers. Stable sorting retains container preorder.
+        order.sort_by_key(|element| element.network_container().is_none());
+        let ranks: IdMap<ElementId, usize> = order
+            .iter()
+            .enumerate()
+            .map(|(rank, element)| (element.id, rank))
+            .collect();
         let mut slots: Vec<Option<Arc<[DisplayItem]>>> = vec![None; order.len()];
         let mut geometry: IdMap<ElementId, (usize, Arc<Geometry>)> = IdMap::default();
         geometry.reserve(order.len());
@@ -667,20 +707,21 @@ impl SceneCache {
                 continue;
             };
             let svg = doc.icons.get(&shape.shape).map(|icon| icon.svg.clone());
+            let container_background = shape.network_container.map(|_| background);
             if let Some(entry) = self.entries.get_mut(&id)
-                && matches!(&entry.key, Key::Shape(old, old_svg) if old.as_ref() == shape && *old_svg == svg)
+                && matches!(&entry.key, Key::Shape(old, old_svg, old_background) if old.as_ref() == shape && *old_svg == svg && *old_background == container_background)
             {
                 entry.generation = generation;
                 slots[rank] = Some(entry.items.clone());
                 geometry.insert(id, (rank, entry.geometry.clone()));
                 continue;
             }
-            let g = shape_geometry(libraries, shape);
+            let g = shape_geometry_on(libraries, shape, background);
             let items: Arc<[DisplayItem]> = shape_items(id, doc, libraries, shape, &g).into();
             let g = Arc::new(Geometry::Shape(g));
             self.store(
                 id,
-                Key::Shape(Box::new(shape.clone()), svg),
+                Key::Shape(Box::new(shape.clone()), svg, container_background),
                 items.clone(),
                 g.clone(),
                 generation,
@@ -812,14 +853,19 @@ impl SceneCache {
         }
         self.rebuilt = changed.len();
 
-        // Groups cover their descendants: children come after parents in
-        // paint order, so a reverse pass sees every child first.
+        // Groups cover their descendants. Use the canonical hierarchy here:
+        // boundary backdrops may paint before an ordinary group containing them.
         let mut covered: IdMap<ElementId, Rect> = IdMap::default();
-        for (rank, element) in order.iter().enumerate().rev() {
+        for element in hierarchy.iter().rev() {
             let own = if element.is_group() {
                 covered.get(&element.id).copied()
             } else {
-                geometry.get(&element.id).map(|(_, g)| g.bounds())
+                geometry.get(&element.id).map(|(_, g)| match g.as_ref() {
+                    Geometry::Shape(shape) => shape
+                        .label
+                        .map_or(shape.bounds, |label| shape.bounds.union(label)),
+                    _ => g.bounds(),
+                })
             };
             if let (Some(b), Parent::Element(parent)) = (own, element.parent) {
                 covered
@@ -830,7 +876,10 @@ impl SceneCache {
             if element.is_group()
                 && let Some(bounds) = own
             {
-                geometry.insert(element.id, (rank, Arc::new(Geometry::Group { bounds })));
+                geometry.insert(
+                    element.id,
+                    (ranks[&element.id], Arc::new(Geometry::Group { bounds })),
+                );
             }
         }
 

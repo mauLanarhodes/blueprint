@@ -536,6 +536,8 @@ name = "bp-commands"
 version = "0.1.0"
 dependencies = [
  "bp-model",
+ "bp-shapes",
+ "bp-text",
  "proptest",
  "serde",
  "serde_json",

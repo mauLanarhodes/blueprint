@@ -25,7 +25,8 @@ Usage: screenshot [out.png] [diagram.blueprint | erd | flowchart | cloud] [mode]
 Options:
   --fixture KIND      Build a populated example with original fixture artwork
   --mode MODE         none, shape, column, connector, focus, all, drag, connect, packs,
-                      network, deploy, calendar, sql-warning, long-text, or error
+                      network, network-services, network-drop, network-transfer,
+                      deploy, calendar, sql-warning, long-text, or error
                       (also accepted positionally)
   --size WIDTHxHEIGHT  Window size in logical points (default: 1360x860)
   --scale NUMBER       Pixels per logical point, greater than 0 through 4 (default: 1)
@@ -145,6 +146,9 @@ impl Options {
                 | "connect"
                 | "packs"
                 | "network"
+                | "network-services"
+                | "network-drop"
+                | "network-transfer"
                 | "deploy"
                 | "calendar"
                 | "sql-warning"
@@ -237,7 +241,7 @@ fn render(options: Options) -> Result<(), Box<dyn std::error::Error>> {
     }
     let catalogs = if let Some(directory) = &options.catalogs {
         bp_icons::load_packs(directory)?
-    } else if startup.fixture == Some(DiagramKind::Cloud) {
+    } else if startup.fixture == Some(DiagramKind::Cloud) || startup.mode.starts_with("network-") {
         fixtures::cloud_catalogs()
     } else {
         Vec::new()
@@ -271,6 +275,14 @@ fn render(options: Options) -> Result<(), Box<dyn std::error::Error>> {
         );
     harness.run();
 
+    let network_targets = if options.mode.starts_with("network-") {
+        Some(fixtures::network(
+            app(&mut harness),
+            options.mode == "network-transfer",
+        ))
+    } else {
+        None
+    };
     match options.mode.as_str() {
         "packs" => app(&mut harness).open_cloud_manager(),
         "network" | "deploy" => {
@@ -365,6 +377,52 @@ fn render(options: Options) -> Result<(), Box<dyn std::error::Error>> {
                 press_and_move(&mut harness, from, to);
             }
         }
+        "network-drop" => {
+            let targets = network_targets.as_ref().unwrap();
+            let editor = app(&mut harness);
+            let bounds = editor.doc.elements[&targets.service]
+                .as_shape()
+                .unwrap()
+                .bounds;
+            let from = editor
+                .view
+                .to_screen(editor.canvas_rect.min, bounds.center());
+            let to = editor
+                .view
+                .to_screen(editor.canvas_rect.min, targets.drop_point);
+            press_and_move(&mut harness, from, to);
+            assert!(
+                app(&mut harness).drag.is_active(),
+                "service drag must be active in the captured UI"
+            );
+        }
+        "network-transfer" => {
+            let id = network_targets.as_ref().unwrap().subnet;
+            let editor = app(&mut harness);
+            let original_parent = editor.doc.elements[&id].parent;
+            let bounds = editor.doc.elements[&id].as_shape().unwrap().bounds;
+            let from = editor.view.to_screen(
+                editor.canvas_rect.min,
+                bounds.origin() + Vec2::new(180.0, 24.0),
+            );
+            let to = editor.view.to_screen(
+                editor.canvas_rect.min,
+                bounds.origin() + Vec2::new(1280.0, 24.0),
+            );
+            press_and_move(&mut harness, from, to);
+            harness.event(Event::PointerButton {
+                pos: to,
+                button: PointerButton::Primary,
+                pressed: false,
+                modifiers: Modifiers::NONE,
+            });
+            harness.run_steps(2);
+            assert_ne!(
+                app(&mut harness).doc.elements[&id].parent,
+                original_parent,
+                "the captured subnet must have transferred to the destination VPC"
+            );
+        }
         "connect" => {
             if let Some(id) = first_shape {
                 let app = app(&mut harness);
@@ -392,7 +450,7 @@ fn render(options: Options) -> Result<(), Box<dyn std::error::Error>> {
     harness.run_steps(2);
     // Selection can open the ERD relationship drawer and reduce the canvas.
     // Fit that settled layout, while preserving in-progress gesture previews.
-    if options.fit && !matches!(options.mode.as_str(), "drag" | "connect") {
+    if options.fit && !matches!(options.mode.as_str(), "drag" | "connect" | "network-drop") {
         app(&mut harness).fit_requested = true;
         harness.run_steps(2);
     }

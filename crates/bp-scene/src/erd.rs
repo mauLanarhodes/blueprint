@@ -184,6 +184,7 @@ pub(crate) fn geometry(shape: &Shape, table: &ErdTable, style: StyleValues) -> S
         ports,
         text_box: header,
         erd: Some(ErdGeometry { header, rows }),
+        network_container: None,
         style,
     }
 }

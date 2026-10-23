@@ -16,6 +16,132 @@ pub struct Targets {
     pub connector: Option<ElementId>,
 }
 
+pub struct NetworkTargets {
+    pub subnet: ElementId,
+    pub service: ElementId,
+    pub drop_point: bp_model::kurbo::Point,
+}
+
+/// Actual container resources with original service fixture artwork.
+pub fn network(app: &mut BlueprintApp, destination: bool) -> NetworkTargets {
+    use bp_model::{AwsResource, Element, NetworkContainer, Parent};
+    rename_page(app, "Interactive AWS network");
+    if app.preferences.theme == bp_app::WorkspaceTheme::Light {
+        app.apply(
+            "Light canvas fixture",
+            [Command::SetPage {
+                id: app.page,
+                prop: PageProp::Background(Color::WHITE),
+            }],
+        );
+    }
+    let parent = Parent::Layer(app.layer);
+    let mut container = |kind: NetworkContainer, parent, bounds, name: &str, resource| {
+        let mut element = Element::shape(
+            ShapeRef::new("basic", "rectangle"),
+            parent,
+            bp_model::OrderKey::first(),
+            bounds,
+        );
+        let shape = element.as_shape_mut().unwrap();
+        shape.network_container = Some(kind);
+        shape.text = name.into();
+        shape.infrastructure = Some(resource);
+        let id = element.id;
+        assert!(app.apply(
+            "Network screenshot fixture",
+            [Command::Insert(Box::new(element))]
+        ));
+        id
+    };
+    let vpc = container(
+        NetworkContainer::Vpc,
+        parent,
+        Rect::new(0.0, 0.0, 1000.0, 560.0),
+        "Application VPC",
+        AwsResource::Vpc {
+            cidr: "10.0.0.0/16".into(),
+        },
+    );
+    let a = container(
+        NetworkContainer::Subnet,
+        Parent::Element(vpc),
+        Rect::new(32.0, 90.0, 484.0, 510.0),
+        "Private subnet A",
+        AwsResource::Subnet {
+            vpc: Some(vpc),
+            cidr: "10.0.1.0/24".into(),
+            availability_zone: "us-east-1a".into(),
+        },
+    );
+    let b = container(
+        NetworkContainer::Subnet,
+        Parent::Element(vpc),
+        Rect::new(516.0, 90.0, 968.0, 510.0),
+        "Private subnet B",
+        AwsResource::Subnet {
+            vpc: Some(vpc),
+            cidr: "10.0.2.0/24".into(),
+            availability_zone: "us-east-1b".into(),
+        },
+    );
+    if destination {
+        container(
+            NetworkContainer::Vpc,
+            parent,
+            Rect::new(1100.0, 0.0, 2100.0, 560.0),
+            "Recovery VPC",
+            AwsResource::Vpc {
+                cidr: "10.0.0.0/16".into(),
+            },
+        );
+    }
+    let api = shape(
+        app,
+        "aws/fixture-container-service@fixture-v1",
+        "Orders API",
+        Rect::new(110.0, 210.0, 174.0, 274.0),
+    );
+    let worker = shape(
+        app,
+        "aws/fixture-container-service@fixture-v1",
+        "Queue worker",
+        Rect::new(310.0, 350.0, 374.0, 414.0),
+    );
+    let database = shape(
+        app,
+        "aws/fixture-postgresql@fixture-v1",
+        "PostgreSQL",
+        Rect::new(640.0, 210.0, 704.0, 274.0),
+    );
+    for (id, subnet) in [(api, a), (worker, a), (database, b)] {
+        let commands =
+            bp_commands::network::drop(&app.doc, &[id], Some(subnet), bp_model::kurbo::Vec2::ZERO)
+                .unwrap();
+        assert!(app.apply("Place fixture service", commands));
+    }
+    connection(app, api, "e", database, "w", "SQL");
+    connection(app, api, "s", worker, "n", "Jobs");
+    let service = shape(
+        app,
+        "aws/fixture-object-storage@fixture-v1",
+        "Regional storage",
+        if destination {
+            Rect::new(1020.0, 650.0, 1084.0, 714.0)
+        } else {
+            Rect::new(1080.0, 300.0, 1144.0, 364.0)
+        },
+    );
+    app.selection.clear();
+    app.status =
+        "Service placement organizes the diagram. Infrastructure settings are explicit.".into();
+    NetworkTargets {
+        subnet: b,
+        service,
+        drop_point: bp_model::kurbo::Point::new(840.0, 370.0),
+    }
+}
+
 pub fn populate(app: &mut BlueprintApp, kind: DiagramKind) -> Targets {
     let targets = match kind {
         DiagramKind::Flowchart => flowchart(app),

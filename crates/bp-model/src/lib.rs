@@ -14,6 +14,7 @@ mod element;
 mod erd;
 mod ids;
 mod infrastructure;
+mod network;
 mod order;
 mod style;
 
@@ -29,5 +30,6 @@ pub use erd::{
 pub use ids::{ColumnId, ElementId, IdHasher, IdMap, LayerId, PageId};
 pub use infrastructure::{AwsDeployment, AwsResource, AwsResourceKind};
 pub use kurbo;
+pub use network::{NETWORK_CONTAINER_HEADER_HEIGHT, NETWORK_CONTAINER_PADDING, NetworkContainer};
 pub use order::OrderKey;
 pub use style::{Color, Dash, Paint, Style, StyleValues, TextAlign, VerticalAlign};

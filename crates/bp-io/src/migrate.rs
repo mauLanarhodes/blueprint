@@ -43,6 +43,12 @@ pub fn migrate(mut value: Value) -> Result<Value, IoError> {
         // Lambda source and its explicit queue binding must survive round trips.
         value["schema_version"] = 8.into();
     }
+    if version < 9 {
+        // Network boundaries use the existing element parent relationship.
+        // Missing presentation fields default to ordinary shapes; conversion
+        // is explicit, so opening an older file never rearranges its layout.
+        value["schema_version"] = 9.into();
+    }
     Ok(value)
 }
 

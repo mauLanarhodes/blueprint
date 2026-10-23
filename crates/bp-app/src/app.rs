@@ -332,7 +332,12 @@ impl BlueprintApp {
             return false;
         }
         match self.history.apply(&mut self.doc, label, commands) {
-            Ok(()) => true,
+            Ok(()) => {
+                if !self.drag.is_active() {
+                    self.invalidate_changed_deployment_plan();
+                }
+                true
+            }
             Err(e) => {
                 self.status = format!("{label} failed: {e}");
                 false
@@ -351,6 +356,9 @@ impl BlueprintApp {
             .apply_merging(&mut self.doc, label, key, commands)
         {
             self.status = format!("{label} failed: {e}");
+        }
+        if !self.drag.is_active() {
+            self.invalidate_changed_deployment_plan();
         }
     }
 
@@ -383,6 +391,7 @@ impl BlueprintApp {
     }
 
     fn after_history_jump(&mut self, previous_kind: Option<DiagramKind>) {
+        self.invalidate_changed_deployment_plan();
         // Undo can remove the page or layer we were on.
         if !self.doc.pages.contains_key(&self.page) {
             let page = self.doc.first_page().expect("documents keep a page");
@@ -968,6 +977,8 @@ mod tests {
             start: Point::ZERO,
             bounds: Some(snapshot.elements[&id].as_shape().unwrap().bounds),
             snapshot: Box::new(snapshot),
+            delta: Vec2::ZERO,
+            preview: None,
         };
         let commands = bp_commands::edit::translate(&app.doc, &[id], Vec2::new(20.0, 0.0));
         app.apply("Move", commands);

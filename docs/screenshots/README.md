@@ -37,3 +37,30 @@ See the
 [workspace verification guide](../workspace-redesign.md)
 for selection modes, other window sizes, display scales, Light-theme checks,
 and corresponding SVG output.
+
+## Interactive network containers
+
+The following are actual headless egui application renders from
+`feat/aws-network-containers`, captured October 23, 2026 at 1× display scale.
+They use configured VPC/subnet resource elements and the same original synthetic
+service artwork as the cloud fixture. No Terraform or AWS operation is involved
+in generating these images.
+
+| File | Content |
+| --- | --- |
+| [network-containers.png](network-containers.png) | Dark canvas: VPC, two private subnet containers, three contained services and an external regional service. |
+| [network-containers-light.png](network-containers-light.png) | The same network with a light workspace and white canvas. |
+| [network-drop.png](network-drop.png) | Actual pointer drag: receiving subnet border, dashed placement footprint including its label, and placement message. Membership is pending until release. |
+| [network-transfer.png](network-transfer.png) | Completed subnet transfer with its service; the inspector shows the new VPC reference, preserved CIDR and availability zone. |
+
+Matching SVG exports sit beside each PNG. Transient selection, receiving-border
+and ghost overlays are excluded from SVG. The screenshot harness asserts an
+active service gesture for the drop capture and a changed subnet parent for the
+transfer capture.
+
+```sh
+cargo run -p bp-app --example screenshot -- docs/screenshots/network-containers.png cloud --mode network-services --fit --size 1600x1000 --theme dark --svg docs/screenshots/network-containers.svg
+cargo run -p bp-app --example screenshot -- docs/screenshots/network-containers-light.png cloud --mode network-services --fit --size 1600x1000 --theme light --svg docs/screenshots/network-containers-light.svg
+cargo run -p bp-app --example screenshot -- docs/screenshots/network-drop.png cloud --mode network-drop --fit --size 1600x1000 --theme dark --svg docs/screenshots/network-drop.svg
+cargo run -p bp-app --example screenshot -- docs/screenshots/network-transfer.png cloud --mode network-transfer --fit --size 2000x1000 --theme dark --svg docs/screenshots/network-transfer.svg
+```

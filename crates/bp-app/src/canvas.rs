@@ -4,11 +4,12 @@
 use crate::app::{BlueprintApp, Tool};
 use crate::theme::{ACCENT, GUIDE, PORT};
 use bp_commands::edit::{self, rect_to_rect};
-use bp_commands::{Command, Prop};
+use bp_commands::{Command, Prop, network};
 use bp_geom::{Axis, Dir, Features, polyline_length, snap_point, snap_rect};
-use bp_model::kurbo::{Affine, Point, Rect};
+use bp_model::kurbo::{Affine, Point, Rect, Vec2};
 use bp_model::{
-    Connector, Document, ElementId, Endpoint, Paint, PortId, Routing, ShapeRef, TextAlign,
+    Connector, Document, ElementId, Endpoint, NetworkContainer, Paint, PortId, Routing, ShapeRef,
+    TextAlign,
 };
 use bp_render_egui::{color32, paint, paint_with_presentation, text_font};
 use bp_scene::{DisplayItem, DisplayList, Geometry};
@@ -122,6 +123,8 @@ pub enum Drag {
         start: Point,
         bounds: Option<Rect>,
         snapshot: Box<Document>,
+        delta: Vec2,
+        preview: Option<ContainerDropPreview>,
     },
     Resize {
         ids: Vec<ElementId>,
@@ -157,6 +160,13 @@ pub enum Drag {
     MoveLabel {
         id: ElementId,
     },
+}
+
+/// Ephemeral feedback for a planned drop. Never enters the document or export.
+pub struct ContainerDropPreview {
+    target: ElementId,
+    bounds: Vec<Rect>,
+    error: Option<String>,
 }
 
 impl Drag {
@@ -329,6 +339,24 @@ impl BlueprintApp {
         }
         let editable = self.editable_selection();
         if editable.len() != self.selection.len() {
+            return None;
+        }
+        // A network boundary resizes independently. Scaling a mixed selection
+        // would also scale its contents, so offer its handles on its own.
+        if !(editable.len() == 1
+            && self.doc.elements[&editable[0]]
+                .network_container()
+                .is_some())
+            && editable.iter().any(|id| {
+                std::iter::once(*id)
+                    .chain(self.doc.descendants(*id))
+                    .any(|id| {
+                        self.doc.elements[&id]
+                            .as_shape()
+                            .is_some_and(|shape| shape.network_container.is_some())
+                    })
+            })
+        {
             return None;
         }
         let boxes: Vec<Rect> = editable
@@ -678,7 +706,12 @@ impl BlueprintApp {
                             }
                         }
                         let ids = self.editable_selection();
-                        if ids.is_empty() {
+                        if ids.is_empty() || ids.len() != self.selection.len() {
+                            self.status = "Unlock the selected elements before moving them.".into();
+                            return Drag::None;
+                        }
+                        if let Err(error) = network::can_move(&self.doc, &ids) {
+                            self.status = error.to_string();
                             return Drag::None;
                         }
                         let bounds = edit::top_level(&self.doc, &ids)
@@ -691,6 +724,8 @@ impl BlueprintApp {
                             start: p,
                             bounds,
                             snapshot: Box::new(self.doc.clone()),
+                            delta: Vec2::ZERO,
+                            preview: None,
                         }
                     }
                     None => {
@@ -958,6 +993,7 @@ impl BlueprintApp {
             start,
             bounds,
             snapshot,
+            ..
         } = &self.drag
         else {
             return;
@@ -981,8 +1017,99 @@ impl BlueprintApp {
         // Always relative to the snapshot, so moving back to the start
         // restores every value exactly.
         let commands = edit::transform(snapshot, ids, Affine::translate(delta));
+        let target = self.network_drop_target(snapshot, ids, p);
+        let preview = target.map(|target| {
+            let result = network::drop(snapshot, ids, Some(target), delta);
+            let mut staged = snapshot.as_ref().clone();
+            let content = snapshot.elements[&target].as_shape().expect("container");
+            let in_content = content
+                .network_container
+                .expect("container kind")
+                .content_rect(content.bounds)
+                .contains(p);
+            let error = if !in_content {
+                Some("Drop inside the container's content area, below its header.".to_owned())
+            } else {
+                match result {
+                    Ok(commands) => bp_commands::History::new()
+                        .apply(&mut staged, "Preview", commands)
+                        .err()
+                        .map(|error| error.to_string()),
+                    Err(error) => Some(error.to_string()),
+                }
+            };
+            let bounds = if error.is_none() {
+                edit::top_level(&staged, ids)
+                    .iter()
+                    .filter_map(|id| network::occupied_bounds(&staged, *id))
+                    .collect()
+            } else {
+                edit::top_level(snapshot, ids)
+                    .iter()
+                    .filter_map(|id| network::occupied_bounds(snapshot, *id).map(|b| b + delta))
+                    .collect()
+            };
+            ContainerDropPreview {
+                target,
+                bounds,
+                error,
+            }
+        });
+        if let Drag::Move {
+            delta: current,
+            preview: current_preview,
+            ..
+        } = &mut self.drag
+        {
+            *current = delta;
+            *current_preview = preview;
+        }
         self.guides = guides;
         self.apply("", commands);
+    }
+
+    /// Reverse paint order makes overlapping containers deterministic. Locked
+    /// containers remain candidates so a rejected drop cannot silently detach.
+    fn network_drop_target(
+        &self,
+        doc: &Document,
+        ids: &[ElementId],
+        p: Point,
+    ) -> Option<ElementId> {
+        let roots = edit::top_level(doc, ids);
+        let subnet_drag = !roots.is_empty()
+            && roots.iter().all(|id| {
+                doc.elements[id]
+                    .as_shape()
+                    .is_some_and(|shape| shape.network_container == Some(NetworkContainer::Subnet))
+            });
+        let services = !roots.is_empty()
+            && roots.iter().all(|id| {
+                doc.elements[id]
+                    .as_shape()
+                    .is_none_or(|shape| shape.network_container.is_none())
+            });
+        let expected = if subnet_drag {
+            NetworkContainer::Vpc
+        } else if services {
+            NetworkContainer::Subnet
+        } else {
+            return None;
+        };
+        let mut excluded: std::collections::HashSet<_> = roots.iter().copied().collect();
+        for id in &roots {
+            excluded.extend(doc.descendants(*id));
+        }
+        doc.paint_order(self.page)
+            .into_iter()
+            .rev()
+            .find_map(|element| {
+                let shape = element.as_shape()?;
+                (shape.network_container == Some(expected)
+                    && !excluded.contains(&element.id)
+                    && shape.bounds.contains(p))
+                .then_some(element.id)
+            })
     }
 
     fn drag_resize(&mut self, ctx: &egui::Context, p: Point, no_snap: bool, tolerance: f64) {
@@ -996,17 +1123,24 @@ impl BlueprintApp {
             return;
         };
         let (keep_aspect, from_center) = ctx.input(|i| (i.modifiers.shift, i.modifiers.alt));
-        let cloud = ids
-            .iter()
-            .copied()
-            .flat_map(|id| std::iter::once(id).chain(snapshot.descendants(id)))
-            .any(|id| {
-                snapshot
-                    .elements
-                    .get(&id)
-                    .and_then(bp_model::Element::as_shape)
-                    .is_some_and(|shape| shape.shape.is_cloud())
-            });
+        let container = match ids.as_slice() {
+            [id] => snapshot.elements[id]
+                .as_shape()
+                .is_some_and(|shape| shape.network_container.is_some()),
+            _ => false,
+        };
+        let cloud = !container
+            && ids
+                .iter()
+                .copied()
+                .flat_map(|id| std::iter::once(id).chain(snapshot.descendants(id)))
+                .any(|id| {
+                    snapshot
+                        .elements
+                        .get(&id)
+                        .and_then(bp_model::Element::as_shape)
+                        .is_some_and(|shape| shape.shape.is_cloud())
+                });
         let (fx, fy) = handle.anchor();
         let sb = *start_bounds;
         let moves_x = fx != 0.5;
@@ -1093,7 +1227,29 @@ impl BlueprintApp {
                 Rect::new(x0, y0, x0 + w, y0 + h)
             };
         }
-        let commands = edit::transform(snapshot, ids, rect_to_rect(sb, new));
+        let commands = if container {
+            match network::resize(snapshot, ids[0], new) {
+                Ok(commands) => commands,
+                Err(error) => {
+                    self.status = error.to_string();
+                    return;
+                }
+            }
+        } else {
+            let commands = edit::transform(snapshot, ids, rect_to_rect(sb, new));
+            for command in &commands {
+                if let Command::Set {
+                    id,
+                    prop: Prop::Bounds(bounds),
+                } = command
+                    && let Err(error) = network::validate_bounds(snapshot, *id, *bounds)
+                {
+                    self.status = error.to_string();
+                    return;
+                }
+            }
+            commands
+        };
         self.apply("", commands);
     }
 
@@ -1101,8 +1257,29 @@ impl BlueprintApp {
         let drag = std::mem::take(&mut self.drag);
         self.guides.clear();
         match drag {
-            Drag::Move { .. }
-            | Drag::Resize { .. }
+            Drag::Move {
+                ids,
+                snapshot,
+                delta,
+                preview,
+                ..
+            } => {
+                // Replace the live translation with one validated transaction.
+                // Failed drops and Escape therefore restore the full gesture.
+                self.history.cancel(&mut self.doc);
+                if let Some(error) = preview.as_ref().and_then(|preview| preview.error.as_ref()) {
+                    self.status = error.clone();
+                    return;
+                }
+                let target = preview.as_ref().map(|preview| preview.target);
+                match network::drop(&snapshot, &ids, target, delta) {
+                    Ok(commands) => {
+                        self.apply("Move and place", commands);
+                    }
+                    Err(error) => self.status = error.to_string(),
+                }
+            }
+            Drag::Resize { .. }
             | Drag::MoveEnd { .. }
             | Drag::MoveWaypoint { .. }
             | Drag::MoveSegment { .. }
@@ -1191,14 +1368,86 @@ impl BlueprintApp {
         if !released {
             return;
         }
-        self.palette.dragging = None;
         if let Some(pos) = pos
             && response.rect.contains(pos)
             && ctx.layer_id_at(pos) == Some(response.layer_id)
         {
-            self.insert_shape_at(shape, self.page_at(origin, pos));
+            let p = self.page_at(origin, pos);
+            let preview = self.palette_network_preview(p);
+            if let Some(error) = preview.as_ref().and_then(|preview| preview.error.as_ref()) {
+                self.status = error.clone();
+                self.palette.dragging = None;
+                return;
+            }
+            self.history.begin("Add and place service");
+            if let Some(id) = self.insert_shape_at(shape, p) {
+                let target = preview.as_ref().map(|preview| preview.target);
+                let placed = match network::drop(&self.doc, &[id], target, Vec2::ZERO) {
+                    Ok(commands) => commands.is_empty() || self.apply("Place service", commands),
+                    Err(error) => {
+                        self.status = error.to_string();
+                        false
+                    }
+                };
+                if !placed {
+                    self.history.cancel(&mut self.doc);
+                    self.prune_selection();
+                } else {
+                    self.history.commit();
+                }
+            } else {
+                self.history.cancel(&mut self.doc);
+            }
             self.tool = Tool::Select;
         }
+        self.palette.dragging = None;
+    }
+
+    fn palette_network_preview(&self, p: Point) -> Option<ContainerDropPreview> {
+        let reference = self.palette.dragging.as_ref()?;
+        let size = if reference.is_cloud() {
+            (64.0, 64.0)
+        } else {
+            self.libraries.resolve(reference).default_size
+        };
+        let mut bounds = Rect::from_center_size(p, size);
+        if self.settings.snap_to_grid {
+            bounds = bounds + (self.snap_to_grid(bounds.origin()) - bounds.origin());
+        }
+        let parent = self.insert_parent();
+        let mut element = bp_model::Element::shape(
+            reference.clone(),
+            parent,
+            self.doc.next_order_key(parent),
+            bounds,
+        );
+        crate::presets::apply(&mut element, self.doc.pages[&self.page].background);
+        let mut document = self.doc.clone();
+        if let Some(icon) = self.cloud_icon(reference) {
+            element.as_shape_mut()?.text = icon.name.clone();
+            document.icons.insert(reference.clone(), icon.clone());
+        }
+        let id = element.id;
+        document.elements.insert(id, element);
+        let target = self.network_drop_target(&document, &[id], p)?;
+        let target_shape = document.elements[&target].as_shape()?;
+        let content = target_shape
+            .network_container?
+            .content_rect(target_shape.bounds);
+        let error = if !content.contains(p) {
+            Some("Drop inside the subnet's content area, below its header.".to_owned())
+        } else {
+            network::drop(&document, &[id], Some(target), Vec2::ZERO)
+                .err()
+                .map(|error| error.to_string())
+        };
+        Some(ContainerDropPreview {
+            target,
+            bounds: network::occupied_bounds(&document, id)
+                .into_iter()
+                .collect(),
+            error,
+        })
     }
 
     // ----- Painting -------------------------------------------------------
@@ -1206,6 +1455,40 @@ impl BlueprintApp {
     fn paint_overlays(&self, painter: &egui::Painter, origin: Pos2, response: &Response) {
         let at = |p: Point| self.view.to_screen(origin, p);
         let accent = Stroke::new(1.5, ACCENT);
+
+        let palette_preview = self.pointer.and_then(|p| self.palette_network_preview(p));
+        let preview = match &self.drag {
+            Drag::Move { preview, .. } => preview.as_ref(),
+            _ => palette_preview.as_ref(),
+        };
+        if let Some(preview) = preview
+            && let Some(shape) = self.doc.elements[&preview.target].as_shape()
+        {
+            let valid = preview.error.is_none();
+            let color = if valid {
+                PORT
+            } else {
+                Color32::from_rgb(218, 91, 77)
+            };
+            let boundary = self.view.rect_to_screen(origin, shape.bounds).expand(3.0);
+            painter.rect_stroke(boundary, 5.0, Stroke::new(3.0, color), StrokeKind::Outside);
+            // Dashed placement boxes and text convey validity beyond color.
+            for bounds in &preview.bounds {
+                let ghost = self.view.rect_to_screen(origin, *bounds);
+                painter.rect_filled(ghost, 3.0, color.gamma_multiply(0.12));
+                dashed_rect(painter, ghost, Stroke::new(2.0, color));
+            }
+            painter.text(
+                boundary.left_bottom() + egui::vec2(8.0, -8.0),
+                egui::Align2::LEFT_BOTTOM,
+                preview
+                    .error
+                    .as_deref()
+                    .unwrap_or("+ Place inside container"),
+                egui::FontId::proportional(13.0),
+                color,
+            );
+        }
 
         // The group being edited.
         if let Some(bounds) = self.scope.and_then(|s| self.scene.bounds_of(s)) {

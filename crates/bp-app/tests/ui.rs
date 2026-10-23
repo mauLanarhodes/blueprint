@@ -99,7 +99,7 @@ fn deployment_starter_and_dialog_are_available_without_icon_packs() {
     let mut h = harness_for(DiagramKind::Cloud);
     h.get_by_label("Add starter network").click();
     h.run();
-    assert_eq!(app(&mut h).doc.elements.len(), 5);
+    assert_eq!(app(&mut h).doc.elements.len(), 3);
     app(&mut h).selection.clear();
     h.run();
     assert!(h.query_by_label("AWS account ID").is_some());
@@ -124,6 +124,69 @@ fn selecting_a_starter_shape_exposes_resource_settings() {
     assert!(h.query_by_label("Infrastructure").is_some());
     assert!(h.query_by_label("IPv4 CIDR").is_some());
     assert!(h.query_by_label("Resource type").is_some());
+}
+
+#[test]
+fn network_library_actions_and_inspector_vpc_transfer_are_available() {
+    let mut h = harness_for(DiagramKind::Cloud);
+    h.get_by_label("Add VPC").click();
+    h.run();
+    let first = app(&mut h).selection[0];
+    app(&mut h)
+        .doc
+        .elements
+        .get_mut(&first)
+        .unwrap()
+        .as_shape_mut()
+        .unwrap()
+        .text = "Source VPC".into();
+    h.get_by_label("Add subnet").click();
+    h.run();
+    let subnet = app(&mut h).selection[0];
+    assert_eq!(
+        app(&mut h).doc.elements[&subnet].parent,
+        bp_model::Parent::Element(first)
+    );
+    if let Some(bp_model::AwsResource::Subnet { cidr, .. }) = &mut app(&mut h)
+        .doc
+        .elements
+        .get_mut(&subnet)
+        .unwrap()
+        .as_shape_mut()
+        .unwrap()
+        .infrastructure
+    {
+        *cidr = "10.0.1.0/24".into();
+    }
+    h.get_by_label("Add VPC").click();
+    h.run();
+    let destination = app(&mut h).selection[0];
+    app(&mut h)
+        .doc
+        .elements
+        .get_mut(&destination)
+        .unwrap()
+        .as_shape_mut()
+        .unwrap()
+        .text = "Destination VPC".into();
+    app(&mut h).selection = vec![subnet];
+    h.run();
+    h.get_by_value("Source VPC").click();
+    h.run();
+    h.get_by_label("Destination VPC").click();
+    h.run();
+    assert_eq!(
+        app(&mut h).doc.elements[&subnet].parent,
+        bp_model::Parent::Element(destination)
+    );
+    assert!(
+        matches!(app(&mut h).doc.elements[&subnet].as_shape().unwrap().infrastructure, Some(bp_model::AwsResource::Subnet { vpc: Some(id), .. }) if id == destination)
+    );
+    app(&mut h).undo();
+    assert_eq!(
+        app(&mut h).doc.elements[&subnet].parent,
+        bp_model::Parent::Element(first)
+    );
 }
 
 #[test]

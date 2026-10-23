@@ -168,7 +168,7 @@ fn source_changes_invalidate_review_and_survive_native_and_json_round_trips() {
     let mut legacy = serde_json::to_value(&old).unwrap();
     legacy["schema_version"] = 7.into();
     let migrated = bp_io::from_bytes(&serde_json::to_vec(&legacy).unwrap()).unwrap();
-    assert_eq!(migrated.schema_version, 8);
+    assert_eq!(migrated.schema_version, bp_model::SCHEMA_VERSION);
     assert!(config(&migrated).unwrap().matches(&expected));
 }
 

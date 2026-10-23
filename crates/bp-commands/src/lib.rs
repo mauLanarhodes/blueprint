@@ -8,6 +8,7 @@
 //! transaction is rolled back.
 
 pub mod edit;
+pub mod network;
 
 use bp_model::kurbo::{Point, Rect};
 use bp_model::{
@@ -23,6 +24,7 @@ use std::time::{Duration, Instant};
 /// `None` returns the property to the shape's default.
 #[derive(Clone, Debug, PartialEq)]
 pub enum Prop {
+    NetworkContainer(Option<bp_model::NetworkContainer>),
     Infrastructure(Option<bp_model::AwsResource>),
     Locked(bool),
     Order(OrderKey),
@@ -70,11 +72,13 @@ impl Prop {
                 | Prop::ErdTable(_)
                 | Prop::ForeignKey(_)
                 | Prop::Infrastructure(_)
+                | Prop::NetworkContainer(_)
         )
     }
 
     pub fn name(&self) -> &'static str {
         match self {
+            Prop::NetworkContainer(_) => "network container",
             Prop::Infrastructure(_) => "infrastructure",
             Prop::Locked(_) => "locked",
             Prop::Order(_) => "order",
@@ -728,6 +732,10 @@ fn set_prop(element: &mut Element, prop: Prop) -> Result<Prop, CommandError> {
         }};
     }
     Ok(match prop {
+        Prop::NetworkContainer(v) => match element.as_shape_mut() {
+            Some(s) => Prop::NetworkContainer(replace(&mut s.network_container, v)),
+            None => return Err(wrong(Prop::NetworkContainer(v))),
+        },
         Prop::Infrastructure(v) => match element.as_shape_mut() {
             Some(s) => Prop::Infrastructure(replace(&mut s.infrastructure, v)),
             None => return Err(wrong(Prop::Infrastructure(v))),

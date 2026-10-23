@@ -9,6 +9,9 @@ pub fn dark_background(background: Color) -> bool {
         < 128.0
 }
 pub fn apply(element: &mut Element, background: Color) {
+    if element.network_container().is_some() {
+        return;
+    }
     if !dark_background(background) {
         return;
     }

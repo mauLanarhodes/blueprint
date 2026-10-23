@@ -138,6 +138,14 @@ pub fn transform(doc: &Document, ids: &[ElementId], transform: Affine) -> Vec<Co
         moved.insert(id);
         moved.extend(doc.descendants(id));
     }
+    // Container movement may not indirectly carry a locked descendant.
+    if moved
+        .iter()
+        .any(|id| doc.elements[id].network_container().is_some())
+        && crate::network::can_move(doc, ids).is_err()
+    {
+        return Vec::new();
+    }
     let mut commands = Vec::new();
     for element in doc.elements.values() {
         match &element.kind {
@@ -213,6 +221,13 @@ pub fn rect_to_rect(from: Rect, to: Rect) -> Affine {
 /// the topmost of them. Returns the group's id with the commands.
 pub fn group(doc: &Document, ids: &[ElementId]) -> Option<(ElementId, Vec<Command>)> {
     let members = top_level(doc, ids);
+    if members
+        .iter()
+        .flat_map(|id| std::iter::once(*id).chain(doc.descendants(*id)))
+        .any(|id| doc.elements[&id].network_container().is_some())
+    {
+        return None;
+    }
     let top = *members.last()?;
     let top_el = &doc.elements[&top];
     let parent = top_el.parent;
@@ -220,7 +235,7 @@ pub fn group(doc: &Document, ids: &[ElementId]) -> Option<(ElementId, Vec<Comman
     let g = group.id;
     let mut commands = vec![Command::Insert(Box::new(group))];
     let mut order = OrderKey::first();
-    for (i, id) in members.into_iter().enumerate() {
+    for (i, id) in members.iter().copied().enumerate() {
         if i > 0 {
             order = OrderKey::after(&order);
         }
@@ -233,6 +248,22 @@ pub fn group(doc: &Document, ids: &[ElementId]) -> Option<(ElementId, Vec<Comman
             prop: Prop::Order(order.clone()),
         });
     }
+    if members
+        .iter()
+        .any(|id| doc.page_of(*id) != doc.page_of(top))
+    {
+        return None;
+    }
+    let mut next = doc.clone();
+    for command in &commands {
+        command.clone().apply(&mut next).ok()?;
+    }
+    next.check_network_containers().ok()?;
+    let affected: Vec<_> = members
+        .iter()
+        .flat_map(|id| std::iter::once(*id).chain(next.descendants(*id)))
+        .collect();
+    crate::network::validate_layout(&next, &affected).ok()?;
     Some((g, commands))
 }
 

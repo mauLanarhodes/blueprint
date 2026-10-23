@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="1184.75" height="601.5" viewBox="-20.75 -20.75 1184.75 601.5">
+  <rect x="-20.75" y="-20.75" width="1184.75" height="601.5" fill="#ffffff"/>
+  <path d="M0,8 C0,3.582 3.582,0 8,0 L992,0 C996.418,0 1000,3.582 1000,8 L1000,552 C1000,556.418 996.418,560 992,560 L8,560 C3.582,560 0,556.418 0,552 Z" fill="#8b5cb5" fill-opacity="0.059" stroke="#865fae" stroke-width="1.5" stroke-linejoin="round"/>
+  <path d="M0,56 L0,8 Q0,0 8,0 L992,0 Q1000,0 1000,8 L1000,56 Z" fill="#865fae" fill-opacity="0.102"/>
+  <path d="M0,56 L1000,56" fill="none" stroke="#865fae" stroke-width="1.5" stroke-linejoin="round"/>
+  <path d="M16,17 L36,17 L36,37 L16,37 Z" fill="none" stroke="#543573" stroke-width="1.5" stroke-linejoin="round" stroke-dasharray="3 2"/>
+  <path d="M21,22 L31,22 L31,32 L21,32 Z" fill="none" stroke="#543573" stroke-width="1.5" stroke-linejoin="round"/>
+  <text x="48" y="22.093" font-family="Inter, 'Segoe UI', 'Helvetica Neue', Arial, sans-serif" font-size="14" font-weight="bold" fill="#543573" text-anchor="start" xml:space="preserve">Application VPC</text>
+  <text x="48" y="44.001" font-family="Inter, 'Segoe UI', 'Helvetica Neue', Arial, sans-serif" font-size="11" fill="#543573" text-anchor="start" xml:space="preserve">10.0.0.0/16</text>
+  <path d="M32,98 C32,93.582 35.582,90 40,90 L476,90 C480.418,90 484,93.582 484,98 L484,502 C484,506.418 480.418,510 476,510 L40,510 C35.582,510 32,506.418 32,502 Z" fill="#15968b" fill-opacity="0.059" stroke="#228b81" stroke-width="1.5" stroke-linejoin="round"/>
+  <path d="M32,146 L32,98 Q32,90 40,90 L476,90 Q484,90 484,98 L484,146 Z" fill="#228b81" fill-opacity="0.102"/>
+  <path d="M32,146 L484,146" fill="none" stroke="#228b81" stroke-width="1.5" stroke-linejoin="round"/>
+  <path d="M48,107 L68,107 L68,127 L48,127 Z" fill="none" stroke="#165e59" stroke-width="1.5" stroke-linejoin="round"/>
+  <path d="M54,113 L62,113 L62,121 L54,121 Z" fill="none" stroke="#165e59" stroke-width="1.5" stroke-linejoin="round"/>
+  <text x="80" y="112.093" font-family="Inter, 'Segoe UI', 'Helvetica Neue', Arial, sans-serif" font-size="14" font-weight="bold" fill="#165e59" text-anchor="start" xml:space="preserve">Private subnet A</text>
+  <text x="80" y="134.001" font-family="Inter, 'Segoe UI', 'Helvetica Neue', Arial, sans-serif" font-size="11" fill="#165e59" text-anchor="start" xml:space="preserve">10.0.1.0/24  ·  us-east-1a</text>
+  <path d="M516,98 C516,93.582 519.582,90 524,90 L960,90 C964.418,90 968,93.582 968,98 L968,502 C968,506.418 964.418,510 960,510 L524,510 C519.582,510 516,506.418 516,502 Z" fill="#15968b" fill-opacity="0.059" stroke="#228b81" stroke-width="1.5" stroke-linejoin="round"/>
+  <path d="M516,146 L516,98 Q516,90 524,90 L960,90 Q968,90 968,98 L968,146 Z" fill="#228b81" fill-opacity="0.102"/>
+  <path d="M516,146 L968,146" fill="none" stroke="#228b81" stroke-width="1.5" stroke-linejoin="round"/>
+  <path d="M532,107 L552,107 L552,127 L532,127 Z" fill="none" stroke="#165e59" stroke-width="1.5" stroke-linejoin="round"/>
+  <path d="M538,113 L546,113 L546,121 L538,121 Z" fill="none" stroke="#165e59" stroke-width="1.5" stroke-linejoin="round"/>
+  <text x="564" y="112.093" font-family="Inter, 'Segoe UI', 'Helvetica Neue', Arial, sans-serif" font-size="14" font-weight="bold" fill="#165e59" text-anchor="start" xml:space="preserve">Private subnet B</text>
+  <text x="564" y="134.001" font-family="Inter, 'Segoe UI', 'Helvetica Neue', Arial, sans-serif" font-size="11" fill="#165e59" text-anchor="start" xml:space="preserve">10.0.2.0/24  ·  us-east-1b</text>
+  <image x="110" y="210" width="64" height="64" opacity="1" preserveAspectRatio="xMidYMid meet" href="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI2NCIgaGVpZ2h0PSI2NCIgdmlld0JveD0iMCAwIDY0IDY0Ij48cmVjdCB4PSIyIiB5PSIyIiB3aWR0aD0iNjAiIGhlaWdodD0iNjAiIHJ4PSIxMCIgZmlsbD0iI2VhODgwMCIvPjxwYXRoIGQ9Ik0xOCAyMWwxNC03IDE0IDd2MjNsLTE0IDctMTQtN3pNMTggMjFsMTQgNyAxNC03TTMyIDI4djIzIiBmaWxsPSJub25lIiBzdHJva2U9IiNmZmZmZmYiIHN0cm9rZS13aWR0aD0iMi41IiBzdHJva2UtbGluZWpvaW49InJvdW5kIiBzdHJva2UtbGluZWNhcD0icm91bmQiLz48L3N2Zz4="/>
+  <text x="142" y="297.843" font-family="Inter, 'Segoe UI', 'Helvetica Neue', Arial, sans-serif" font-size="14" fill="#111827" text-anchor="middle" xml:space="preserve">Orders API</text>
+  <image x="310" y="350" width="64" height="64" opacity="1" preserveAspectRatio="xMidYMid meet" href="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI2NCIgaGVpZ2h0PSI2NCIgdmlld0JveD0iMCAwIDY0IDY0Ij48cmVjdCB4PSIyIiB5PSIyIiB3aWR0aD0iNjAiIGhlaWdodD0iNjAiIHJ4PSIxMCIgZmlsbD0iI2VhODgwMCIvPjxwYXRoIGQ9Ik0xOCAyMWwxNC03IDE0IDd2MjNsLTE0IDctMTQtN3pNMTggMjFsMTQgNyAxNC03TTMyIDI4djIzIiBmaWxsPSJub25lIiBzdHJva2U9IiNmZmZmZmYiIHN0cm9rZS13aWR0aD0iMi41IiBzdHJva2UtbGluZWpvaW49InJvdW5kIiBzdHJva2UtbGluZWNhcD0icm91bmQiLz48L3N2Zz4="/>
+  <text x="342" y="437.843" font-family="Inter, 'Segoe UI', 'Helvetica Neue', Arial, sans-serif" font-size="14" fill="#111827" text-anchor="middle" xml:space="preserve">Queue worker</text>
+  <image x="640" y="210" width="64" height="64" opacity="1" preserveAspectRatio="xMidYMid meet" href="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI2NCIgaGVpZ2h0PSI2NCIgdmlld0JveD0iMCAwIDY0IDY0Ij48cmVjdCB4PSIyIiB5PSIyIiB3aWR0aD0iNjAiIGhlaWdodD0iNjAiIHJ4PSIxMCIgZmlsbD0iIzI1NjNlYiIvPjxwYXRoIGQ9Ik0xOCAyMmMwLTkgMjgtOSAyOCAwdjI0YzAgOS0yOCA5LTI4IDB6TTE4IDIyYzAgOSAyOCA5IDI4IDBNMTggMzRjMCA5IDI4IDkgMjggMCIgZmlsbD0ibm9uZSIgc3Ryb2tlPSIjZmZmZmZmIiBzdHJva2Utd2lkdGg9IjIuNSIgc3Ryb2tlLWxpbmVqb2luPSJyb3VuZCIgc3Ryb2tlLWxpbmVjYXA9InJvdW5kIi8+PC9zdmc+"/>
+  <text x="672" y="297.843" font-family="Inter, 'Segoe UI', 'Helvetica Neue', Arial, sans-serif" font-size="14" fill="#111827" text-anchor="middle" xml:space="preserve">PostgreSQL</text>
+  <path d="M174,242 L630.65,242" fill="none" stroke="#1f2937" stroke-width="1.5" stroke-linejoin="round"/>
+  <path d="M640,242 L629,246.62 L629,237.38 Z" fill="#1f2937" stroke="#1f2937" stroke-width="1" stroke-linejoin="round"/>
+  <path d="M392.17,233.5 L421.83,233.5 L421.83,250.5 L392.17,250.5 Z" fill="#ffffff"/>
+  <text x="407" y="246.365" font-family="Inter, 'Segoe UI', 'Helvetica Neue', Arial, sans-serif" font-size="12" fill="#111827" text-anchor="middle" xml:space="preserve">SQL</text>
+  <path d="M142,274 L142,312 L342,312 L342,340.65" fill="none" stroke="#1f2937" stroke-width="1.5" stroke-linejoin="round"/>
+  <path d="M342,350 L337.38,339 L346.62,339 Z" fill="#1f2937" stroke="#1f2937" stroke-width="1" stroke-linejoin="round"/>
+  <path d="M225.137,303.5 L258.863,303.5 L258.863,320.5 L225.137,320.5 Z" fill="#ffffff"/>
+  <text x="242" y="316.365" font-family="Inter, 'Segoe UI', 'Helvetica Neue', Arial, sans-serif" font-size="12" fill="#111827" text-anchor="middle" xml:space="preserve">Jobs</text>
+  <image x="1080" y="300" width="64" height="64" opacity="1" preserveAspectRatio="xMidYMid meet" href="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI2NCIgaGVpZ2h0PSI2NCIgdmlld0JveD0iMCAwIDY0IDY0Ij48cmVjdCB4PSIyIiB5PSIyIiB3aWR0aD0iNjAiIGhlaWdodD0iNjAiIHJ4PSIxMCIgZmlsbD0iIzQzODcwYyIvPjxwYXRoIGQ9Ik0xNyAxOWMwLTcgMzAtNyAzMCAwbC00IDI4YzAgNy0yMiA3LTIyIDB6TTE3IDE5YzAgNyAzMCA3IDMwIDBNMjUgMzVoMTQiIGZpbGw9Im5vbmUiIHN0cm9rZT0iI2ZmZmZmZiIgc3Ryb2tlLXdpZHRoPSIyLjUiIHN0cm9rZS1saW5lam9pbj0icm91bmQiIHN0cm9rZS1saW5lY2FwPSJyb3VuZCIvPjwvc3ZnPg=="/>
+  <text x="1112" y="387.843" font-family="Inter, 'Segoe UI', 'Helvetica Neue', Arial, sans-serif" font-size="14" fill="#111827" text-anchor="middle" xml:space="preserve">Regional</text>
+  <text x="1112" y="405.343" font-family="Inter, 'Segoe UI', 'Helvetica Neue', Arial, sans-serif" font-size="14" fill="#111827" text-anchor="middle" xml:space="preserve">storage</text>
+</svg>

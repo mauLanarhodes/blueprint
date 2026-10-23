@@ -8,6 +8,8 @@ license.workspace = true
 
 [dependencies]
 bp-model.workspace = true
+bp-text.workspace = true
+bp-shapes.workspace = true
 serde.workspace = true
 thiserror.workspace = true
 

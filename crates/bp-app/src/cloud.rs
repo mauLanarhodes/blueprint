@@ -583,6 +583,26 @@ impl BlueprintApp {
             if response.clicked() {
                 self.add_starter_network();
             }
+            ui.horizontal_wrapped(|ui| {
+                let vpc = ui.small_button("Add VPC");
+                crate::widgets::focus_outline(ui, &vpc);
+                crate::widgets::command_focus(ui, &vpc);
+                if vpc.clicked() {
+                    self.add_vpc();
+                }
+                let subnet = ui.small_button("Add subnet");
+                crate::widgets::focus_outline(ui, &subnet);
+                crate::widgets::command_focus(ui, &subnet);
+                if subnet.clicked() {
+                    self.add_subnet();
+                }
+            });
+            let convert = ui.small_button("Convert network to containers");
+            crate::widgets::focus_outline(ui, &convert);
+            crate::widgets::command_focus(ui, &convert);
+            if convert.clicked() {
+                self.convert_network_to_containers();
+            }
         }
         let versions: Vec<_> = self
             .cloud

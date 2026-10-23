@@ -198,8 +198,12 @@ impl BlueprintApp {
         let Some(shape) = el.as_shape() else { return };
         let def = self.libraries.resolve(&shape.shape);
         let cloud_icon = self.doc.icons.get(&shape.shape);
-        ui.heading(cloud_icon.map_or(def.name.as_str(), |icon| &icon.name));
-        if shape.shape.is_cloud() {
+        let title = match shape.network_container {
+            Some(container) => container.label(),
+            None => cloud_icon.map_or(def.name.as_str(), |icon| icon.name.as_str()),
+        };
+        ui.heading(title);
+        if shape.network_container.is_none() && shape.shape.is_cloud() {
             ui.label(
                 RichText::new(if shape.shape.library() == "aws" {
                     "AWS architecture icon"
@@ -290,6 +294,10 @@ impl BlueprintApp {
 
     fn shape_style_inspector(&mut self, ui: &mut Ui, el: &Element) {
         let Some(shape) = el.as_shape() else { return };
+        if shape.network_container.is_some() {
+            ui.label(RichText::new("Boundary size is independent of its contents. Header and boundary colors follow the page theme.").small().weak());
+            return;
+        }
         if shape.shape.is_cloud() {
             ui.label(
                 RichText::new("Icons scale uniformly and keep their original appearance.")
@@ -313,7 +321,11 @@ impl BlueprintApp {
         let b = shape.bounds;
         let (mut x, mut y, mut w, mut h) = (b.x0, b.y0, b.width(), b.height());
         let mut moved = false;
-        let cloud = shape.shape.is_cloud();
+        let cloud = shape.network_container.is_none() && shape.shape.is_cloud();
+        let minimum = shape
+            .network_container
+            .map(bp_model::NetworkContainer::min_size)
+            .unwrap_or(kurbo::Size::new(1.0, 1.0));
         let aspect = b.width() / b.height().max(1.0);
         egui::Grid::new("geometry").num_columns(4).show(ui, |ui| {
             ui.label("X");
@@ -323,7 +335,7 @@ impl BlueprintApp {
             ui.end_row();
             ui.label("W");
             let width_changed = ui
-                .add(DragValue::new(&mut w).range(1.0..=100_000.0))
+                .add(DragValue::new(&mut w).range(minimum.width..=100_000.0))
                 .changed();
             moved |= width_changed;
             if cloud && width_changed {
@@ -331,7 +343,7 @@ impl BlueprintApp {
             }
             ui.label("H");
             let height_changed = ui
-                .add(DragValue::new(&mut h).range(1.0..=100_000.0))
+                .add(DragValue::new(&mut h).range(minimum.height..=100_000.0))
                 .changed();
             moved |= height_changed;
             if cloud && height_changed {
@@ -342,14 +354,37 @@ impl BlueprintApp {
         if moved {
             let id = el.id;
             let bounds = Rect::new(x, y, x + w, y + h);
-            self.apply_merging(
-                "Resize",
-                format!("bounds:{id}"),
-                vec![Command::Set {
-                    id,
-                    prop: Prop::Bounds(bounds),
-                }],
-            );
+            let planned = if shape.network_container.is_some() {
+                if x != b.x0 || y != b.y0 {
+                    let target = match el.parent {
+                        bp_model::Parent::Element(parent)
+                            if self.doc.elements[&parent].network_container().is_some() =>
+                        {
+                            Some(parent)
+                        }
+                        _ => None,
+                    };
+                    bp_commands::network::drop(
+                        &self.doc,
+                        &[id],
+                        target,
+                        bounds.origin() - b.origin(),
+                    )
+                } else {
+                    bp_commands::network::resize(&self.doc, id, bounds)
+                }
+            } else {
+                bp_commands::network::validate_bounds(&self.doc, id, bounds).map(|()| {
+                    vec![Command::Set {
+                        id,
+                        prop: Prop::Bounds(bounds),
+                    }]
+                })
+            };
+            match planned {
+                Ok(commands) => self.apply_merging("Resize", format!("bounds:{id}"), commands),
+                Err(error) => self.status = error.to_string(),
+            }
         }
         ui.add_space(6.0);
     }

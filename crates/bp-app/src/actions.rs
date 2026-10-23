@@ -177,6 +177,10 @@ impl BlueprintApp {
             }
             return;
         }
+        if let Err(error) = bp_commands::network::can_move(&self.doc, &ids) {
+            self.status = error.to_string();
+            return;
+        }
         self.editing = None;
         let commands = edit::remove(&self.doc, &ids);
         if self.apply("Delete", commands) {
@@ -270,6 +274,39 @@ impl BlueprintApp {
         };
         let parent = self.insert_parent();
         let (roots, commands) = clip.paste(&self.doc, parent, offset);
+        let network_context = clip
+            .elements
+            .iter()
+            .any(|element| element.network_container().is_some())
+            || match parent {
+                Parent::Element(id) => std::iter::once(id)
+                    .chain(self.doc.ancestors(id))
+                    .any(|id| self.doc.elements[&id].network_container().is_some()),
+                Parent::Layer(_) => false,
+            };
+        if network_context {
+            let mut staged = self.doc.clone();
+            let validation = (|| -> Result<(), String> {
+                for command in &commands {
+                    command
+                        .clone()
+                        .apply(&mut staged)
+                        .map_err(|error| error.to_string())?;
+                }
+                staged.validate().map_err(|error| error.to_string())?;
+                let inserted: Vec<_> = roots
+                    .iter()
+                    .copied()
+                    .flat_map(|id| std::iter::once(id).chain(staged.descendants(id)))
+                    .collect();
+                bp_commands::network::validate_layout(&staged, &inserted)
+                    .map_err(|error| error.to_string())
+            })();
+            if let Err(error) = validation {
+                self.status = format!("Cannot paste here: {error}");
+                return;
+            }
+        }
         if self.apply("Paste", commands) {
             self.selection = roots;
             // The next paste goes beside this one.
@@ -290,6 +327,14 @@ impl BlueprintApp {
 
     pub fn group_selection(&mut self) {
         let ids = self.editable_selection();
+        if ids
+            .iter()
+            .any(|id| self.doc.elements[id].network_container().is_some())
+        {
+            self.status =
+                "Network containers keep their own hierarchy; group their services instead.".into();
+            return;
+        }
         if ids.len() < 2 {
             return;
         }
@@ -323,13 +368,13 @@ impl BlueprintApp {
     pub fn align(&mut self, how: Align) {
         let ids = self.editable_selection();
         let commands = edit::align(&self.doc, &ids, how);
-        self.apply("Align", commands);
+        self.apply_layout("Align", commands, false);
     }
 
     pub fn distribute(&mut self, horizontal: bool) {
         let ids = self.editable_selection();
         let commands = edit::distribute(&self.doc, &ids, horizontal);
-        self.apply("Distribute", commands);
+        self.apply_layout("Distribute", commands, false);
     }
 
     /// Locks the selection, or unlocks it if everything is locked already.
@@ -373,7 +418,52 @@ impl BlueprintApp {
     pub fn nudge(&mut self, dx: f64, dy: f64) {
         let ids = self.editable_selection();
         let commands = edit::translate(&self.doc, &ids, Vec2::new(dx, dy));
-        self.apply_merging("Nudge", "nudge".into(), commands);
+        self.apply_layout("Nudge", commands, true);
+    }
+
+    /// Keyboard and arrange edits keep the same boundary constraints as drops,
+    /// while preserving their existing membership.
+    fn apply_layout(&mut self, label: &str, commands: Vec<Command>, merge: bool) {
+        if commands.is_empty() {
+            return;
+        }
+        let has_network = self.selection.iter().any(|id| {
+            std::iter::once(*id)
+                .chain(self.doc.ancestors(*id))
+                .chain(self.doc.descendants(*id))
+                .any(|id| self.doc.elements[&id].network_container().is_some())
+        });
+        let validate = || -> Result<(), String> {
+            bp_commands::network::can_move(&self.doc, &self.selection)
+                .map_err(|error| error.to_string())?;
+            if !has_network {
+                return Ok(());
+            }
+            let mut staged = self.doc.clone();
+            let mut moved = Vec::new();
+            for command in &commands {
+                if let Command::Set {
+                    id,
+                    prop: Prop::Bounds(_),
+                } = command
+                {
+                    moved.push(*id);
+                }
+                command
+                    .clone()
+                    .apply(&mut staged)
+                    .map_err(|error| error.to_string())?;
+            }
+            bp_commands::network::validate_layout(&staged, &moved)
+                .map_err(|error| error.to_string())
+        };
+        match validate() {
+            Ok(()) if merge => self.apply_merging(label, label.into(), commands),
+            Ok(()) => {
+                self.apply(label, commands);
+            }
+            Err(error) => self.status = error,
+        }
     }
 
     /// Sets a property on every selected element that has it.
@@ -919,7 +1009,9 @@ impl BlueprintApp {
     /// Escape backs out one level: a drag, the tool, the selection, then
     /// the group being edited.
     pub fn escape(&mut self) {
-        if self.drag.is_active() {
+        if self.palette.dragging.take().is_some() {
+            self.status = "Insertion canceled".into();
+        } else if self.drag.is_active() {
             self.cancel_drag();
         } else if self.tool != Tool::Select {
             self.tool = Tool::Select;

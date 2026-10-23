@@ -70,6 +70,256 @@ fn texts(scene: &Scene) -> Vec<String> {
         .collect()
 }
 
+fn network(
+    p: &mut Page,
+    kind: bp_model::NetworkContainer,
+    parent: Parent,
+    bounds: Rect,
+    name: &str,
+) -> ElementId {
+    let mut element = Element::shape(
+        ShapeRef::new("aws", "network-boundary"),
+        parent,
+        p.doc.next_order_key(parent),
+        bounds,
+    );
+    let shape = element.as_shape_mut().unwrap();
+    shape.text = name.into();
+    shape.network_container = Some(kind);
+    shape.infrastructure = Some(match kind {
+        bp_model::NetworkContainer::Vpc => bp_model::AwsResource::Vpc {
+            cidr: "10.0.0.0/16".into(),
+        },
+        bp_model::NetworkContainer::Subnet => bp_model::AwsResource::Subnet {
+            vpc: match parent {
+                Parent::Element(id) => Some(id),
+                _ => None,
+            },
+            cidr: "10.0.1.0/24".into(),
+            availability_zone: "us-east-1a".into(),
+        },
+    });
+    p.add(element)
+}
+
+#[test]
+fn network_headers_and_borders_are_pickable_and_empty_content_is_not() {
+    use bp_model::NetworkContainer::{Subnet, Vpc};
+    let mut p = Page::new();
+    let layer = p.layer;
+    let vpc = network(
+        &mut p,
+        Vpc,
+        layer,
+        Rect::new(0.0, 0.0, 960.0, 520.0),
+        "Production VPC",
+    );
+    let subnet = network(
+        &mut p,
+        Subnet,
+        Parent::Element(vpc),
+        Rect::new(20.0, 80.0, 460.0, 440.0),
+        "Private subnet",
+    );
+    let service = p.shape(
+        "basic/rectangle",
+        Rect::new(60.0, 180.0, 180.0, 240.0),
+        "API",
+    );
+    p.doc.elements.get_mut(&service).unwrap().parent = Parent::Element(subnet);
+    let scene = p.build();
+    let g = scene.shape(subnet).unwrap();
+    let layout = g.network_container.as_ref().unwrap();
+    assert_eq!(layout.header, Subnet.header_rect(g.bounds));
+    assert_eq!(layout.content, Subnet.content_rect(g.bounds));
+    assert_eq!(scene.hit(Point::new(100.0, 30.0), 3.0, |_| true), Some(vpc));
+    assert_eq!(
+        scene.hit(Point::new(100.0, 100.0), 3.0, |_| true),
+        Some(subnet)
+    );
+    assert_eq!(
+        scene.hit(Point::new(20.0, 280.0), 3.0, |_| true),
+        Some(subnet)
+    );
+    assert_eq!(
+        scene.hit(Point::new(120.0, 210.0), 3.0, |_| true),
+        Some(service)
+    );
+    assert_eq!(scene.hit(Point::new(300.0, 280.0), 3.0, |_| true), None);
+    assert_eq!(scene.hit(Point::new(700.0, 280.0), 3.0, |_| true), None);
+    let labels = texts(&scene);
+    assert!(labels.contains(&"Production VPC".into()));
+    assert!(labels.contains(&"10.0.1.0/24  ·  us-east-1a".into()));
+    assert!(
+        !scene
+            .list
+            .items()
+            .any(|item| item.element == vpc && matches!(item.primitive, Primitive::Icon { .. }))
+    );
+}
+
+#[test]
+fn all_network_boundaries_paint_before_services_and_cross_boundary_connectors() {
+    use bp_model::NetworkContainer::{Subnet, Vpc};
+    let mut p = Page::new();
+    let layer = p.layer;
+    let vpc = network(&mut p, Vpc, layer, Rect::new(0.0, 0.0, 960.0, 520.0), "VPC");
+    let first = network(
+        &mut p,
+        Subnet,
+        Parent::Element(vpc),
+        Rect::new(20.0, 80.0, 460.0, 440.0),
+        "First",
+    );
+    let service = p.shape(
+        "basic/rectangle",
+        Rect::new(60.0, 180.0, 180.0, 240.0),
+        "API",
+    );
+    p.doc.elements.get_mut(&service).unwrap().parent = Parent::Element(first);
+    let connector = p.connect(
+        Endpoint::glued(service, None),
+        Endpoint::Free(Point::new(700.0, 210.0)),
+    );
+    p.doc.elements.get_mut(&connector).unwrap().parent = Parent::Element(first);
+    let second = network(
+        &mut p,
+        Subnet,
+        Parent::Element(vpc),
+        Rect::new(480.0, 80.0, 920.0, 440.0),
+        "Second",
+    );
+    let scene = p.build();
+    let index = |id| {
+        scene
+            .order
+            .iter()
+            .position(|candidate| *candidate == id)
+            .unwrap()
+    };
+    assert!(index(vpc) < index(first));
+    assert!(index(first) < index(second));
+    assert!(index(second) < index(service));
+    assert!(index(second) < index(connector));
+    assert_eq!(
+        scene.hit(Point::new(650.0, 210.0), 3.0, |_| true),
+        Some(connector)
+    );
+}
+
+#[test]
+fn network_cache_tracks_theme_and_hierarchy_without_rebuilding_unchanged_services() {
+    use bp_model::NetworkContainer::{Subnet, Vpc};
+    let mut p = Page::new();
+    let layer = p.layer;
+    let vpc = network(&mut p, Vpc, layer, Rect::new(0.0, 0.0, 960.0, 520.0), "VPC");
+    let subnet = network(
+        &mut p,
+        Subnet,
+        Parent::Element(vpc),
+        Rect::new(20.0, 80.0, 460.0, 440.0),
+        "Subnet",
+    );
+    let service = p.shape(
+        "basic/rectangle",
+        Rect::new(60.0, 180.0, 180.0, 240.0),
+        "API",
+    );
+    let mut cache = SceneCache::default();
+    let first = cache.build(&p.doc, p.page, Libraries::builtin());
+    let light = first.shape(vpc).unwrap().style.text_color;
+    drop(first);
+    p.doc.pages.get_mut(&p.page).unwrap().background = Color::rgb(21, 27, 34);
+    let dark = cache.build(&p.doc, p.page, Libraries::builtin());
+    assert_eq!(
+        cache.rebuilt, 2,
+        "only the boundaries depend on the page palette"
+    );
+    assert_ne!(light, dark.shape(vpc).unwrap().style.text_color);
+    assert!(dark.shape(vpc).unwrap().style.text_color.r > 180);
+    drop(dark);
+    p.doc.elements.get_mut(&service).unwrap().parent = Parent::Element(subnet);
+    let moved = cache.build(&p.doc, p.page, Libraries::builtin());
+    assert_eq!(
+        cache.rebuilt, 0,
+        "absolute-coordinate reparenting only changes paint order"
+    );
+    assert_eq!(
+        moved.hit(Point::new(100.0, 210.0), 3.0, |_| true),
+        Some(service)
+    );
+}
+
+#[test]
+fn converted_networks_use_kind_and_theme_presentation_over_legacy_shape_overrides() {
+    use bp_model::NetworkContainer::{Subnet, Vpc};
+    for background in [Color::WHITE, Color::rgb(21, 27, 34)] {
+        for kind in [Vpc, Subnet] {
+            let mut p = Page::new();
+            p.doc.pages.get_mut(&p.page).unwrap().background = background;
+            let layer = p.layer;
+            let id = network(
+                &mut p,
+                kind,
+                layer,
+                Rect::new(0.0, 0.0, 960.0, 520.0),
+                "Converted resource",
+            );
+            let expected = p.build().shape(id).unwrap().style.clone();
+            let shape = p.doc.elements.get_mut(&id).unwrap().as_shape_mut().unwrap();
+            shape.style = bp_model::Style {
+                fill: Some(Paint::Color(Color::rgb(255, 0, 0))),
+                stroke: Some(Paint::Color(Color::BLACK)),
+                text_color: Some(Color::rgb(255, 255, 0)),
+                stroke_width: Some(12.0),
+                corner_radius: Some(60.0),
+                font_size: Some(80.0),
+                bold: Some(true),
+                opacity: Some(0.7),
+                ..bp_model::Style::default()
+            };
+            let saved_overrides = shape.style.clone();
+            let scene = p.build();
+            let actual = &scene.shape(id).unwrap().style;
+            assert_eq!(actual.fill, expected.fill);
+            assert_eq!(actual.stroke, expected.stroke);
+            assert_eq!(actual.text_color, expected.text_color);
+            assert_eq!(actual.font_size, expected.font_size);
+            assert_eq!(actual.stroke_width, expected.stroke_width);
+            assert_eq!(actual.corner_radius, expected.corner_radius);
+            assert_eq!(actual.opacity, 0.7);
+            assert_eq!(
+                p.doc.elements[&id].as_shape().unwrap().style,
+                saved_overrides
+            );
+        }
+    }
+}
+
+#[test]
+fn a_group_footprint_includes_reordered_container_descendants_and_service_labels() {
+    let mut p = Page::new();
+    let group = p.add(Element::group(p.layer, OrderKey::first()));
+    let vpc = network(
+        &mut p,
+        bp_model::NetworkContainer::Vpc,
+        Parent::Element(group),
+        Rect::new(0.0, 0.0, 960.0, 520.0),
+        "VPC",
+    );
+    let cloud = p.shape(
+        "aws/lambda",
+        Rect::new(1000.0, 0.0, 1096.0, 96.0),
+        "A long service label that wraps into several lines below the icon",
+    );
+    p.doc.elements.get_mut(&cloud).unwrap().parent = Parent::Element(group);
+    let scene = p.build();
+    let group_bounds = scene.footprint_of(group).unwrap();
+    assert!(group_bounds.contains_rect(scene.footprint_of(vpc).unwrap()));
+    assert!(group_bounds.contains_rect(scene.footprint_of(cloud).unwrap()));
+    assert!(scene.footprint_of(cloud).unwrap().y1 > scene.bounds_of(cloud).unwrap().y1);
+}
+
 #[test]
 fn smart_tables_draw_typed_rows_and_expand_to_fit() {
     let mut p = Page::new();

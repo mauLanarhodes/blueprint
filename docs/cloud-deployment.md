@@ -44,6 +44,13 @@ permissions are separate from your local deployment identity's permissions.
    sibling subnets. You can specify an availability zone or let AWS choose it.
    These subnets do not assign public IPs; Blueprint does not create an internet
    gateway or NAT gateway.
+   The starter uses nested VPC/subnet boundaries. Dragging a service into a
+   subnet changes diagram placement only; it does not add VPC settings, routing
+   or permissions to that service. Dragging a configured subnet to another VPC,
+   or choosing its VPC in the inspector, validates the CIDRs and updates both
+   the visual parent and deployment dependency together. This requires a new
+   reviewed plan and may replace the deployed subnet. See
+   [network containers](aws-network-containers.md) for editing and conversion.
 3. Click **AWS deployment…** in the toolbar or File menu. Enter the
    AWS account ID, region, and optional local profile name. Choose a parent
    deployment folder. Blueprint creates `blueprint-PAGE_ID` beneath it.
